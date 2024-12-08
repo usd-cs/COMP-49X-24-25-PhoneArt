@@ -8,12 +8,12 @@
 import SwiftUI
 
 /// A view that displays a draggable canvas with coordinate axes and a red circle.
-/// The canvas can be moved around the screen and reset to its original position using a button.
-/// The canvas includes:
-/// - A coordinate system with X and Y axes
-/// - A red circle positioned above the origin
-/// - Drag gesture support for moving the canvas
-/// - A reset button to return to center position
+/// The canvas can be moved around the screen and reset to its original position.
+/// Features:
+/// - Draggable canvas with bounce effects
+/// - Coordinate system with X and Y axes
+/// - Properties panel for shape manipulation
+/// - Reset position functionality
 struct CanvasView: View {
     // MARK: - Properties
     
@@ -29,29 +29,39 @@ struct CanvasView: View {
         height: (UIScreen.main.bounds.height - 900) / 2
     )
     
+    /// Properties panel visibility state
+    @State private var showProperties = false
+    
+    /// Shape transformation properties
+    @State private var shapeRotation: Double = 0
+    @State private var shapeScale: Double = 1.0
+    @State private var shapeLayer: Double = 0
+    
+    /// Computed vertical offset for the canvas when properties panel is shown
+    private var canvasVerticalOffset: CGFloat {
+        showProperties ? -UIScreen.main.bounds.height / 6 : 0
+    }
+    
     // MARK: - Body
     var body: some View {
         ZStack {
-            // Canvas that displays the coordinate axes and red circle
             GeometryReader { geometry in
                 Canvas { context, size in
                     drawCoordinateAxes(context: context, size: size)
                     drawRedCircle(context: context, size: size)
                 }
                 .accessibilityIdentifier("Canvas")
-                // Fixed size canvas
                 .frame(width: 800, height: 900)
                 .border(Color.black, width: 2)
-                // Drag gesture support
                 .gesture(
                     DragGesture()
                         .onChanged(handleDragChange)
                         .onEnded(handleDragEnd)
                 )
-                .offset(x: offset.width, y: offset.height)
+                .offset(x: offset.width, y: offset.height + canvasVerticalOffset)
+                .animation(.spring(), value: showProperties)
             }
             
-            // Fixed position reset button in top-right corner
             VStack {
                 HStack {
                     Spacer()
@@ -59,31 +69,66 @@ struct CanvasView: View {
                 }
                 Spacer()
             }
-            .zIndex(2)
+            
+            VStack {
+                Spacer()
+                HStack(spacing: 0) {
+                    makePropertiesButton()
+                    Spacer()
+                    Button(action: {
+                        withAnimation(.spring()) {
+                            showProperties = false
+                        }
+                    }) {
+                        Rectangle()
+                            .foregroundColor(.white)
+                            .frame(width: 60, height: 60)
+                            .cornerRadius(8)
+                            .overlay(
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.blue)
+                            )
+                            .shadow(radius: 2)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 20)
+            }
+            
+            if showProperties {
+                VStack {
+                    Spacer()
+                    PropertiesPanel(
+                        rotation: $shapeRotation,
+                        scale: $shapeScale,
+                        layer: $shapeLayer,
+                        isShowing: $showProperties
+                    )
+                    .transition(.move(edge: .bottom))
+                }
+                .zIndex(3)
+            }
         }
         .ignoresSafeArea()
     }
     
     // MARK: - Drawing Methods
     
-    /// Draws the x and y coordinate axes on the canvas.
-    /// The axes intersect at the center of the canvas, creating four quadrants.
+    /// Draws the coordinate axes on the canvas
     /// - Parameters:
     ///   - context: The graphics context to draw in
     ///   - size: The size of the canvas
     private func drawCoordinateAxes(context: GraphicsContext, size: CGSize) {
         var path = Path()
-        // X-axis
         path.move(to: CGPoint(x: 0, y: size.height/2))
         path.addLine(to: CGPoint(x: size.width, y: size.height/2))
-        // Y-axis
         path.move(to: CGPoint(x: size.width/2, y: 0))
         path.addLine(to: CGPoint(x: size.width/2, y: size.height))
         context.stroke(path, with: .color(.gray), lineWidth: 1)
     }
     
-    /// Draws a red circle on the canvas positioned above the origin point.
-    /// The circle has a fixed radius and is centered horizontally above the axes intersection.
+    /// Draws a red circle on the canvas above the origin point
     /// - Parameters:
     ///   - context: The graphics context to draw in
     ///   - size: The size of the canvas
@@ -101,9 +146,8 @@ struct CanvasView: View {
     
     // MARK: - Gesture Handlers
     
-    /// Handles continuous updates during drag gesture.
-    /// Updates the canvas position with smooth animation as the user drags.
-    /// - Parameter value: The current drag gesture value containing translation information
+    /// Handles continuous updates during drag gesture
+    /// - Parameter value: The current drag gesture value
     private func handleDragChange(value: DragGesture.Value) {
         withAnimation(.interactiveSpring(
             response: 0.15,
@@ -115,16 +159,14 @@ struct CanvasView: View {
         }
     }
     
-    /// Handles the end of drag gesture with bounce effect and bounds checking.
-    /// Ensures the canvas stays within screen bounds and adds a subtle bounce animation.
-    /// - Parameter value: The final drag gesture value containing the final translation
+    /// Handles the end of drag gesture with bounce effect and bounds checking
+    /// - Parameter value: The final drag gesture value
     private func handleDragEnd(value: DragGesture.Value) {
         var finalOffset = CGSize(
             width: value.translation.width + lastOffset.width,
             height: value.translation.height + lastOffset.height
         )
         
-        // Calculate maximum allowed offsets based on screen bounds
         let maxOffsetX = UIScreen.main.bounds.width - 800
         let maxOffsetY = UIScreen.main.bounds.height - 900
         
@@ -139,7 +181,6 @@ struct CanvasView: View {
                 height: finalOffset.height * bounceMultiplier
             )
             
-            // Constrain the offset within screen bounds
             finalOffset.width = max(min(bouncedOffset.width, 0), maxOffsetX)
             finalOffset.height = max(min(bouncedOffset.height, 0), maxOffsetY)
             offset = finalOffset
@@ -148,8 +189,7 @@ struct CanvasView: View {
         lastOffset = offset
     }
     
-    /// Resets the canvas position to the center of the screen with a spring animation.
-    /// This provides a smooth transition back to the initial centered position.
+    /// Resets the canvas position to the center of the screen
     private func resetPosition() {
         withAnimation(.spring(
             response: 0.8,
@@ -164,9 +204,9 @@ struct CanvasView: View {
         }
     }
     
-    /// Creates a blue reset button with a system icon.
-    /// The button is positioned in the top-right corner and triggers the reset animation when tapped.
-    /// - Returns: A customized button view with a blue background and white icon
+    // MARK: - UI Components
+    
+    /// Creates the reset position button
     private func makeResetButton() -> some View {
         Button(action: resetPosition) {
             Rectangle()
@@ -182,5 +222,28 @@ struct CanvasView: View {
         .accessibilityIdentifier("Reset Position")
         .padding(.top, 50)
         .padding(.trailing)
+    }
+    
+    /// Creates the properties panel toggle button
+    private func makePropertiesButton() -> some View {
+        Button(action: {
+            withAnimation(.spring()) {
+                showProperties.toggle()
+            }
+        }) {
+            VStack {
+                Rectangle()
+                    .foregroundColor(.white)
+                    .frame(width: 60, height: 60)
+                    .cornerRadius(8)
+                    .overlay(
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 24))
+                            .foregroundColor(.blue)
+                    )
+                    .shadow(radius: 2)
+            }
+        }
+        .accessibilityIdentifier("Properties Button")
     }
 }
