@@ -60,7 +60,6 @@ struct CanvasView: View {
         ZStack {
             GeometryReader { geometry in
                 Canvas { context, size in
-                    drawCoordinateAxes(context: context, size: size)
                     drawRedCircle(context: context, size: size)
                 }
                 .accessibilityIdentifier("Canvas")
@@ -124,21 +123,6 @@ struct CanvasView: View {
             }
         }
         .ignoresSafeArea()
-    }
-    
-    // MARK: - Drawing Methods
-    
-    /// Draws the coordinate axes on the canvas
-    /// - Parameters:
-    ///   - context: The graphics context to draw in
-    ///   - size: The size of the canvas
-    private func drawCoordinateAxes(context: GraphicsContext, size: CGSize) {
-        var path = Path()
-        path.move(to: CGPoint(x: 0, y: size.height/2))
-        path.addLine(to: CGPoint(x: size.width, y: size.height/2))
-        path.move(to: CGPoint(x: size.width/2, y: 0))
-        path.addLine(to: CGPoint(x: size.width/2, y: size.height))
-        context.stroke(path, with: .color(.gray), lineWidth: 1)
     }
     
     /// Draws a red circle on the canvas above the origin point

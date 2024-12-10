@@ -9,21 +9,26 @@ import XCTest
 import SwiftUI
 @testable import COMP_49X_24_25_PhoneArt
 
+/// Test suite for the PropertiesPanel component
 final class PropertiesPanelTests: XCTestCase {
     
+    // Properties for testing
     var rotation: Double!
     var scale: Double!
     var layer: Double!
     var isShowing: Bool!
     var sut: PropertiesPanel!
     
+    /// Sets up the test environment before each test method is called
     override func setUp() {
         super.setUp()
+        // Initialize properties with default values
         rotation = 180.0
         scale = 1.5
         layer = 50.0
         isShowing = true
         
+        // Initialize the system under test (sut) with the properties
         sut = PropertiesPanel(
             rotation: .constant(rotation),
             scale: .constant(scale),
@@ -32,7 +37,9 @@ final class PropertiesPanelTests: XCTestCase {
         )
     }
     
+    /// Cleans up the test environment after each test method is called
     override func tearDown() {
+        // Deallocate properties and sut
         rotation = nil
         scale = nil
         layer = nil
@@ -41,30 +48,31 @@ final class PropertiesPanelTests: XCTestCase {
         super.tearDown()
     }
     
-    /// Test initial values
+    /// Tests the initial values of the properties
     func testInitialValues() {
+        // Verify that the initial values are set correctly
         XCTAssertEqual(rotation, 180.0)
         XCTAssertEqual(scale, 1.5)
         XCTAssertEqual(layer, 50.0)
         XCTAssertTrue(isShowing)
     }
     
-    /// Test value formatting
+    /// Tests the formatting of the property values
     func testValueFormatting() {
         // Test rotation formatting
-        let rotationText = "\(Int(rotation))°"
-        XCTAssertEqual(rotationText, "180°")
+        let rotationText = sut.testRotationText
+        XCTAssertEqual(rotationText, "180")
         
         // Test scale formatting
-        let scaleText = String(format: "%.1fx", scale)
-        XCTAssertEqual(scaleText, "1.5x")
+        let scaleText = sut.testScaleText
+        XCTAssertEqual(scaleText, "1.5")
         
         // Test layer formatting
-        let layerText = "\(Int(layer))"
+        let layerText = sut.testLayerText
         XCTAssertEqual(layerText, "50")
     }
     
-    /// Test value ranges
+    /// Tests the valid ranges of the property values
     func testValueRanges() {
         // Test rotation range (0-360)
         XCTAssertTrue((0...360).contains(rotation))
@@ -76,7 +84,7 @@ final class PropertiesPanelTests: XCTestCase {
         XCTAssertTrue((0...360).contains(layer))
     }
     
-    /// Test invalid values
+    /// Tests the handling of invalid property values
     func testInvalidValues() {
         // Test rotation bounds
         let invalidRotation = max(0, min(400, 360))
@@ -90,4 +98,5 @@ final class PropertiesPanelTests: XCTestCase {
         let invalidLayer = max(0, min(-5, 360))
         XCTAssertEqual(invalidLayer, 0)
     }
+    
 }
