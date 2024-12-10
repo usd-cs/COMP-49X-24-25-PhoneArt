@@ -37,6 +37,19 @@ struct CanvasView: View {
     @State private var shapeScale: Double = 1.0
     @State private var shapeLayer: Double = 0
     
+    private func validateLayerCount(_ count: Int) -> Int {
+        max(0, min(360, count))
+    }
+    
+    private func validateScale(_ scale: Double) -> Double {
+        max(0.5, min(2.0, scale))
+    }
+    
+    private func validateRotation(_ rotation: Double) -> Double {
+        max(0.0, min(360.0, rotation))
+    }
+
+    
     /// Computed vertical offset for the canvas when properties panel is shown
     private var canvasVerticalOffset: CGFloat {
         showProperties ? -UIScreen.main.bounds.height / 6 : 0
@@ -133,17 +146,112 @@ struct CanvasView: View {
     ///   - context: The graphics context to draw in
     ///   - size: The size of the canvas
     private func drawRedCircle(context: GraphicsContext, size: CGSize) {
-        let circleRadius = 30
-        context.fill(
-            Path(ellipseIn: CGRect(
-                x: size.width/2 - CGFloat(circleRadius),
-                y: size.height/2 - CGFloat(circleRadius * 2),
-                width: CGFloat(circleRadius * 2),
-                height: CGFloat(circleRadius * 2))),
-            with: .color(.red)
-        )
+        let circleRadius = 30.0
+        let centerX = size.width/2
+        let centerY = size.height/2
+                
+        let numberOfLayers = max(0, min(360, Int(shapeLayer)))
+        if numberOfLayers > 0 {
+            drawLayers(
+                context: context,
+                layers: numberOfLayers,
+                center: CGPoint(x: centerX, y: centerY),
+                radius: circleRadius
+            )
+        }
     }
     
+    /// Draws multiple layers of shapes with cumulative rotation
+    /// - Parameters:
+    ///   - context: The graphics context to draw in
+    ///   - layers: Number of layers to draw
+    ///   - center: Center point for rotation
+    ///   - radius: Radius of the circle
+    private func drawLayers(
+        context: GraphicsContext,
+        layers: Int,
+        center: CGPoint,
+        radius: Double
+    ) {
+        for layerIndex in 0..<layers {
+            drawSingleLayer(
+                context: context,
+                layerIndex: layerIndex,
+                center: center,
+                radius: radius
+            )
+        }
+    }
+    
+    /// Draws a single layer with appropriate rotation and opacity
+    /// - Parameters:
+    ///   - context: The graphics context to draw in
+    ///   - layerIndex: Current layer number (0 is base layer)
+    ///   - center: Center point for rotation
+    ///   - radius: Radius of the circle
+    private func drawSingleLayer(
+        context: GraphicsContext,
+        layerIndex: Int,
+        center: CGPoint,
+        radius: Double
+    ) {
+        var layerContext = context
+        
+        // Apply rotation based on layer position
+        let cumulativeRotation = shapeRotation * Double(layerIndex)
+        applyTransformation(
+            to: &layerContext,
+            center: center,
+            rotation: cumulativeRotation
+        )
+        
+        // Draw the shape
+        let safeScale = max(0.5, min(2.0, shapeScale))
+        let circlePath = createCirclePath(
+            center: center,
+            radius: radius,
+            scale: safeScale
+        )
+        
+        // Base layer is solid, others are semi-transparent
+        let opacity = layerIndex == 0 ? 1.0 : 0.5
+        layerContext.fill(circlePath, with: .color(.red.opacity(opacity)))
+    }
+    
+    /// Applies rotation transformation around a center point
+    /// - Parameters:
+    ///   - context: Graphics context to transform
+    ///   - center: Point to rotate around
+    ///   - rotation: Rotation angle in degrees
+    private func applyTransformation(
+        to context: inout GraphicsContext,
+        center: CGPoint,
+        rotation: Double
+    ) {
+        context.translateBy(x: center.x, y: center.y)
+        context.rotate(by: .degrees(rotation))
+        context.translateBy(x: -center.x, y: -center.y)
+    }
+    
+    /// Creates a circular path with specified parameters
+    /// - Parameters:
+    ///   - center: Center point of the circle
+    ///   - radius: Base radius before scaling
+    ///   - scale: Scale factor to apply
+    /// - Returns: Path describing the circle
+    private func createCirclePath(
+        center: CGPoint,
+        radius: Double,
+        scale: Double
+    ) -> Path {
+        Path(ellipseIn: CGRect(
+            x: center.x - radius,
+            y: center.y - (radius * 2),
+            width: radius * 2 * scale,
+            height: radius * 2 * scale
+        ))
+    }
+
     // MARK: - Gesture Handlers
     
     /// Handles continuous updates during drag gesture
@@ -247,3 +355,4 @@ struct CanvasView: View {
         .accessibilityIdentifier("Properties Button")
     }
 }
+
