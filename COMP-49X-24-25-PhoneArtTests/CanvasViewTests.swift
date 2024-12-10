@@ -9,19 +9,22 @@ import XCTest
 import SwiftUI
 @testable import COMP_49X_24_25_PhoneArt
 
-/// Test suite for the CanvasView component
+/// Test suite for the CanvasView component that verifies the core functionality
+/// of shape manipulation, validation, and path creation.
 final class CanvasViewTests: XCTestCase {
   
    /// System Under Test (SUT)
    var sut: CanvasView!
   
-   /// Sets up the test environment before each test method is called
+   /// Sets up the test environment before each test method is called by creating
+   /// a fresh instance of CanvasView
    override func setUp() {
        super.setUp()
        sut = CanvasView()
    }
   
-   /// Cleans up the test environment after each test method is called
+   /// Cleans up the test environment after each test method is called by
+   /// releasing the CanvasView instance
    override func tearDown() {
        sut = nil
        super.tearDown()
@@ -29,7 +32,11 @@ final class CanvasViewTests: XCTestCase {
   
    // MARK: - Circle Path Tests
   
-   /// Tests the creation of a circular path
+   /// Tests the creation of a circular path by verifying:
+   /// - The path is not empty when created
+   /// - The path's bounding rectangle has the expected dimensions based on radius and scale
+   /// - The width and height are equal (circle is not distorted)
+   /// - The path is centered at the specified coordinates
    func testCreateCirclePath() {
        // Given: A center point, radius, and scale
        let center = CGPoint(x: 100, y: 100)
@@ -52,7 +59,12 @@ final class CanvasViewTests: XCTestCase {
   
    // MARK: - Layer Tests
   
-   /// Tests the validation of layer count
+   /// Tests the layer count validation logic by verifying:
+   /// - Negative values are clamped to 0
+   /// - Values within range (0-360) remain unchanged
+   /// - Values above 360 are clamped to 360
+   /// - Edge cases (0 and 360) are handled correctly
+   /// This ensures proper z-index management for shape layering
    func testLayerCount() {
        // Given: A set of test cases with input and expected output
        let testCases = [
@@ -78,7 +90,12 @@ final class CanvasViewTests: XCTestCase {
   
    // MARK: - Scale Tests
   
-   /// Tests the validation of scale bounds
+   /// Tests the scale validation logic by verifying:
+   /// - Values below 0.5 are clamped to 0.5 (minimum scale)
+   /// - Values between 0.5 and 2.0 remain unchanged
+   /// - Values above 2.0 are clamped to 2.0 (maximum scale)
+   /// - Edge cases (0.5 and 2.0) are handled correctly
+   /// This ensures shapes maintain reasonable dimensions
    func testScaleBounds() {
        // Given: A set of test cases with input and expected output
        let testCases = [
@@ -104,7 +121,12 @@ final class CanvasViewTests: XCTestCase {
   
    // MARK: - Rotation Tests
   
-   /// Tests the validation of rotation bounds
+   /// Tests the rotation validation logic by verifying:
+   /// - Negative values are clamped to 0 degrees
+   /// - Values between 0 and 360 remain unchanged
+   /// - Values above 360 are clamped to 360 degrees
+   /// - Edge cases (0 and 360) are handled correctly
+   /// This ensures consistent rotation behavior within a full circle
    func testRotationBounds() {
        // Given: A set of test cases with input and expected output
        let testCases = [
@@ -132,6 +154,11 @@ final class CanvasViewTests: XCTestCase {
 // MARK: - Extensions for Testing
 extension CanvasView {
    /// Creates a circular path based on the given center, radius, and scale
+   /// - Parameters:
+   ///   - center: The center point of the circle
+   ///   - radius: The radius of the circle before scaling
+   ///   - scale: The scale factor to apply to the circle's dimensions
+   /// - Returns: A Path representing the circle with the specified properties
    func createCirclePath(center: CGPoint, radius: Double, scale: Double) -> Path {
        Path(ellipseIn: CGRect(
            x: center.x - radius,
@@ -141,17 +168,23 @@ extension CanvasView {
        ))
    }
   
-   /// Validates the layer count ensuring it is within the allowed range
+   /// Validates the layer count ensuring it is within the allowed range of 0 to 360
+   /// - Parameter count: The layer count to validate
+   /// - Returns: A validated layer count within the allowed range
    func validateLayerCount(_ count: Int) -> Int {
        max(0, min(360, count))
    }
   
-   /// Validates the scale ensuring it is within the allowed range
+   /// Validates the scale ensuring it is within the allowed range of 0.5 to 2.0
+   /// - Parameter scale: The scale value to validate
+   /// - Returns: A validated scale value within the allowed range
    func validateScale(_ scale: Double) -> Double {
        max(0.5, min(2.0, scale))
    }
   
-   /// Validates the rotation ensuring it is within the allowed range
+   /// Validates the rotation ensuring it is within the allowed range of 0 to 360 degrees
+   /// - Parameter rotation: The rotation value in degrees to validate
+   /// - Returns: A validated rotation value within the allowed range
    func validateRotation(_ rotation: Double) -> Double {
        max(0.0, min(360.0, rotation))
    }

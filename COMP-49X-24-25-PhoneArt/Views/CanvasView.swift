@@ -48,7 +48,6 @@ struct CanvasView: View {
     private func validateRotation(_ rotation: Double) -> Double {
         max(0.0, min(360.0, rotation))
     }
-
     
     /// Computed vertical offset for the canvas when properties panel is shown
     private var canvasVerticalOffset: CGFloat {
@@ -133,7 +132,7 @@ struct CanvasView: View {
         let circleRadius = 30.0
         let centerX = size.width/2
         let centerY = size.height/2
-                
+        
         let numberOfLayers = max(0, min(360, Int(shapeLayer)))
         if numberOfLayers > 0 {
             drawLayers(
@@ -235,7 +234,7 @@ struct CanvasView: View {
             height: radius * 2 * scale
         ))
     }
-
+    
     // MARK: - Gesture Handlers
     
     /// Handles continuous updates during drag gesture
@@ -339,4 +338,3 @@ struct CanvasView: View {
         .accessibilityIdentifier("Properties Button")
     }
 }
-
