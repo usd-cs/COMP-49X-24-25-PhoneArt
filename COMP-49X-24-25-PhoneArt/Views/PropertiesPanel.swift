@@ -251,3 +251,4 @@ extension PropertiesPanel {
        set { layerText = newValue }
    }
 }
+

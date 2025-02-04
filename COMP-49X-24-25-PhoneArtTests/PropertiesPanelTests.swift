@@ -12,7 +12,7 @@ import SwiftUI
 /// Test suite for the PropertiesPanel component
 final class PropertiesPanelTests: XCTestCase {
     
-    // Properties for testing
+    var sut: PropertiesPanel!
     var rotation: Double!
     var scale: Double!
     var layer: Double!
@@ -47,40 +47,87 @@ final class PropertiesPanelTests: XCTestCase {
         super.tearDown()
     }
     
-    /// Tests the initial values of the properties
+    // MARK: - Initial State Tests
+    
     func testInitialValues() {
-        // Verify that the initial values are set correctly
-        XCTAssertEqual(rotation, 180.0)
-        XCTAssertEqual(scale, 1.5)
-        XCTAssertEqual(layer, 50.0)
-        XCTAssertTrue(isShowing)
+        XCTAssertEqual(sut.rotation, rotation)
+        XCTAssertEqual(sut.scale, scale)
+        XCTAssertEqual(sut.layer, layer)
+        XCTAssertEqual(sut.isShowing, isShowing)
     }
     
-    /// Tests the formatting of the property values
-    func testValueFormatting() {
-        // Test rotation formatting
-        let rotationText = sut.testRotationText
-        XCTAssertEqual(rotationText, "180")
-        
-        // Test scale formatting
-        let scaleText = sut.testScaleText
-        XCTAssertEqual(scaleText, "1.5")
-        
-        // Test layer formatting
-        let layerText = sut.testLayerText
-        XCTAssertEqual(layerText, "50")
+    func testInitialTextFieldValues() {
+        XCTAssertEqual(sut.testRotationText, "\(Int(rotation))")
+        XCTAssertEqual(sut.testScaleText, String(format: "%.1f", scale))
+        XCTAssertEqual(sut.testLayerText, "\(Int(layer))")
     }
     
-    /// Tests the valid ranges of the property values
-    func testValueRanges() {
-        // Test rotation range (0-360)
-        XCTAssertTrue((0...360).contains(rotation))
+    // MARK: - Text Field Validation Tests
+    
+    func testRotationTextValidation() {
+        let testCases = [
+            (input: "0", expectedValue: 0.0),
+            (input: "360", expectedValue: 360.0),
+            (input: "-1", expectedValue: 360.0),
+            (input: "361", expectedValue: 360.0),
+            (input: "abc", expectedValue: 360.0)
+        ]
         
-        // Test scale range (0.5-2.0)
-        XCTAssertTrue((0.5...2.0).contains(scale))
+        for testCase in testCases {
+            sut.testRotationText = testCase.input
+            XCTAssertEqual(sut.rotation, testCase.expectedValue, "Failed for input: \(testCase.input)")
+        }
+    }
+    
+    func testScaleTextValidation() {
+        let testCases = [
+            (input: "0.5", expectedValue: 0.5),
+            (input: "1.0", expectedValue: 1.0),
+            (input: "2.0", expectedValue: 2.0),
+            (input: "0.4", expectedValue: 0.5),
+            (input: "2.1", expectedValue: 0.5),
+            (input: "abc", expectedValue: 0.5)
+        ]
         
-        // Test layer range (0-360)
-        XCTAssertTrue((0...360).contains(layer))
+        for testCasje in testCases {
+            sut.testScaleText = testCase.input
+            XCTAssertEqual(sut.scale, testCase.expectedValue, "Failed for input: \(testCase.input)")
+        }
+    }
+    
+    func testLayerTextValidation() {
+        let testCases = [
+            (input: "0", expectedValue: 0.0),
+            (input: "360", expectedValue: 360.0),
+            (input: "-1", expectedValue: 0),
+            (input: "361", expectedValue: 360),
+            (input: "abc", expectedValue: 360)
+        ]
+
+        for testCase in testCases {
+            sut.testLayerText = testCase.input
+            XCTAssertEqual(sut.layer, testCase.expectedValue, "Failed for input: \(testCase.input)")
+        }
+    }
+    
+    // MARK: - Slider Sync Tests
+    
+    func testRotationSliderSync() {
+        let testValues = [0.0, 90.0, 180.0, 270.0, 360.0]
+        
+        for value in testValues {
+            sut.rotation = value
+            XCTAssertEqual(sut.testRotationText, String(format: "%.0f", value))
+        }
+    }
+    
+    func testScaleSliderSync() {
+        let testValues = [0.5, 1.0, 1.5, 2.0]
+        
+        for value in testValues {
+            sut.scale = value
+            XCTAssertEqual(sut.testScaleText, String(format: "%.1f", value))
+        }
     }
     
     /// Tests the handling of invalid property values
@@ -88,6 +135,52 @@ final class PropertiesPanelTests: XCTestCase {
         // Test rotation bounds
         let invalidRotation = max(0, min(400, 360))
         XCTAssertEqual(invalidRotation, 360)
+        
+        for value in testValues {
+            sut.layer = value
+            XCTAssertEqual(sut.testLayerText, String(format: "%.0f", value))
+        }
+    }
+    
+    // MARK: - UI Element Tests
+    
+    func testVisibilityToggle() {
+        sut.isShowing = true
+        XCTAssertTrue(sut.isShowing)
+        
+        sut.isShowing = false
+        XCTAssertFalse(sut.isShowing)
+    }
+    
+    func testAccessibilityIdentifiers() {
+        let view = sut.body
+        
+        // Define expected identifiers
+        let expectedIdentifiers = [
+            "rotation-slider",
+            "scale-slider",
+            "layer-slider",
+            "properties-button",
+            "close-button"
+        ]
+        
+        // Get all accessibility identifiers from the view hierarchy
+        let viewIdentifiers = extractAccessibilityIdentifiers(from: view)
+        
+        // Verify each expected identifier exists
+        for identifier in expectedIdentifiers {
+            XCTAssertTrue(
+                viewIdentifiers.contains { $0.lowercased().contains(identifier) },
+                "Missing accessibility identifier: \(identifier)"
+            )
+        }
+    }
+    
+    // MARK: - Format Tests
+    
+    func testNumberFormatting() {
+        // Test rotation format (integer)
+        XCTAssertEqual(sut.testRotationText, "\(Int(rotation))")
         
         // Test scale format (one decimal place)
         XCTAssertEqual(sut.testScaleText, String(format: "%.1f", scale))
@@ -114,3 +207,4 @@ private func extractAccessibilityIdentifiers(from view: Any) -> Set<String> {
     }
     
 }
+

@@ -189,3 +189,4 @@ extension CanvasView {
        max(0.0, min(360.0, rotation))
    }
 }
+
