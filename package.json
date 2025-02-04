@@ -1,0 +1,31 @@
+{
+  "name": "phoneart",
+  "version": "1.0.0",
+  "description": "phoneart package",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/usd-cs/COMP-49X-24-25-PhoneArt.git"
+  },
+  "keywords": [
+    "ios",
+    "swift",
+    "art",
+    "mobile",
+    "phoneart",
+    "image",
+    "xcode"
+  ],
+  "author": "zletcher",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/usd-cs/COMP-49X-24-25-PhoneArt/issues"
+  },
+  "homepage": "https://github.com/usd-cs/COMP-49X-24-25-PhoneArt#readme"
+}
