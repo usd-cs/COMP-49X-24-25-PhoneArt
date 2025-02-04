@@ -37,6 +37,18 @@ struct CanvasView: View {
     @State private var shapeScale: Double = 1.0
     @State private var shapeLayer: Double = 0
     
+    private func validateLayerCount(_ count: Int) -> Int {
+        max(0, min(360, count))
+    }
+    
+    private func validateScale(_ scale: Double) -> Double {
+        max(0.5, min(2.0, scale))
+    }
+    
+    private func validateRotation(_ rotation: Double) -> Double {
+        max(0.0, min(360.0, rotation))
+    }
+    
     /// Computed vertical offset for the canvas when properties panel is shown
     private var canvasVerticalOffset: CGFloat {
         showProperties ? -UIScreen.main.bounds.height / 6 : 0
@@ -47,7 +59,6 @@ struct CanvasView: View {
         ZStack {
             GeometryReader { geometry in
                 Canvas { context, size in
-                    drawCoordinateAxes(context: context, size: size)
                     drawRedCircle(context: context, size: size)
                 }
                 .accessibilityIdentifier("Canvas")
@@ -111,21 +122,6 @@ struct CanvasView: View {
             }
         }
         .ignoresSafeArea()
-    }
-    
-    // MARK: - Drawing Methods
-    
-    /// Draws the coordinate axes on the canvas
-    /// - Parameters:
-    ///   - context: The graphics context to draw in
-    ///   - size: The size of the canvas
-    private func drawCoordinateAxes(context: GraphicsContext, size: CGSize) {
-        var path = Path()
-        path.move(to: CGPoint(x: 0, y: size.height/2))
-        path.addLine(to: CGPoint(x: size.width, y: size.height/2))
-        path.move(to: CGPoint(x: size.width/2, y: 0))
-        path.addLine(to: CGPoint(x: size.width/2, y: size.height))
-        context.stroke(path, with: .color(.gray), lineWidth: 1)
     }
     
     /// Draws a red circle on the canvas above the origin point

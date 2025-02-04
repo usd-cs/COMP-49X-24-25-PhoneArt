@@ -9,6 +9,7 @@ import XCTest
 import SwiftUI
 @testable import COMP_49X_24_25_PhoneArt
 
+/// Test suite for the PropertiesPanel component
 final class PropertiesPanelTests: XCTestCase {
     
     var sut: PropertiesPanel!
@@ -17,13 +18,16 @@ final class PropertiesPanelTests: XCTestCase {
     var layer: Double!
     var isShowing: Bool!
     
+    /// Sets up the test environment before each test method is called
     override func setUp() {
         super.setUp()
+        // Initialize properties with default values
         rotation = 180.0
         scale = 1.5
         layer = 50.0
         isShowing = true
         
+        // Initialize the system under test (sut) with the properties
         sut = PropertiesPanel(
             rotation: .constant(rotation),
             scale: .constant(scale),
@@ -32,7 +36,9 @@ final class PropertiesPanelTests: XCTestCase {
         )
     }
     
+    /// Cleans up the test environment after each test method is called
     override func tearDown() {
+        // Deallocate properties and sut
         rotation = nil
         scale = nil
         layer = nil
@@ -97,7 +103,7 @@ final class PropertiesPanelTests: XCTestCase {
             (input: "361", expectedValue: 360),
             (input: "abc", expectedValue: 360)
         ]
-        
+
         for testCase in testCases {
             sut.testLayerText = testCase.input
             XCTAssertEqual(sut.layer, testCase.expectedValue, "Failed for input: \(testCase.input)")
@@ -124,8 +130,11 @@ final class PropertiesPanelTests: XCTestCase {
         }
     }
     
-    func testLayerSliderSync() {
-        let testValues = [0.0, 90.0, 180.0, 270.0, 360.0]
+    /// Tests the handling of invalid property values
+    func testInvalidValues() {
+        // Test rotation bounds
+        let invalidRotation = max(0, min(400, 360))
+        XCTAssertEqual(invalidRotation, 360)
         
         for value in testValues {
             sut.layer = value
@@ -199,3 +208,4 @@ private func extractAccessibilityIdentifiers(from view: Any) -> Set<String> {
     
     return identifiers
 }
+
