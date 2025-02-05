@@ -1,0 +1,4 @@
+module PhoneArt {
+    header "/Users/zachary/Desktop/COMP-49X-24-25-PhoneArt/.build/arm64-apple-macosx/debug/PhoneArt.build/PhoneArt-Swift.h"
+    requires objc
+}
