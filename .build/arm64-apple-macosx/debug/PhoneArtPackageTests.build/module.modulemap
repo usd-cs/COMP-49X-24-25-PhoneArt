@@ -1,0 +1,4 @@
+module PhoneArtPackageTests {
+    header "/Users/zachary/Desktop/COMP-49X-24-25-PhoneArt/.build/arm64-apple-macosx/debug/PhoneArtPackageTests.build/PhoneArtPackageTests-Swift.h"
+    requires objc
+}

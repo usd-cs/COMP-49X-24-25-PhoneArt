@@ -1,0 +1,13 @@
+services:
+  swift-app:
+    build: .
+    volumes:
+      - .:/app
+      - build-cache:/app/.build  # Add a named volume for build cache
+    platform: linux/x86_64
+    environment:
+      - SWIFT_ENV=development
+    user: root
+
+volumes:
+  build-cache:  # Define the named volume 
