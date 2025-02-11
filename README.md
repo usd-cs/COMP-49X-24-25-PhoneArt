@@ -29,7 +29,7 @@ As of 12/10/2024, the following features are available:
 2. Open the project in Xcode (Version 15.0 or later recommended)
 3. Build and run the application on iOS 16.0+ devices or simulator
 
-## Usage
+## Usage 
 
 1. Launch the app to access the main canvas
 2. The canvas will be centered on the screen, and the user will be able to drag the canvas around.
