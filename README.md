@@ -1,6 +1,6 @@
 # PhoneArt - Interactive Art Creation App
 
-## Project Description
+## Project Description 
 
 PhoneArt is an innovative iOS application that enables users to create mesmerizing circular art patterns through an intuitive touch interface. The app features a dynamic canvas where users can manipulate geometric shapes by adjusting properties such as rotation, scale, and layering to produce unique artistic compositions.
 
