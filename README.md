@@ -5,7 +5,7 @@
 PhoneArt is an innovative iOS application that enables users to create mesmerizing circular art patterns through an intuitive touch interface. The app features a dynamic canvas where users can manipulate geometric shapes by adjusting properties such as rotation, scale, and layering to produce unique artistic compositions.
 
 ## Technologies Used
-
+ 
 - **Swift & SwiftUI** - Modern declarative UI framework for building the native iOS interface
 - **XCTest** - Comprehensive testing framework for unit and UI testing
 - **Xcode** - Primary development environment with integrated debugging and testing tools
