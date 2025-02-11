@@ -36,6 +36,9 @@ struct CanvasView: View {
     @State private var shapeRotation: Double = 0
     @State private var shapeScale: Double = 1.0
     @State private var shapeLayer: Double = 0
+    @State private var shapeSkewX: Double = 0
+    @State private var shapeSkewY: Double = 0
+    @State private var shapeSpread: Double = 0
     
     private func validateLayerCount(_ count: Int) -> Int {
         max(0, min(360, count))
@@ -48,6 +51,20 @@ struct CanvasView: View {
     private func validateRotation(_ rotation: Double) -> Double {
         max(0.0, min(360.0, rotation))
     }
+    
+     
+    private func validateSkewX(_ skewX: Double) -> Double {
+        max(0.0, min(100.0, skewX))
+    }
+     
+    private func validateSkewY(_ skewY: Double) -> Double {
+        max(0.0, min(100.0, skewY))
+    }
+     
+    private func validateSpread(_ spread: Double) -> Double {
+        max(0.0, min(100.0, spread))
+    }
+     
     
     /// Computed vertical offset for the canvas when properties panel is shown
     private var canvasVerticalOffset: CGFloat {
@@ -114,6 +131,9 @@ struct CanvasView: View {
                         rotation: $shapeRotation,
                         scale: $shapeScale,
                         layer: $shapeLayer,
+                        skewX: $shapeSkewX,
+                        skewY: $shapeSkewY,
+                        spread: $shapeSpread,
                         isShowing: $showProperties
                     )
                     .transition(.move(edge: .bottom))

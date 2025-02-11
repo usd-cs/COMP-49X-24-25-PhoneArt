@@ -12,18 +12,26 @@ import SwiftUI
 /// - Rotation (0-360 degrees)
 /// - Scale (0.5x-2.0x)
 /// - Layer count (0-360)
+/// - SkewX and SkewY (0-100)
+/// - Spread (0-100)
 struct PropertiesPanel: View {
    // MARK: - Properties
    
    @Binding var rotation: Double
    @Binding var scale: Double
    @Binding var layer: Double
+   @Binding var skewX: Double
+   @Binding var skewY: Double
+   @Binding var spread: Double
    @Binding var isShowing: Bool
    
    // Text field state
    @State private var rotationText: String
    @State private var scaleText: String
    @State private var layerText: String
+   @State private var skewXText: String
+   @State private var skewYText: String
+   @State private var spreadText: String
    
    private let numberFormatter: NumberFormatter = {
        let formatter = NumberFormatter()
@@ -119,6 +127,71 @@ struct PropertiesPanel: View {
                                }
                        }
                    }
+                
+                   propertyRow(title: "Skew X", icon: "arrow.left.and.right") {
+                       HStack {
+                           Slider(value: $skewX, in: 0...100)
+                               .accessibilityIdentifier("Skew X Slider")
+                               .onChange(of: skewX) { _, newValue in
+                                   skewXText = "\(Int(newValue))"
+                               }
+                           
+                           TextField("", text: $skewXText)
+                               .frame(width: 50)
+                               .textFieldStyle(RoundedBorderTextFieldStyle())
+                               .keyboardType(.numberPad)
+                               .multilineTextAlignment(.center)
+                               .onChange(of: skewXText) { _, newValue in
+                                   if let value = Double(newValue), value >= 0, value <= 360 {
+                                       skewX = value
+                                   }
+                               }
+                       }
+                   }
+                    
+                    propertyRow(title: "Skew Y", icon: "arrow.up.and.down") {
+                        HStack {
+                            Slider(value: $skewY, in: 0...100)
+                                .accessibilityIdentifier("Skew Y Slider")
+                                .onChange(of: skewY) { _, newValue in
+                                    skewYText = "\(Int(newValue))"
+                                }
+                            
+                            TextField("", text: $skewYText)
+                                .frame(width: 50)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.center)
+                                .onChange(of: skewYText) { _, newValue in
+                                    if let value = Double(newValue), value >= 0, value <= 360 {
+                                        skewY = value
+                                    }
+                                }
+                        }
+                    }
+                    
+                    propertyRow(title: "Spread", icon: "arrow.up.left.and.down.right.and.arrow.up.right.and.down.left") {
+                        HStack {
+                            Slider(value: $spread, in: 0...100)
+                                .accessibilityIdentifier("Spread Slider")
+                                .onChange(of: spread) { _, newValue in
+                                    spreadText = "\(Int(newValue))"
+                                }
+                            
+                            TextField("", text: $spreadText)
+                                .frame(width: 50)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.center)
+                                .onChange(of: skewXText) { _, newValue in
+                                    if let value = Double(newValue), value >= 0, value <= 360 {
+                                        spread = value
+                                    }
+                                }
+                        }
+                    }
+                   
+                   
                }
                .padding()
            }
@@ -187,16 +260,23 @@ struct PropertiesPanel: View {
    
    // MARK: - Initialization
    
-   init(rotation: Binding<Double>, scale: Binding<Double>, layer: Binding<Double>, isShowing: Binding<Bool>) {
+    init(rotation: Binding<Double>, scale: Binding<Double>, layer: Binding<Double>, skewX: Binding<Double>, skewY: Binding<Double>,
+         spread: Binding<Double>, isShowing: Binding<Bool>) {
        self._rotation = rotation
        self._scale = scale
        self._layer = layer
+       self._skewX = skewX
+       self._skewY = skewY
+       self._spread = spread
        self._isShowing = isShowing
        
        // Initialize text fields with formatted values
        self._rotationText = State(initialValue: "\(Int(rotation.wrappedValue))")
        self._scaleText = State(initialValue: String(format: "%.1f", scale.wrappedValue))
        self._layerText = State(initialValue: "\(Int(layer.wrappedValue))")
+       self._skewXText = State(initialValue: "\(Int(skewX.wrappedValue))")
+       self._skewYText = State(initialValue: "\(Int(skewY.wrappedValue))")
+       self._spreadText = State(initialValue: "\(Int(spread.wrappedValue))")
    }
 }
 
@@ -250,4 +330,21 @@ extension PropertiesPanel {
        get { layerText }
        set { layerText = newValue }
    }
+    
+
+   var testSkewXText: String {
+     get { skewXText }
+     set { skewXText = newValue}
+     }
+    
+   var testSkewYText: String {
+     get { skewYText }
+     set { skewYText = newValue}
+     }
+     
+   var testSpreadText: String {
+    get { spreadText }
+    set { spreadText = newValue}
+    }
+
 }
