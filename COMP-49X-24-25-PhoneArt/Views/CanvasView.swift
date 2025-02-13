@@ -228,12 +228,15 @@ struct CanvasView: View {
             rotation: cumulativeRotation
         )
         
-        // Draw the shape
+        // Calculate compounding scale based on previous layers
         let safeScale = max(0.5, min(2.0, shapeScale))
+        let compoundScale = pow(safeScale, Double(layerIndex + 1))
+        
+        // Draw the shape
         let circlePath = createCirclePath(
             center: center,
             radius: radius,
-            scale: safeScale
+            scale: compoundScale
         )
         
         // Base layer is solid, others are semi-transparent
