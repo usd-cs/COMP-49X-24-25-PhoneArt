@@ -152,16 +152,36 @@ struct CanvasView: View {
         let circleRadius = 30.0
         let centerX = size.width/2
         let centerY = size.height/2
+        let center = CGPoint(x: centerX, y: centerY)
+        
+        // Draw center point of the canvas
+        drawCenterDot(context: context, at: center, color: .black)
         
         let numberOfLayers = max(0, min(360, Int(shapeLayer)))
         if numberOfLayers > 0 {
             drawLayers(
                 context: context,
                 layers: numberOfLayers,
-                center: CGPoint(x: centerX, y: centerY),
+                center: center,
                 radius: circleRadius
             )
         }
+    }
+    
+    /// Draws a small dot to indicate a center point
+    /// - Parameters:
+    ///   - context: The graphics context to draw in
+    ///   - point: The position to draw the dot
+    ///   - color: The color of the dot
+    private func drawCenterDot(context: GraphicsContext, at point: CGPoint, color: Color) {
+        let dotRadius = 2.0
+        let dotPath = Path(ellipseIn: CGRect(
+            x: point.x - dotRadius,
+            y: point.y - dotRadius,
+            width: dotRadius * 2,
+            height: dotRadius * 2
+        ))
+        context.fill(dotPath, with: .color(color))
     }
     
     /// Draws multiple layers of shapes with cumulative rotation
@@ -219,6 +239,9 @@ struct CanvasView: View {
         // Base layer is solid, others are semi-transparent
         let opacity = layerIndex == 0 ? 1.0 : 0.5
         layerContext.fill(circlePath, with: .color(.red.opacity(opacity)))
+        
+        // Draw center dot for each layer
+        drawCenterDot(context: layerContext, at: center, color: .blue)
     }
     
     /// Applies rotation transformation around a center point
@@ -248,8 +271,8 @@ struct CanvasView: View {
         scale: Double
     ) -> Path {
         Path(ellipseIn: CGRect(
-            x: center.x - radius,
-            y: center.y - (radius * 2),
+            x: center.x - (radius * scale),
+            y: center.y - (radius * 2 * scale),
             width: radius * 2 * scale,
             height: radius * 2 * scale
         ))
