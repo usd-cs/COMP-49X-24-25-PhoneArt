@@ -16,6 +16,9 @@ final class PropertiesPanelTests: XCTestCase {
     var rotation: Double!
     var scale: Double!
     var layer: Double!
+    var skewX: Double!
+    var skewY: Double!
+    var spread: Double!
     var isShowing: Bool!
     var sut: PropertiesPanel!
     
@@ -26,6 +29,9 @@ final class PropertiesPanelTests: XCTestCase {
         rotation = 180.0
         scale = 1.5
         layer = 50.0
+        skewX = 0.0
+        skewY = 0.0
+        spread = 0.0
         isShowing = true
         
         // Initialize the system under test (sut) with the properties
@@ -33,6 +39,9 @@ final class PropertiesPanelTests: XCTestCase {
             rotation: .constant(rotation),
             scale: .constant(scale),
             layer: .constant(layer),
+            skewX: .constant(skewX),
+            skewY: .constant(skewY),
+            spread: .constant(spread),
             isShowing: .constant(isShowing)
         )
     }
@@ -43,6 +52,9 @@ final class PropertiesPanelTests: XCTestCase {
         rotation = nil
         scale = nil
         layer = nil
+        skewX = nil
+        skewY = nil
+        spread = nil
         isShowing = nil
         sut = nil
         super.tearDown()
@@ -54,6 +66,9 @@ final class PropertiesPanelTests: XCTestCase {
         XCTAssertEqual(rotation, 180.0)
         XCTAssertEqual(scale, 1.5)
         XCTAssertEqual(layer, 50.0)
+        XCTAssertEqual(skewX, 0.0)
+        XCTAssertEqual(skewY, 0.0)
+        XCTAssertEqual(spread, 0.0)
         XCTAssertTrue(isShowing)
     }
     

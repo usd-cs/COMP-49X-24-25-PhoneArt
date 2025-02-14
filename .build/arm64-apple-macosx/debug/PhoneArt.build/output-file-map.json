@@ -1,0 +1,11 @@
+{
+  "": {
+    "swift-dependencies": "/Users/zachary/Desktop/COMP-49X-24-25-PhoneArt/.build/arm64-apple-macosx/debug/PhoneArt.build/master.swiftdeps"
+  },
+  "/Users/zachary/Desktop/COMP-49X-24-25-PhoneArt/Sources/PhoneArt/PhoneArt.swift": {
+    "dependencies": "/Users/zachary/Desktop/COMP-49X-24-25-PhoneArt/.build/arm64-apple-macosx/debug/PhoneArt.build/PhoneArt.d",
+    "object": "/Users/zachary/Desktop/COMP-49X-24-25-PhoneArt/.build/arm64-apple-macosx/debug/PhoneArt.build/PhoneArt.swift.o",
+    "swiftmodule": "/Users/zachary/Desktop/COMP-49X-24-25-PhoneArt/.build/arm64-apple-macosx/debug/PhoneArt.build/PhoneArt~partial.swiftmodule",
+    "swift-dependencies": "/Users/zachary/Desktop/COMP-49X-24-25-PhoneArt/.build/arm64-apple-macosx/debug/PhoneArt.build/PhoneArt.swiftdeps"
+  }
+}
