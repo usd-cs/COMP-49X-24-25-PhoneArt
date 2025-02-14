@@ -130,7 +130,7 @@ struct PropertiesPanel: View {
                 
                    propertyRow(title: "Skew X", icon: "arrow.left.and.right") {
                        HStack {
-                           Slider(value: $skewX, in: 0...100)
+                           Slider(value: $skewX, in: 0...80)
                                .accessibilityIdentifier("Skew X Slider")
                                .onChange(of: skewX) { _, newValue in
                                    skewXText = "\(Int(newValue))"
@@ -142,7 +142,7 @@ struct PropertiesPanel: View {
                                .keyboardType(.numberPad)
                                .multilineTextAlignment(.center)
                                .onChange(of: skewXText) { _, newValue in
-                                   if let value = Double(newValue), value >= 0, value <= 360 {
+                                   if let value = Double(newValue), value >= 0, value <= 80 {
                                        skewX = value
                                    }
                                }
@@ -151,7 +151,7 @@ struct PropertiesPanel: View {
                     
                     propertyRow(title: "Skew Y", icon: "arrow.up.and.down") {
                         HStack {
-                            Slider(value: $skewY, in: 0...100)
+                            Slider(value: $skewY, in: 0...80)
                                 .accessibilityIdentifier("Skew Y Slider")
                                 .onChange(of: skewY) { _, newValue in
                                     skewYText = "\(Int(newValue))"
@@ -163,7 +163,7 @@ struct PropertiesPanel: View {
                                 .keyboardType(.numberPad)
                                 .multilineTextAlignment(.center)
                                 .onChange(of: skewYText) { _, newValue in
-                                    if let value = Double(newValue), value >= 0, value <= 360 {
+                                    if let value = Double(newValue), value >= 0, value <= 80 {
                                         skewY = value
                                     }
                                 }

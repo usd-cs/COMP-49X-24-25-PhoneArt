@@ -40,6 +40,8 @@ struct CanvasView: View {
     @State private var shapeSkewY: Double = 0
     @State private var shapeSpread: Double = 0
     
+    @State private var layerCount: Double = 1 // Set default to 1
+    
     private func validateLayerCount(_ count: Int) -> Int {
         max(0, min(360, count))
     }
@@ -152,16 +154,36 @@ struct CanvasView: View {
         let circleRadius = 30.0
         let centerX = size.width/2
         let centerY = size.height/2
+        let center = CGPoint(x: centerX, y: centerY)
+        
+        // Draw center point of the canvas
+        drawCenterDot(context: context, at: center, color: .black)
         
         let numberOfLayers = max(0, min(360, Int(shapeLayer)))
         if numberOfLayers > 0 {
             drawLayers(
                 context: context,
                 layers: numberOfLayers,
-                center: CGPoint(x: centerX, y: centerY),
+                center: center,
                 radius: circleRadius
             )
         }
+    }
+    
+    /// Draws a small dot to indicate a center point
+    /// - Parameters:
+    ///   - context: The graphics context to draw in
+    ///   - point: The position to draw the dot
+    ///   - color: The color of the dot
+    private func drawCenterDot(context: GraphicsContext, at point: CGPoint, color: Color) {
+        let dotRadius = 2.0
+        let dotPath = Path(ellipseIn: CGRect(
+            x: point.x - dotRadius,
+            y: point.y - dotRadius,
+            width: dotRadius * 2,
+            height: dotRadius * 2
+        ))
+        context.fill(dotPath, with: .color(color))
     }
     
     /// Draws multiple layers of shapes with cumulative rotation
@@ -200,23 +222,42 @@ struct CanvasView: View {
     ) {
         var layerContext = context
         
-        // Apply rotation based on layer position
-        let cumulativeRotation = shapeRotation * Double(layerIndex)
-        applyTransformation(
-            to: &layerContext,
-            center: center,
-            rotation: cumulativeRotation
+        // Calculate the actual angle for this layer (clockwise)
+        let angleInDegrees = shapeRotation * Double(layerIndex)
+        let angleInRadians = angleInDegrees * (.pi / 180)
+        
+        // Calculate new position
+        let offsetX = radius * 2 * cos(angleInRadians)
+        let offsetY = radius * 2 * sin(angleInRadians)
+        
+        let layerCenter = CGPoint(
+            x: center.x + offsetX,
+            y: center.y + offsetY
         )
+        
+        // Create base rectangle for the circle at the exact position
+        let baseRect = CGRect(
+            x: layerCenter.x - (radius * shapeScale),
+            y: layerCenter.y - (radius * shapeScale),
+            width: radius * 2 * shapeScale,
+            height: radius * 2 * shapeScale
+        )
+        
+        // Create skew transform relative to the layer's center
+        var transform = CGAffineTransform.identity
+        transform = transform.translatedBy(x: layerCenter.x, y: layerCenter.y)
+        
+        let skewXRadians = (shapeSkewX / 100.0) * .pi / 4
+        let skewYRadians = (shapeSkewY / 100.0) * .pi / 4
+        transform.c = CGFloat(tan(skewXRadians))
+        transform.b = CGFloat(tan(skewYRadians))
+        
+        transform = transform.translatedBy(x: -layerCenter.x, y: -layerCenter.y)
+        
+        // Apply transform to create the final path
+        let circlePath = Path(ellipseIn: baseRect).applying(transform)
         
         // Draw the shape
-        let safeScale = max(0.5, min(2.0, shapeScale))
-        let circlePath = createCirclePath(
-            center: center,
-            radius: radius,
-            scale: safeScale
-        )
-        
-        // Base layer is solid, others are semi-transparent
         let opacity = layerIndex == 0 ? 1.0 : 0.5
         layerContext.fill(circlePath, with: .color(.red.opacity(opacity)))
     }
@@ -231,9 +272,25 @@ struct CanvasView: View {
         center: CGPoint,
         rotation: Double
     ) {
-        context.translateBy(x: center.x, y: center.y)
-        context.rotate(by: .degrees(rotation))
-        context.translateBy(x: -center.x, y: -center.y)
+        var transform = CGAffineTransform.identity
+        
+        // Move to center
+        transform = transform.translatedBy(x: center.x, y: center.y)
+        
+        // Convert rotation to radians and apply
+        let rotationRadians = (rotation * .pi) / 180.0
+        transform = transform.rotated(by: -rotationRadians)  // Negative for clockwise
+        
+        // Apply skew (keeping the working skew functionality)
+        let skewXRadians = (shapeSkewX / 100.0) * .pi / 4
+        let skewYRadians = (shapeSkewY / 100.0) * .pi / 4
+        transform.c = CGFloat(tan(skewXRadians))
+        transform.b = CGFloat(tan(skewYRadians))
+        
+        // Move back
+        transform = transform.translatedBy(x: -center.x, y: -center.y)
+        
+        context.transform = transform
     }
     
     /// Creates a circular path with specified parameters
@@ -248,8 +305,8 @@ struct CanvasView: View {
         scale: Double
     ) -> Path {
         Path(ellipseIn: CGRect(
-            x: center.x - radius,
-            y: center.y - (radius * 2),
+            x: center.x - (radius * scale),
+            y: center.y - (radius * 2 * scale),
             width: radius * 2 * scale,
             height: radius * 2 * scale
         ))
