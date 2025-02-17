@@ -148,7 +148,7 @@ final class COMP_49X_24_25_PhoneArtUITests: XCTestCase {
         wait(for: [closeExpectation], timeout: 1.0)
         
         // Verify final position
-        // XCTAssertEqual(canvas.frame.midY, initialPosition, accuracy: 1.0)
+                                // XCTAssertEqual(canvas.frame.midY, initialPosition, accuracy: 1.0)
     }
 
     /// Tests for the canvas movement and reset functionality
