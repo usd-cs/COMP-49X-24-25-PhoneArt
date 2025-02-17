@@ -1,8 +1,13 @@
 import XCTest
 
+/// Test suite for transformation calculations and validations
+/// Verifies the accuracy of various geometric transformations
 final class TransformationTests: XCTestCase {
     
-    // Test rotation calculations
+    /// Tests rotation calculations by verifying:
+    /// - Correct angle calculation for each layer
+    /// - Proper multiplication of rotation by layer index
+    /// - Accurate degree-to-radian conversion
     func testRotationCalculations() {
         let testCases = [
             (layerIndex: 0, rotation: 45.0, expected: 0.0),
@@ -17,7 +22,10 @@ final class TransformationTests: XCTestCase {
         }
     }
     
-    // Test skew transformations
+    /// Tests skew transformations by verifying:
+    /// - Correct tangent calculations for skew angles
+    /// - Proper conversion of skew percentages to radians
+    /// - Accurate horizontal and vertical skew values
     func testSkewTransformations() {
         let testCases = [
             (skewX: 0.0, skewY: 0.0, expectedTanX: 0.0, expectedTanY: 0.0),
@@ -34,7 +42,10 @@ final class TransformationTests: XCTestCase {
         }
     }
     
-    // Test scale validation
+    /// Tests scale validation by verifying:
+    /// - Values below 0.5 are clamped to 0.5
+    /// - Values between 0.5 and 2.0 remain unchanged
+    /// - Values above 2.0 are clamped to 2.0
     func testScaleValidation() {
         let testCases = [
             (input: 0.3, expected: 0.5),
@@ -50,7 +61,10 @@ final class TransformationTests: XCTestCase {
         }
     }
     
-    // Test layer count validation
+    /// Tests layer count validation by verifying:
+    /// - Negative values are clamped to 0
+    /// - Values between 0 and 360 remain unchanged
+    /// - Values above 360 are clamped to 360
     func testLayerValidation() {
         let testCases = [
             (input: -1, expected: 0),
@@ -66,7 +80,10 @@ final class TransformationTests: XCTestCase {
         }
     }
     
-    // Test position calculations
+    /// Tests position calculations by verifying:
+    /// - Correct x and y coordinates at cardinal angles
+    /// - Accurate trigonometric calculations
+    /// - Proper radius and offset calculations
     func testPositionCalculations() {
         let center = CGPoint(x: 100, y: 100)
         let radius = 30.0

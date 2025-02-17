@@ -1,8 +1,14 @@
 import XCTest
 
+/// Test suite for geometric calculations and transformations
+/// Verifies the accuracy of circle creation, transform calculations,
+/// and layer spacing in the art canvas
 final class GeometryTests: XCTestCase {
     
-    // Test circle path creation
+    /// Tests the creation of circle paths by verifying:
+    /// - Width and height dimensions are correct
+    /// - Position coordinates are accurate
+    /// - Basic circle properties are maintained
     func testCirclePathCreation() {
         // Given
         let width = 60.0
@@ -17,7 +23,10 @@ final class GeometryTests: XCTestCase {
         XCTAssertEqual(minY, 70.0)
     }
     
-    // Test transform calculations
+    /// Tests the affine transform calculations by verifying:
+    /// - Identity transform properties are correct
+    /// - Transform matrix values are accurate
+    /// - Basic transformation properties are maintained
     func testTransformCalculations() {
         // Test identity transform
         let transform = CGAffineTransform.identity
@@ -27,7 +36,10 @@ final class GeometryTests: XCTestCase {
         XCTAssertEqual(transform.ty, 0.0)
     }
     
-    // Test layer spacing calculations
+    /// Tests the spacing calculations between layers by verifying:
+    /// - Correct angular spacing between layers
+    /// - Proper distribution of layers
+    /// - Accurate rotation calculations
     func testLayerSpacing() {
         let testCases = [
             (layers: 2, rotation: 90.0, expectedSpacing: 90.0),

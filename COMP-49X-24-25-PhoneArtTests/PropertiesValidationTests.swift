@@ -1,8 +1,19 @@
 import XCTest
 
+/// Test suite for validating property bounds and constraints
+/// Ensures all transformation properties stay within their defined ranges
 final class PropertiesValidationTests: XCTestCase {
     
-    // Test all property validations
+    /// Tests all property validation functions by verifying:
+    /// - Rotation stays within 0-360 degrees
+    /// - Scale remains between 0.5-2.0
+    /// - Skew is limited to 0-80 degrees
+    /// Each property is tested with values:
+    /// - Below minimum (should clamp to min)
+    /// - At minimum (should remain unchanged)
+    /// - Within range (should remain unchanged)
+    /// - At maximum (should remain unchanged)
+    /// - Above maximum (should clamp to max)
     func testPropertyValidations() {
         // Rotation validation (0-360)
         let rotationTests = [
