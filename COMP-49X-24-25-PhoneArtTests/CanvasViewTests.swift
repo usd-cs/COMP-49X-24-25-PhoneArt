@@ -9,8 +9,7 @@ import XCTest
 import SwiftUI
 @testable import COMP_49X_24_25_PhoneArt
 
-/// Test suite for the CanvasView component that verifies the core functionality
-/// of shape manipulation, validation, and path creation.
+/// Test suite for the CanvasView component
 final class CanvasViewTests: XCTestCase {
   
    /// System Under Test (SUT)

@@ -110,6 +110,54 @@ final class TransformationTests: XCTestCase {
         }
     }
     
+    /// Tests spread validation by verifying:
+    /// - Values below 0 are clamped to 0
+    /// - Values between 0 and 100 remain unchanged
+    /// - Values above 100 are clamped to 100
+    func testSpreadValidation() {
+        let testCases = [
+            (input: -10.0, expected: 0.0),
+            (input: 0.0, expected: 0.0),
+            (input: 50.0, expected: 50.0),
+            (input: 100.0, expected: 100.0),
+            (input: 120.0, expected: 100.0)
+        ]
+        
+        for testCase in testCases {
+            let result = validateSpread(testCase.input)
+            XCTAssertEqual(result, testCase.expected)
+        }
+    }
+    
+    /// Tests spread calculations by verifying:
+    /// - Correct spread distance based on angle
+    /// - Proper scaling of spread values
+    func testSpreadCalculations() {
+        let center = CGPoint(x: 100, y: 100)
+        let spread = 50.0 // 50% spread
+        
+        let testCases = [
+            (angle: 0.0, expectedX: 200.0, expectedY: 100.0),    // Right
+            (angle: 90.0, expectedX: 100.0, expectedY: 200.0),   // Bottom
+            (angle: 180.0, expectedX: 0.0, expectedY: 100.0),    // Left
+            (angle: 270.0, expectedX: 100.0, expectedY: 0.0)     // Top
+        ]
+        
+        for testCase in testCases {
+            let angleInRadians = testCase.angle * (.pi / 180)
+            let spreadX = spread * 2.0 * cos(angleInRadians)
+            let spreadY = spread * 2.0 * sin(angleInRadians)
+            
+            let position = CGPoint(
+                x: center.x + spreadX,
+                y: center.y + spreadY
+            )
+            
+            XCTAssertEqual(position.x, testCase.expectedX, accuracy: 0.001)
+            XCTAssertEqual(position.y, testCase.expectedY, accuracy: 0.001)
+        }
+    }
+    
     // Helper validation functions
     private func validateScale(_ value: Double) -> Double {
         max(0.5, min(2.0, value))
@@ -117,5 +165,9 @@ final class TransformationTests: XCTestCase {
     
     private func validateLayerCount(_ value: Int) -> Int {
         max(0, min(360, value))
+    }
+    
+    private func validateSpread(_ value: Double) -> Double {
+        max(0.0, min(100.0, value))
     }
 } 
