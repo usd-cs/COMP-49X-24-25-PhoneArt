@@ -151,7 +151,7 @@ struct CanvasView: View {
     ///   - context: The graphics context to draw in
     ///   - size: The size of the canvas
     private func drawRedCircle(context: GraphicsContext, size: CGSize) {
-        let circleRadius = 30.0
+        let circleRadius = 15.0
         let centerX = size.width/2
         let centerY = size.height/2
         let center = CGPoint(x: centerX, y: centerY)
@@ -226,71 +226,47 @@ struct CanvasView: View {
         let angleInDegrees = shapeRotation * Double(layerIndex)
         let angleInRadians = angleInDegrees * (.pi / 180)
         
-        // Calculate new position
-        let offsetX = radius * 2 * cos(angleInRadians)
-        let offsetY = radius * 2 * sin(angleInRadians)
+        // Scale compounds with each layer, but significantly reduced
+        let scaleFactor = 0.25
+        let layerScale = pow(1.0 + (shapeScale - 1.0) * scaleFactor, Double(layerIndex + 1))
+        let scaledRadius = radius * layerScale
         
-        let layerCenter = CGPoint(
-            x: center.x + offsetX,
-            y: center.y + offsetY
-        )
+        // Apply spread to move shapes away from center
+        let spreadDistance = shapeSpread * 2.0
+        let spreadX = spreadDistance * cos(angleInRadians)
+        let spreadY = spreadDistance * sin(angleInRadians)
         
-        // Create base rectangle for the circle at the exact position
+        // Calculate final position
+        let finalX = center.x + scaledRadius * cos(angleInRadians) + spreadX
+        let finalY = center.y + scaledRadius * sin(angleInRadians) + spreadY
+        
+        // Create base rectangle centered at the final position
         let baseRect = CGRect(
-            x: layerCenter.x - (radius * shapeScale),
-            y: layerCenter.y - (radius * shapeScale),
-            width: radius * 2 * shapeScale,
-            height: radius * 2 * shapeScale
+            x: finalX - scaledRadius,
+            y: finalY - scaledRadius,
+            width: scaledRadius * 2,
+            height: scaledRadius * 2
         )
         
-        // Create skew transform relative to the layer's center
+        // Create skew transform relative to the shape's center
         var transform = CGAffineTransform.identity
-        transform = transform.translatedBy(x: layerCenter.x, y: layerCenter.y)
+            .translatedBy(x: finalX, y: finalY)
         
+        // Apply skew
         let skewXRadians = (shapeSkewX / 100.0) * .pi / 4
         let skewYRadians = (shapeSkewY / 100.0) * .pi / 4
-        transform.c = CGFloat(tan(skewXRadians))
-        transform.b = CGFloat(tan(skewYRadians))
+        transform.c = CGFloat(tan(skewXRadians))  // Horizontal skew
+        transform.b = CGFloat(tan(skewYRadians))  // Vertical skew
         
-        transform = transform.translatedBy(x: -layerCenter.x, y: -layerCenter.y)
+        // Complete the transform by translating back
+        transform = transform.translatedBy(x: -finalX, y: -finalY)
         
-        // Apply transform to create the final path
+        // Create and transform the circle path
         let circlePath = Path(ellipseIn: baseRect).applying(transform)
         
         // Draw the shape
         let opacity = layerIndex == 0 ? 1.0 : 0.5
         layerContext.fill(circlePath, with: .color(.red.opacity(opacity)))
-    }
-    
-    /// Applies rotation transformation around a center point
-    /// - Parameters:
-    ///   - context: Graphics context to transform
-    ///   - center: Point to rotate around
-    ///   - rotation: Rotation angle in degrees
-    private func applyTransformation(
-        to context: inout GraphicsContext,
-        center: CGPoint,
-        rotation: Double
-    ) {
-        var transform = CGAffineTransform.identity
-        
-        // Move to center
-        transform = transform.translatedBy(x: center.x, y: center.y)
-        
-        // Convert rotation to radians and apply
-        let rotationRadians = (rotation * .pi) / 180.0
-        transform = transform.rotated(by: -rotationRadians)  // Negative for clockwise
-        
-        // Apply skew (keeping the working skew functionality)
-        let skewXRadians = (shapeSkewX / 100.0) * .pi / 4
-        let skewYRadians = (shapeSkewY / 100.0) * .pi / 4
-        transform.c = CGFloat(tan(skewXRadians))
-        transform.b = CGFloat(tan(skewYRadians))
-        
-        // Move back
-        transform = transform.translatedBy(x: -center.x, y: -center.y)
-        
-        context.transform = transform
     }
     
     /// Creates a circular path with specified parameters

@@ -183,8 +183,8 @@ struct PropertiesPanel: View {
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                                 .keyboardType(.numberPad)
                                 .multilineTextAlignment(.center)
-                                .onChange(of: skewXText) { _, newValue in
-                                    if let value = Double(newValue), value >= 0, value <= 360 {
+                                .onChange(of: spreadText) { _, newValue in
+                                    if let value = Double(newValue), value >= 0, value <= 100 {
                                         spread = value
                                     }
                                 }
