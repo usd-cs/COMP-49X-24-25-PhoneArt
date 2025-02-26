@@ -58,6 +58,7 @@ struct PropertiesPanel: View {
                Spacer()
                Image(systemName: "xmark")
                    .font(.system(size: 20))
+                   .foregroundColor(Color(uiColor: .label))
                    .accessibilityLabel("Close")
                    .accessibilityIdentifier("CloseButton")
                    .onTapGesture {
@@ -68,7 +69,7 @@ struct PropertiesPanel: View {
            }
            .padding(.horizontal)
            .padding(.vertical, 4)
-           .background(Color(UIColor.systemGray5))
+           .background(Color(uiColor: .systemGray5))
            .cornerRadius(8, corners: [.topLeft, .topRight])
           
            ScrollView {
@@ -83,12 +84,19 @@ struct PropertiesPanel: View {
                    verticalPropertyRow()
                }
                .padding()
+               .toolbar {
+                   ToolbarItem(placement: .keyboard) {
+                       Button("Done") {
+                           hideKeyboard()
+                       }
+                   }
+               }
            }
-           .background(Color(UIColor.systemBackground))
+           .background(Color(uiColor: .systemBackground))
        }
        .frame(maxWidth: .infinity)
-       .frame(height: UIScreen.main.bounds.height / 3)
-       .background(Color(UIColor.systemBackground))
+       .frame(height: UIScreen.main.bounds.height / 2.5)
+       .background(Color(uiColor: .systemBackground))
        .cornerRadius(15, corners: [.topLeft, .topRight])
        .shadow(radius: 10)
    }
@@ -305,18 +313,20 @@ struct PropertiesPanel: View {
            HStack {
                Image(systemName: icon)
                    .font(.system(size: 24))
+                   .foregroundColor(Color(uiColor: .label))
                    .frame(width: 40, height: 40)
-                   .background(Color(UIColor.systemGray6))
+                   .background(Color(uiColor: .systemGray6))
                    .cornerRadius(8)
               
                Text(title)
                    .font(.headline)
+                   .foregroundColor(Color(uiColor: .label))
                Spacer()
            }
            content()
        }
        .padding()
-       .background(Color(UIColor.systemGray6))
+       .background(Color(uiColor: .systemGray6))
        .cornerRadius(8)
    }
   
@@ -327,18 +337,16 @@ struct PropertiesPanel: View {
                isShowing.toggle()
            }
        }) {
-           VStack {
-               Rectangle()
-                   .foregroundColor(.white)
-                   .frame(width: 60, height: 60)
-                   .cornerRadius(8)
-                   .overlay(
-                       Image(systemName: "slider.horizontal.3")
-                           .font(.system(size: 24))
-                           .foregroundColor(.blue)
-                   )
-                   .shadow(radius: 2)
-           }
+           Rectangle()
+               .foregroundColor(Color(uiColor: .systemBackground))
+               .frame(width: 60, height: 60)
+               .cornerRadius(8)
+               .overlay(
+                   Image(systemName: "slider.horizontal.3")
+                       .font(.system(size: 24))
+                       .foregroundColor(Color(uiColor: .systemBlue))
+               )
+               .shadow(radius: 2)
        }
        .accessibilityIdentifier("Properties Button")
    }
@@ -377,6 +385,13 @@ struct PropertiesPanel: View {
        self._spreadText = State(initialValue: "\(Int(spread.wrappedValue))")
        self._horizontalText = State(initialValue: "\(Int(horizontal.wrappedValue))")
        self._verticalText = State(initialValue: "\(Int(vertical.wrappedValue))")
+   }
+  
+   private func hideKeyboard() {
+       UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), 
+                                     to: nil, 
+                                     from: nil, 
+                                     for: nil)
    }
 }
 

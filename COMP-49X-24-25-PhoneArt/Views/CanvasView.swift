@@ -83,7 +83,7 @@ struct CanvasView: View {
       
        /// Computed vertical offset for the canvas when properties panel is shown
        private var canvasVerticalOffset: CGFloat {
-           showProperties ? -UIScreen.main.bounds.height / 6 : 0
+           showProperties ? -UIScreen.main.bounds.height / 7 : 0
        }
       
        /// Computed minimum zoom level to fit canvas width to screen width
@@ -99,20 +99,21 @@ struct CanvasView: View {
        var body: some View {
            ZStack {
                GeometryReader { geometry in
-                   // Create a larger draggable area
-                   Color.clear
+                   // Update canvas background to be dynamic
+                   Color(uiColor: .systemBackground)
                        .frame(
-                           width: 2400,  // Larger than canvas (1600 + 800 buffer)
-                           height: 2600  // Larger than canvas (1800 + 800 buffer)
+                           width: 2400,
+                           height: 2600
                        )
-                       .contentShape(Rectangle())  // Makes the entire area draggable
-                  
+                       .contentShape(Rectangle())
+                   
                    Canvas { context, size in
                        drawRedCircle(context: context, size: size)
                    }
                    .accessibilityIdentifier("Canvas")
                    .frame(width: 1600, height: 1800)
-                   .border(Color.black, width: 2)
+                   // Update border color to be dynamic
+                   .border(Color(uiColor: .label), width: 2)
                    .scaleEffect(zoomLevel)
                    .gesture(
                        DragGesture()
@@ -358,13 +359,13 @@ struct CanvasView: View {
        private func makeResetButton() -> some View {
            Button(action: resetPosition) {
                Rectangle()
-                   .foregroundColor(.blue)
+                   .foregroundColor(Color(uiColor: .systemBlue))
                    .frame(width: 40, height: 40)
                    .clipShape(RoundedRectangle(cornerRadius: 8))
                    .overlay(
                        Image(systemName: "arrow.down.forward.and.arrow.up.backward")
                            .font(.system(size: 20))
-                           .foregroundColor(.white)
+                           .foregroundColor(Color(uiColor: .systemBackground))
                    )
            }
            .accessibilityIdentifier("Reset Position")
@@ -377,18 +378,19 @@ struct CanvasView: View {
                    showProperties.toggle()
                }
            }) {
-               VStack {
-                   Rectangle()
-                       .foregroundColor(.white)
-                       .frame(width: 60, height: 60)
-                       .cornerRadius(8)
-                       .overlay(
-                           Image(systemName: "slider.horizontal.3")
-                               .font(.system(size: 24))
-                               .foregroundColor(.blue)
-                       )
-                       .shadow(radius: 2)
-               }
+               Rectangle()
+                   .foregroundColor(Color(uiColor: .systemBackground))
+                   .frame(width: 60, height: 60)
+                   .cornerRadius(8)
+                   .overlay(
+                       Image(systemName: "slider.horizontal.3")
+                           .font(.system(size: 24))
+                           .foregroundColor(Color(uiColor: .systemBlue))
+                   )
+                   .overlay(
+                       RoundedRectangle(cornerRadius: 8)
+                           .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                   )
            }
            .accessibilityIdentifier("Properties Button")
        }
@@ -398,7 +400,7 @@ struct CanvasView: View {
            VStack(spacing: 8) {
                Image(systemName: "plus")
                    .font(.system(size: 16, weight: .bold))
-                   .foregroundColor(.gray)
+                   .foregroundColor(Color(uiColor: .secondaryLabel))
                    .padding(.bottom, 50)
               
                Slider(
@@ -412,14 +414,17 @@ struct CanvasView: View {
               
                Image(systemName: "minus")
                    .font(.system(size: 16, weight: .bold))
-                   .foregroundColor(.gray)
+                   .foregroundColor(Color(uiColor: .secondaryLabel))
                    .padding(.top, 50)
            }
            .padding(8)
            .background(
                RoundedRectangle(cornerRadius: 8)
-                   .fill(Color.white)
-                   .shadow(radius: 2)
+                   .fill(Color(uiColor: .systemBackground))
+                   .overlay(
+                       RoundedRectangle(cornerRadius: 8)
+                           .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                   )
                    .frame(width: 40)
            )
        }
@@ -432,15 +437,19 @@ struct CanvasView: View {
                }
            }) {
                Rectangle()
-                   .foregroundColor(.white)
+                   .foregroundColor(Color(uiColor: .systemBackground))
                    .frame(width: 60, height: 60)
                    .cornerRadius(8)
                    .overlay(
                        Image(systemName: "xmark")
                            .font(.system(size: 24))
-                           .foregroundColor(.blue)
+                           .foregroundColor(Color(uiColor: .systemBlue))
                    )
-                   .shadow(radius: 2)
+                   .overlay(
+                       RoundedRectangle(cornerRadius: 8)
+                           .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                   )
            }
+           .accessibilityIdentifier("Close Button")
        }
     }
