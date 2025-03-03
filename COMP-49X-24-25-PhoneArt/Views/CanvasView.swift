@@ -55,6 +55,8 @@ struct CanvasView: View {
       /// Add new state variable
       @State private var showColorShapes = false
     
+      @State private var shapeColor: Color = .red  // Default to red
+    
       private func validateLayerCount(_ count: Int) -> Int {
           max(0, min(360, count))
       }
@@ -181,6 +183,7 @@ struct CanvasView: View {
                       Spacer()
                       ColorShapesPanel(
                           isShowing: $showColorShapes,
+                          selectedColor: $shapeColor,
                           onSwitchToProperties: {
                               showColorShapes = false
                               showProperties = true
@@ -314,7 +317,7 @@ struct CanvasView: View {
         
           // Draw the shape
           let opacity = layerIndex == 0 ? 1.0 : 0.5
-          layerContext.fill(circlePath, with: .color(.red.opacity(opacity)))
+          layerContext.fill(circlePath, with: .color(shapeColor.opacity(opacity)))
       }
     
       /// Creates a circular path with specified parameters

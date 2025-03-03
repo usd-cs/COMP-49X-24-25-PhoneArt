@@ -50,7 +50,8 @@ final class PropertiesPanelTests: XCTestCase {
            spread: .constant(spread),
            horizontal: .constant(horizontal),
            vertical: .constant(vertical),
-           isShowing: .constant(isShowing)
+           isShowing: .constant(isShowing),
+           onSwitchToColorShapes: {}
        )
    }
   

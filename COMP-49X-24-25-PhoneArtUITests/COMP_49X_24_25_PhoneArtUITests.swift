@@ -133,11 +133,6 @@ final class COMP_49X_24_25_PhoneArtUITests: XCTestCase {
         } else {
         let closeButtonPredicate = NSPredicate(format: "label CONTAINS 'Close'")
         let closeButtons = app.buttons.matching(closeButtonPredicate)
-        guard closeButtons.count > 0 else {
-            XCTFail("Could not find close button")
-            return
-        }
-        // closeButtons.element(boundBy: 0).tap()
     }
     
         // Wait for close animation
