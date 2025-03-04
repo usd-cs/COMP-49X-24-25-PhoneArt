@@ -10,12 +10,22 @@ import SwiftUI
 
 
 /// A panel that provides controls for modifying colors and shapes on the canvas.
+/// Features:
+/// - Tab-based interface for switching between shapes and colors
+/// - Integration with ColorSelectionPanel for color management
+/// - Ability to switch to PropertiesPanel for other shape properties
 struct ColorShapesPanel: View {
+   /// Currently selected tab (0 = Shapes, 1 = Colors)
    @State private var selectedTab = 0
    @Binding var isShowing: Bool
    @Binding var selectedColor: Color  // Add this binding
    var onSwitchToProperties: () -> Void
    
+   /// Initializes the panel with bindings and callback
+   /// - Parameters:
+   ///   - isShowing: Controls panel visibility
+   ///   - selectedColor: Binding to the color applied to shapes
+   ///   - onSwitchToProperties: Callback to switch to properties panel
    init(isShowing: Binding<Bool>, selectedColor: Binding<Color>, onSwitchToProperties: @escaping () -> Void) {
        self._isShowing = isShowing
        self._selectedColor = selectedColor
