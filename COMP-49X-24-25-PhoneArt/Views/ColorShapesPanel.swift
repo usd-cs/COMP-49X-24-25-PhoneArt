@@ -10,47 +10,70 @@ import SwiftUI
 
 
 /// A panel that provides controls for modifying colors and shapes on the canvas.
+/// Features:
+/// - Tab-based interface for switching between shapes and colors
+/// - Integration with ColorSelectionPanel for color management
+/// - Ability to switch to PropertiesPanel for other shape properties
 struct ColorShapesPanel: View {
-   // MARK: - Properties
-  
+   /// Currently selected tab (0 = Shapes, 1 = Colors)
+   @State private var selectedTab = 0
    @Binding var isShowing: Bool
-   var onSwitchToProperties: () -> Void  // Add callback for switching
+   @Binding var selectedColor: Color  // Add this binding
+   var onSwitchToProperties: () -> Void
+   
+   /// Initializes the panel with bindings and callback
+   /// - Parameters:
+   ///   - isShowing: Controls panel visibility
+   ///   - selectedColor: Binding to the color applied to shapes
+   ///   - onSwitchToProperties: Callback to switch to properties panel
+   init(isShowing: Binding<Bool>, selectedColor: Binding<Color>, onSwitchToProperties: @escaping () -> Void) {
+       self._isShowing = isShowing
+       self._selectedColor = selectedColor
+       self.onSwitchToProperties = onSwitchToProperties
+   }
   
    var body: some View {
        VStack(spacing: 0) {
-           HStack(spacing: 20) {
+           // Header with buttons and close button
+           HStack {
+               // Properties and ColorShapes buttons
                HStack(spacing: 10) {
                    makePropertiesButton()
                    makeColorShapesButton()
                }
                Spacer()
-               Image(systemName: "xmark")
-                   .font(.system(size: 20))
-                   .foregroundColor(Color(uiColor: .label))
-                   .accessibilityLabel("Close")
-                   .accessibilityIdentifier("CloseButton")
-                   .onTapGesture {
-                       withAnimation(.spring()) {
-                           isShowing = false
-                       }
+               Button(action: {
+                   withAnimation(.spring()) {
+                       isShowing = false
                    }
-           }
-           .padding(.horizontal)
-           .padding(.vertical, 4)
-           .background(Color(uiColor: .systemGray5))
-           .cornerRadius(8, corners: [.topLeft, .topRight])
-          
-           ScrollView {
-               VStack(spacing: 12) {
-                   colorShapesSection()
+               }) {
+                   Image(systemName: "xmark")
+                       .foregroundColor(.primary)
                }
-               .padding()
            }
-           .background(Color(uiColor: .systemBackground))
+           .padding()
+           .background(Color(.systemGray6))
+           
+           // Tab selector
+           Picker("", selection: $selectedTab) {
+               Text("Shapes").tag(0)
+               Text("Colors").tag(1)
+           }
+           .pickerStyle(SegmentedPickerStyle())
+           .padding()
+           
+           // Content based on selected tab
+           if selectedTab == 0 {
+               ShapesSection()
+           } else {
+               ColorSelectionPanel(selectedColor: $selectedColor)
+           }
+           
+           Spacer()
        }
        .frame(maxWidth: .infinity)
        .frame(height: UIScreen.main.bounds.height / 2.5)
-       .background(Color(uiColor: .systemBackground))
+       .background(Color(.systemBackground))
        .cornerRadius(15, corners: [.topLeft, .topRight])
        .shadow(radius: 10)
    }
@@ -110,4 +133,26 @@ struct ColorShapesPanel: View {
        }
        .accessibilityIdentifier("Color Shapes Button")
    }
+}
+
+struct ShapesSection: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Shape Selection Coming Soon...")
+                    .foregroundColor(.secondary)
+                    .padding()
+            }
+        }
+    }
+}
+
+struct ColorShapesPanel_Previews: PreviewProvider {
+    static var previews: some View {
+        ColorShapesPanel(
+            isShowing: .constant(true),
+            selectedColor: .constant(.purple),
+            onSwitchToProperties: {}
+        )
+    }
 }

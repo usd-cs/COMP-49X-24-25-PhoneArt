@@ -337,7 +337,9 @@ struct PropertiesPanel: View {
       }
       .accessibilityIdentifier("Properties Button")
   }
-   /// Creates an alternate button to toggle the properties panel
+   /// Creates a button to switch to the ColorShapesPanel
+  /// This allows users to toggle between properties and color selection
+  /// - Returns: A button view that triggers the panel switch
   private func makeAlternatePropertiesButton() -> some View {
       Button(action: {
           withAnimation(.spring()) {

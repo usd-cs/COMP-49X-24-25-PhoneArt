@@ -55,6 +55,10 @@ struct CanvasView: View {
       /// Add new state variable
       @State private var showColorShapes = false
     
+      /// The color currently applied to shapes on the canvas
+      /// This color can be changed through the ColorSelectionPanel
+      @State private var shapeColor: Color = .red  // Default to red
+    
       private func validateLayerCount(_ count: Int) -> Int {
           max(0, min(360, count))
       }
@@ -181,6 +185,7 @@ struct CanvasView: View {
                       Spacer()
                       ColorShapesPanel(
                           isShowing: $showColorShapes,
+                          selectedColor: $shapeColor,
                           onSwitchToProperties: {
                               showColorShapes = false
                               showProperties = true
@@ -256,12 +261,13 @@ struct CanvasView: View {
           }
       }
     
-      /// Draws a single layer with appropriate rotation and opacity
+      /// Draws a single layer with appropriate rotation, opacity, and color
       /// - Parameters:
       ///   - context: The graphics context to draw in
       ///   - layerIndex: Current layer number (0 is base layer)
       ///   - center: Center point for rotation
       ///   - radius: Radius of the circle
+      /// The shape is drawn using the currently selected color from ColorSelectionPanel
       private func drawSingleLayer(
           context: GraphicsContext,
           layerIndex: Int,
@@ -314,7 +320,7 @@ struct CanvasView: View {
         
           // Draw the shape
           let opacity = layerIndex == 0 ? 1.0 : 0.5
-          layerContext.fill(circlePath, with: .color(.red.opacity(opacity)))
+          layerContext.fill(circlePath, with: .color(shapeColor.opacity(opacity)))
       }
     
       /// Creates a circular path with specified parameters
