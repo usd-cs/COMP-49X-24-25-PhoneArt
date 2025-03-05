@@ -42,17 +42,21 @@ struct ColorShapesPanel: View {
                    makeColorShapesButton()
                }
                Spacer()
-               Button(action: {
-                   withAnimation(.spring()) {
-                       isShowing = false
+               Image(systemName: "xmark")
+                   .font(.system(size: 20))
+                   .foregroundColor(Color(uiColor: .label))
+                   .accessibilityLabel("Close")
+                   .accessibilityIdentifier("CloseButton")
+                   .onTapGesture {
+                       withAnimation(.spring()) {
+                           isShowing = false
+                       }
                    }
-               }) {
-                   Image(systemName: "xmark")
-                       .foregroundColor(.primary)
-               }
            }
-           .padding()
-           .background(Color(.systemGray6))
+           .padding(.horizontal)
+           .padding(.vertical, 4)
+           .background(Color(.systemGray5))
+           .cornerRadius(8, corners: [.topLeft, .topRight])
            
            // Tab selector
            Picker("", selection: $selectedTab) {
@@ -60,19 +64,29 @@ struct ColorShapesPanel: View {
                Text("Colors").tag(1)
            }
            .pickerStyle(SegmentedPickerStyle())
-           .padding()
+           .padding(.horizontal, 20)
+           .padding(.vertical, 10)
+           .frame(maxWidth: .infinity)
            
            // Content based on selected tab
            if selectedTab == 0 {
                ShapesSection()
            } else {
                ColorSelectionPanel(selectedColor: $selectedColor)
+                   .padding(.horizontal)
+                   .onAppear {
+                       // Get the first preset from our shared ColorPresetManager
+                       let presetManager = ColorPresetManager.shared
+                       if !presetManager.colorPresets.isEmpty {
+                           selectedColor = presetManager.colorPresets[0]
+                       }
+                   }
            }
            
            Spacer()
        }
        .frame(maxWidth: .infinity)
-       .frame(height: UIScreen.main.bounds.height / 2.5)
+       .frame(height: UIScreen.main.bounds.height / 3)
        .background(Color(.systemBackground))
        .cornerRadius(15, corners: [.topLeft, .topRight])
        .shadow(radius: 10)
@@ -143,6 +157,9 @@ struct ShapesSection: View {
                     .foregroundColor(.secondary)
                     .padding()
             }
+            .padding(16)
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
         }
     }
 }
@@ -156,3 +173,5 @@ struct ColorShapesPanel_Previews: PreviewProvider {
         )
     }
 }
+
+// MARK: - Corner Radius Extension has been moved to UIExtensions.swift
