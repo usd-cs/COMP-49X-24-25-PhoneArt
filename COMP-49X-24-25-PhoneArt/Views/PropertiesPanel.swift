@@ -98,7 +98,7 @@ struct PropertiesPanel: View {
           .background(Color(uiColor: .systemBackground))
       }
       .frame(maxWidth: .infinity)
-      .frame(height: UIScreen.main.bounds.height / 2.5)
+      .frame(height: UIScreen.main.bounds.height / 3)
       .background(Color(uiColor: .systemBackground))
       .cornerRadius(15, corners: [.topLeft, .topRight])
       .shadow(radius: 10)

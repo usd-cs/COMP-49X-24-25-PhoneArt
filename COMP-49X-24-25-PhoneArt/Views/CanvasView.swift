@@ -55,9 +55,15 @@ struct CanvasView: View {
       /// Add new state variable
       @State private var showColorShapes = false
     
-      /// The color currently applied to shapes on the canvas
+      /// The color currently applied to the base shape on the canvas
       /// This color can be changed through the ColorSelectionPanel
       @State private var shapeColor: Color = .red  // Default to red
+      
+      /// Use the shared color preset manager for real-time updates
+      @ObservedObject private var colorPresetManager = ColorPresetManager.shared
+    
+      /// State variable to force view updates when color presets change
+      @State private var colorUpdateTrigger = UUID()
     
       private func validateLayerCount(_ count: Int) -> Int {
           max(0, min(360, count))
@@ -91,9 +97,9 @@ struct CanvasView: View {
           max(-300.0, min(300.0, vertical))
       }
     
-      /// Computed vertical offset for the canvas when properties panel is shown
+      /// Computed vertical offset for the canvas when properties panel or color shapes panel is shown
       private var canvasVerticalOffset: CGFloat {
-          showProperties ? -UIScreen.main.bounds.height / 7 : 0
+          (showProperties || showColorShapes) ? -UIScreen.main.bounds.height / 7 : 0
       }
     
       /// Computed minimum zoom level to fit canvas width to screen width
@@ -131,7 +137,7 @@ struct CanvasView: View {
                           .onEnded(handleDragEnd)
                   )
                   .offset(x: offset.width, y: offset.height + canvasVerticalOffset)
-                  .animation(.spring(), value: showProperties)
+                  .animation(.spring(), value: [showProperties, showColorShapes])
               }
             
               VStack(spacing: 10) {
@@ -197,6 +203,11 @@ struct CanvasView: View {
               }
           }
           .ignoresSafeArea()
+          // Add an onReceive modifier to handle color preset changes
+          .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ColorPresetsChanged"))) { _ in
+              // Update the trigger to force a refresh
+              colorUpdateTrigger = UUID()
+          }
       }
     
       /// Draws a red circle on the canvas above the origin point
@@ -220,7 +231,7 @@ struct CanvasView: View {
                   center: center,
                   radius: circleRadius
               )
-          }
+          } 
       }
     
       /// Draws a small dot to indicate a center point
@@ -267,7 +278,7 @@ struct CanvasView: View {
       ///   - layerIndex: Current layer number (0 is base layer)
       ///   - center: Center point for rotation
       ///   - radius: Radius of the circle
-      /// The shape is drawn using the currently selected color from ColorSelectionPanel
+      /// The shape is drawn using either the selected color or cycling through preset colors
       private func drawSingleLayer(
           context: GraphicsContext,
           layerIndex: Int,
@@ -318,9 +329,12 @@ struct CanvasView: View {
           // Create and transform the circle path
           let circlePath = Path(ellipseIn: baseRect).applying(transform)
         
-          // Draw the shape
-          let opacity = layerIndex == 0 ? 1.0 : 0.5
-          layerContext.fill(circlePath, with: .color(shapeColor.opacity(opacity)))
+          // Determine color for this layer - cycle through presets based on visible presets
+          let layerColor = colorPresetManager.colorForPosition(position: layerIndex)
+          
+          // Draw the shape with appropriate opacity
+          let opacity = layerIndex == 0 ? 1.0 : 0.8
+          layerContext.fill(circlePath, with: .color(layerColor.opacity(opacity)))
       }
     
       /// Creates a circular path with specified parameters
@@ -440,7 +454,7 @@ struct CanvasView: View {
               withAnimation(.spring()) {
                   if showProperties {     // If properties panel is showing
                       showProperties = false  // Hide it
-                      showColorShapes = true  // Show color shapes panel
+                      showColorShapes = true    // Show color shapes panel
                   } else if !showColorShapes {  // If neither panel is showing
                       showColorShapes = true    // Show color shapes panel
                   }
@@ -521,4 +535,4 @@ struct CanvasView: View {
           }
           .accessibilityIdentifier("Close Button")
       }
-   }
+}
