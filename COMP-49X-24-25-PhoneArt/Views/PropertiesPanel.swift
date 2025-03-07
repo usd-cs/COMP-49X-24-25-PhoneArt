@@ -33,7 +33,8 @@ struct PropertiesPanel: View {
   @Binding var horizontal: Double
   @Binding var vertical: Double
   @Binding var isShowing: Bool
-  var onSwitchToColorShapes: () -> Void  // Add callback for switching
+  var onSwitchToColorShapes: () -> Void  // Callback for switching to Color panel
+  var onSwitchToShapes: () -> Void       // Callback for switching to Shapes panel
    // MARK: - Text Field States
    @State private var rotationText: String
   @State private var scaleText: String
@@ -57,6 +58,7 @@ struct PropertiesPanel: View {
               HStack(spacing: 10) {
                   makePropertiesButton()
                   makeAlternatePropertiesButton()
+                  makeShapesButton()
               }
               Spacer()
               Image(systemName: "xmark")
@@ -65,9 +67,7 @@ struct PropertiesPanel: View {
                   .accessibilityLabel("Close")
                   .accessibilityIdentifier("CloseButton")
                   .onTapGesture {
-                      withAnimation(.spring()) {
-                          isShowing = false
-                      }
+                      isShowing = false
                   }
           }
           .padding(.horizontal)
@@ -321,47 +321,68 @@ struct PropertiesPanel: View {
       .background(Color(uiColor: .systemGray6))
       .cornerRadius(8)
   }
-   /// Creates a button that toggles the properties panel visibility
-  private func makePropertiesButton() -> some View {
-      Button(action: {}) {  // Empty action to disable closing
-          Rectangle()
-              .foregroundColor(Color(uiColor: .systemBackground))
-              .frame(width: 60, height: 60)
-              .cornerRadius(8)
-              .overlay(
-                  Image(systemName: "slider.horizontal.3")
-                      .font(.system(size: 24))
-                      .foregroundColor(Color(uiColor: .systemBlue))
-              )
-              .shadow(radius: 2)
-      }
-      .accessibilityIdentifier("Properties Button")
-  }
-   /// Creates a button to switch to the ColorShapesPanel
-  /// This allows users to toggle between properties and color selection
-  /// - Returns: A button view that triggers the panel switch
-  private func makeAlternatePropertiesButton() -> some View {
-      Button(action: {
-          withAnimation(.spring()) {
-              onSwitchToColorShapes()  // Call the switch function
-          }
-      }) {
-          Rectangle()
-              .foregroundColor(Color(uiColor: .systemBackground))
-              .frame(width: 60, height: 60)
-              .cornerRadius(8)
-              .overlay(
-                  Image(systemName: "square.3.stack.3d")
-                      .font(.system(size: 24))
-                      .foregroundColor(Color(uiColor: .systemBlue))
-              )
-              .overlay(
-                  RoundedRectangle(cornerRadius: 8)
-                      .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-              )
-      }
-      .accessibilityIdentifier("Color Shapes Button")
-  }
+   /// Creates the current (Properties) button
+    private func makePropertiesButton() -> some View {
+        Button(action: {
+            // No action needed - we're already in this panel
+        }) {
+            Rectangle()
+                .foregroundColor(Color(uiColor: .systemBackground))
+                .frame(width: 60, height: 60)
+                .cornerRadius(8)
+                .overlay(
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 24))
+                        .foregroundColor(Color(uiColor: .systemBlue))
+                )
+                .shadow(radius: 2)
+        }
+        .accessibilityIdentifier("Properties Button")
+    }
+    
+    /// Creates a button that switches to the Color Properties panel
+    private func makeAlternatePropertiesButton() -> some View {
+        Button(action: {
+            onSwitchToColorShapes()
+        }) {
+            Rectangle()
+                .foregroundColor(Color(uiColor: .systemBackground))
+                .frame(width: 60, height: 60)
+                .cornerRadius(8)
+                .overlay(
+                    Image(systemName: "square.3.stack.3d")
+                        .font(.system(size: 24))
+                        .foregroundColor(Color(uiColor: .systemBlue))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                )
+        }
+        .accessibilityIdentifier("Color Properties Button")
+    }
+    
+    /// Creates a button that switches to the Shapes panel
+    private func makeShapesButton() -> some View {
+        Button(action: {
+            onSwitchToShapes()
+        }) {
+            Rectangle()
+                .foregroundColor(Color(uiColor: .systemBackground))
+                .frame(width: 60, height: 60)
+                .cornerRadius(8)
+                .overlay(
+                    Image(systemName: "square.on.square")
+                        .font(.system(size: 24))
+                        .foregroundColor(Color(uiColor: .systemBlue))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                )
+        }
+        .accessibilityIdentifier("Shapes Button")
+    }
    // MARK: - Initialization
    /// Initializes a new PropertiesPanel with the given bindings
   /// - Parameters:
@@ -374,10 +395,11 @@ struct PropertiesPanel: View {
   ///   - horizontal: Binding for horizontal position
   ///   - vertical: Binding for vertical position
   ///   - isShowing: Binding for panel visibility
-  ///   - onSwitchToColorShapes: Callback for switching to ColorShapesPanel
+  ///   - onSwitchToColorShapes: Callback for switching to ColorPropertiesPanel
+  ///   - onSwitchToShapes: Callback for switching to Shapes panel
   init(rotation: Binding<Double>, scale: Binding<Double>, layer: Binding<Double>, skewX: Binding<Double>, skewY: Binding<Double>,
        spread: Binding<Double>, horizontal: Binding<Double>, vertical: Binding<Double>, isShowing: Binding<Bool>,
-       onSwitchToColorShapes: @escaping () -> Void) {
+       onSwitchToColorShapes: @escaping () -> Void, onSwitchToShapes: @escaping () -> Void) {
       self._rotation = rotation
       self._scale = scale
       self._layer = layer
@@ -388,6 +410,7 @@ struct PropertiesPanel: View {
       self._vertical = vertical
       self._isShowing = isShowing
       self.onSwitchToColorShapes = onSwitchToColorShapes
+      self.onSwitchToShapes = onSwitchToShapes
     
       // Initialize text fields with formatted values
       self._rotationText = State(initialValue: "\(Int(rotation.wrappedValue))")
@@ -496,4 +519,24 @@ extension PropertiesPanel {
       get { verticalText }
       set { verticalText = newValue }
   }
+}
+
+// MARK: - Previews
+
+struct PropertiesPanel_Previews: PreviewProvider {
+    static var previews: some View {
+        PropertiesPanel(
+            rotation: .constant(0),
+            scale: .constant(1.0),
+            layer: .constant(1),
+            skewX: .constant(0),
+            skewY: .constant(0),
+            spread: .constant(0),
+            horizontal: .constant(0),
+            vertical: .constant(0),
+            isShowing: .constant(true),
+            onSwitchToColorShapes: {},
+            onSwitchToShapes: {}
+        )
+    }
 }
