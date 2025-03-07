@@ -55,9 +55,18 @@ struct CanvasView: View {
      /// Add new state variable
      @State private var showColorShapes = false
   
+     /// Add new state variable for shapes panel
+     @State private var showShapesPanel = false
+    
+     /// Tracks whether we are switching between panels (rather than opening/closing)
+     @State private var isSwitchingPanels = false
+  
      /// The color currently applied to the base shape on the canvas
      /// This color can be changed through the ColorSelectionPanel
      @State private var shapeColor: Color = .red  // Default to red
+    
+     /// The currently selected shape type
+     @State private var selectedShape: ShapesPanel.ShapeType = .circle  // Default to circle
     
      /// Use the shared color preset manager for real-time updates
      @ObservedObject private var colorPresetManager = ColorPresetManager.shared
@@ -105,7 +114,7 @@ struct CanvasView: View {
   
      /// Computed vertical offset for the canvas when properties panel or color shapes panel is shown
      private var canvasVerticalOffset: CGFloat {
-         (showProperties || showColorShapes) ? -UIScreen.main.bounds.height / 7 : 0
+         (showProperties || showColorShapes || showShapesPanel) ? -UIScreen.main.bounds.height / 7 : 0
      }
   
      /// Computed minimum zoom level to fit canvas width to screen width
@@ -130,7 +139,7 @@ struct CanvasView: View {
                      .contentShape(Rectangle())
                
                  Canvas { context, size in
-                     drawRedCircle(context: context, size: size)
+                     drawShapes(context: context, size: size)
                  }
                  .accessibilityIdentifier("Canvas")
                  .frame(width: 1600, height: 1800)
@@ -143,7 +152,7 @@ struct CanvasView: View {
                          .onEnded(handleDragEnd)
                  )
                  .offset(x: offset.width, y: offset.height + canvasVerticalOffset)
-                 .animation(.spring(), value: [showProperties, showColorShapes])
+                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: canvasVerticalOffset)
              }
           
              VStack(spacing: 10) {
@@ -160,8 +169,9 @@ struct CanvasView: View {
                  HStack(spacing: 10) {
                      makePropertiesButton()
                      makeColorShapesButton()
+                     makeShapesButton()
                      Spacer()
-                     if !showProperties && !showColorShapes {
+                     if !showProperties && !showColorShapes && !showShapesPanel {
                          makeCloseButton()
                      }
                  }
@@ -183,32 +193,87 @@ struct CanvasView: View {
                          vertical: $shapeVertical,
                          isShowing: $showProperties,
                          onSwitchToColorShapes: {
+                             isSwitchingPanels = true
                              showProperties = false
                              showColorShapes = true
+                             isSwitchingPanels = false
+                         },
+                         onSwitchToShapes: {
+                             isSwitchingPanels = true
+                             showProperties = false
+                             showShapesPanel = true
+                             isSwitchingPanels = false
                          }
                      )
-                     .transition(.move(edge: .bottom))
                  }
                  .zIndex(3)
+                 .transition(!isSwitchingPanels ? .move(edge: .bottom) : .identity)
              }
           
              if showColorShapes {
                  VStack {
                      Spacer()
-                     ColorShapesPanel(
+                     ColorPropertiesPanel(
                          isShowing: $showColorShapes,
                          selectedColor: $shapeColor,
                          onSwitchToProperties: {
+                             isSwitchingPanels = true
                              showColorShapes = false
                              showProperties = true
+                             isSwitchingPanels = false
+                         },
+                         onSwitchToShapes: {
+                             isSwitchingPanels = true
+                             showColorShapes = false
+                             showShapesPanel = true
+                             isSwitchingPanels = false
                          }
                      )
-                     .transition(.move(edge: .bottom))
                  }
                  .zIndex(3)
+                 .transition(!isSwitchingPanels ? .move(edge: .bottom) : .identity)
+             }
+          
+             if showShapesPanel {
+                 VStack {
+                     Spacer()
+                     ShapesPanel(
+                         selectedShape: $selectedShape,
+                         isShowing: $showShapesPanel,
+                         onSwitchToProperties: {
+                             isSwitchingPanels = true
+                             showShapesPanel = false
+                             showProperties = true
+                             isSwitchingPanels = false
+                         },
+                         onSwitchToColorProperties: {
+                             isSwitchingPanels = true
+                             showShapesPanel = false
+                             showColorShapes = true
+                             isSwitchingPanels = false
+                         }
+                     )
+                 }
+                 .zIndex(3)
+                 .transition(!isSwitchingPanels ? .move(edge: .bottom) : .identity)
              }
          }
          .ignoresSafeArea()
+         .onChange(of: showProperties) { _, newValue in
+             if !isSwitchingPanels && newValue {
+                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {}
+             }
+         }
+         .onChange(of: showColorShapes) { _, newValue in
+             if !isSwitchingPanels && newValue {
+                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {}
+             }
+         }
+         .onChange(of: showShapesPanel) { _, newValue in
+             if !isSwitchingPanels && newValue {
+                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {}
+             }
+         }
          // Add an onReceive modifier to handle color preset changes
          .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ColorPresetsChanged"))) { _ in
              // Update the trigger to force a refresh
@@ -226,11 +291,11 @@ struct CanvasView: View {
          }
      }
   
-     /// Draws a red circle on the canvas above the origin point
+     /// Draws shapes on the canvas above the origin point
      /// - Parameters:
      ///   - context: The graphics context to draw in
      ///   - size: The size of the canvas
-     private func drawRedCircle(context: GraphicsContext, size: CGSize) {
+     private func drawShapes(context: GraphicsContext, size: CGSize) {
          let circleRadius = 30.0
          let centerX = size.width/2
          let centerY = size.height/2
@@ -329,57 +394,243 @@ struct CanvasView: View {
              height: scaledRadius * 2
          )
       
-         // Create skew transform relative to the shape's center
-         var transform = CGAffineTransform.identity
-             .translatedBy(x: finalX, y: finalY)
-      
-         // Apply skew
-         let skewXRadians = (shapeSkewX / 100.0) * .pi / 4
-         let skewYRadians = (shapeSkewY / 100.0) * .pi / 4
-         transform.c = CGFloat(tan(skewXRadians))  // Horizontal skew
-         transform.b = CGFloat(tan(skewYRadians))  // Vertical skew
-      
-         // Complete the transform by translating back
-         transform = transform.translatedBy(x: -finalX, y: -finalY)
-      
-         // Create and transform the circle path
-         let circlePath = Path(ellipseIn: baseRect).applying(transform)
-      
+         // Create the path based on the selected shape
+         let shapePath: Path
+         switch selectedShape {
+         case .circle:
+             shapePath = Path(ellipseIn: baseRect)
+         case .square:
+             shapePath = Path(CGRect(
+                 x: finalX - scaledRadius,
+                 y: finalY - scaledRadius,
+                 width: scaledRadius * 2,
+                 height: scaledRadius * 2
+             ))
+         case .triangle:
+             var path = Path()
+             path.move(to: CGPoint(x: finalX, y: finalY - scaledRadius))
+             path.addLine(to: CGPoint(x: finalX - scaledRadius, y: finalY + scaledRadius))
+             path.addLine(to: CGPoint(x: finalX + scaledRadius, y: finalY + scaledRadius))
+             path.closeSubpath()
+             shapePath = path
+         case .hexagon:
+             shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 6)
+         case .star:
+             shapePath = createStarPath(center: CGPoint(x: finalX, y: finalY), innerRadius: scaledRadius * 0.4, outerRadius: scaledRadius, points: 5)
+         case .rectangle:
+             shapePath = Path(CGRect(
+                 x: finalX - scaledRadius,
+                 y: finalY - scaledRadius * 0.6,
+                 width: scaledRadius * 2,
+                 height: scaledRadius * 1.2
+             ))
+         case .oval:
+             shapePath = Path(ellipseIn: CGRect(
+                 x: finalX - scaledRadius,
+                 y: finalY - scaledRadius * 0.6,
+                 width: scaledRadius * 2,
+                 height: scaledRadius * 1.2
+             ))
+         case .diamond:
+             var path = Path()
+             path.move(to: CGPoint(x: finalX, y: finalY - scaledRadius))
+             path.addLine(to: CGPoint(x: finalX + scaledRadius, y: finalY))
+             path.addLine(to: CGPoint(x: finalX, y: finalY + scaledRadius))
+             path.addLine(to: CGPoint(x: finalX - scaledRadius, y: finalY))
+             path.closeSubpath()
+             shapePath = path
+         case .pentagon:
+             shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 5)
+         case .octagon:
+             shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 8)
+         case .arrow:
+             shapePath = createArrowPath(center: CGPoint(x: finalX, y: finalY), size: scaledRadius)
+         case .rhombus:
+             var path = Path()
+             path.move(to: CGPoint(x: finalX, y: finalY - scaledRadius))
+             path.addLine(to: CGPoint(x: finalX + scaledRadius * 0.8, y: finalY))
+             path.addLine(to: CGPoint(x: finalX, y: finalY + scaledRadius))
+             path.addLine(to: CGPoint(x: finalX - scaledRadius * 0.8, y: finalY))
+             path.closeSubpath()
+             shapePath = path
+         case .parallelogram:
+             var path = Path()
+             path.move(to: CGPoint(x: finalX - scaledRadius + scaledRadius * 0.4, y: finalY - scaledRadius * 0.6))
+             path.addLine(to: CGPoint(x: finalX + scaledRadius + scaledRadius * 0.4, y: finalY - scaledRadius * 0.6))
+             path.addLine(to: CGPoint(x: finalX + scaledRadius - scaledRadius * 0.4, y: finalY + scaledRadius * 0.6))
+             path.addLine(to: CGPoint(x: finalX - scaledRadius - scaledRadius * 0.4, y: finalY + scaledRadius * 0.6))
+             path.closeSubpath()
+             shapePath = path
+         case .trapezoid:
+             var path = Path()
+             path.move(to: CGPoint(x: finalX - scaledRadius * 0.8, y: finalY - scaledRadius * 0.6))
+             path.addLine(to: CGPoint(x: finalX + scaledRadius * 0.8, y: finalY - scaledRadius * 0.6))
+             path.addLine(to: CGPoint(x: finalX + scaledRadius, y: finalY + scaledRadius * 0.6))
+             path.addLine(to: CGPoint(x: finalX - scaledRadius, y: finalY + scaledRadius * 0.6))
+             path.closeSubpath()
+             shapePath = path
+         }
+         
+         // Create separate transformations and apply them in the correct sequence
+         
+         // The key insight: Skew transformation naturally shifts the object's center
+         // To fix this, we need to:
+         // 1. Create the shape centered at the origin (0,0)
+         // 2. Apply skew and rotation transformations (in local coordinates)
+         // 3. Then translate the result to its final position
+         
+         // First we'll create a shape centered at the origin and a separate transform to position it
+         _ = shapePath
+         
+         // For positioning, we use a separate transform
+         _ = CGAffineTransform(translationX: 0, y: 0) // We'll modify this later
+         
+         // Now create the transforms for rotation and skew (relative to origin)
+         var shapeTransform = CGAffineTransform.identity
+         
+         // 1. Apply rotation
+         if abs(angleInRadians) > 0.001 {
+             shapeTransform = shapeTransform.rotated(by: CGFloat(angleInRadians))
+         }
+         
+         // 2. Apply skew (relative to origin)
+         if abs(shapeSkewX) > 0.01 || abs(shapeSkewY) > 0.01 {
+             // Use smaller range to prevent extreme distortion
+             let skewXRad = (shapeSkewX / 100.0) * (.pi / 15) // Max ±12 degrees
+             let skewYRad = (shapeSkewY / 100.0) * (.pi / 15) // Max ±12 degrees
+             
+             // Build skew transform (this creates a skew centered at 0,0)
+             if abs(shapeSkewX) > 0.01 {
+                 let shearX = CGFloat(tan(skewXRad))
+                 let skewXTransform = CGAffineTransform(a: 1, b: 0, c: shearX, d: 1, tx: 0, ty: 0)
+                 shapeTransform = shapeTransform.concatenating(skewXTransform)
+             }
+             
+             if abs(shapeSkewY) > 0.01 {
+                 let shearY = CGFloat(tan(skewYRad))
+                 let skewYTransform = CGAffineTransform(a: 1, b: shearY, c: 0, d: 1, tx: 0, ty: 0)
+                 shapeTransform = shapeTransform.concatenating(skewYTransform)
+             }
+         }
+         
+         // Now combine the transforms:
+         // 1. Create the shape path (already at position finalX, finalY)
+         // 2. Transform it to the origin (0,0) by subtracting finalX, finalY
+         // 3. Apply rotation and skew transforms to the centered shape
+         // 4. Transform it back to final position
+         
+         // Complete transform chain:
+         let toOriginTransform = CGAffineTransform(translationX: -finalX, y: -finalY)
+         let backToPositionTransform = CGAffineTransform(translationX: finalX, y: finalY)
+         
+         // Chain the transforms in correct order:
+         // First to origin, then apply shape transformations, then back to position
+         let finalTransform = toOriginTransform
+             .concatenating(shapeTransform)
+             .concatenating(backToPositionTransform)
+         
+         // Apply the complete transform chain to get the final path
+         let transformedPath = shapePath.applying(finalTransform)
+         
          // Determine color for this layer - cycle through presets based on visible presets
          let layerColor = colorPresetManager.colorForPosition(position: layerIndex)
         
          // Draw the shape with appropriate opacity
          let baseOpacity = colorPresetManager.shapeAlpha  // Get the global alpha setting
          let layerOpacity = layerIndex == 0 ? baseOpacity : baseOpacity * 0.8  // Apply layer-specific opacity
-         layerContext.fill(circlePath, with: .color(layerColor.opacity(layerOpacity)))
+         layerContext.fill(transformedPath, with: .color(layerColor.opacity(layerOpacity)))
         
          // Apply stroke if width is greater than 0
          if colorPresetManager.strokeWidth > 0 {
              layerContext.stroke(
-                 circlePath,
+                 transformedPath,
                  with: .color(colorPresetManager.strokeColor),  // Don't apply alpha to stroke
                  lineWidth: CGFloat(colorPresetManager.strokeWidth)
              )
          }
      }
   
-     /// Creates a circular path with specified parameters
+     /// Creates a regular polygon path
      /// - Parameters:
-     ///   - center: Center point of the circle
-     ///   - radius: Base radius before scaling
-     ///   - scale: Scale factor to apply
-     /// - Returns: Path describing the circle
-     private func createCirclePath(
-         center: CGPoint,
-         radius: Double,
-         scale: Double
-     ) -> Path {
-         Path(ellipseIn: CGRect(
-             x: center.x - (radius * scale),
-             y: center.y - (radius * 2 * scale),
-             width: radius * 2 * scale,
-             height: radius * 2 * scale
-         ))
+     ///   - center: The center point of the polygon
+     ///   - radius: The radius from center to vertices
+     ///   - sides: The number of sides
+     /// - Returns: A Path representing the polygon
+     private func createPolygonPath(center: CGPoint, radius: Double, sides: Int) -> Path {
+         var path = Path()
+         let angle = (2.0 * .pi) / Double(sides)
+         
+         for i in 0..<sides {
+             let currentAngle = angle * Double(i) - (.pi / 2)
+             let x = center.x + CGFloat(radius * cos(currentAngle))
+             let y = center.y + CGFloat(radius * sin(currentAngle))
+             
+             if i == 0 {
+                 path.move(to: CGPoint(x: x, y: y))
+             } else {
+                 path.addLine(to: CGPoint(x: x, y: y))
+             }
+         }
+         
+         path.closeSubpath()
+         return path
+     }
+  
+     /// Creates a star path
+     /// - Parameters:
+     ///   - center: The center of the star
+     ///   - innerRadius: The radius of inner points
+     ///   - outerRadius: The radius of outer points
+     ///   - points: The number of points
+     /// - Returns: A Path representing the star
+     private func createStarPath(center: CGPoint, innerRadius: Double, outerRadius: Double, points: Int) -> Path {
+         var path = Path()
+         let totalPoints = points * 2
+         let angle = (2.0 * .pi) / Double(totalPoints)
+         
+         for i in 0..<totalPoints {
+             let radius = i % 2 == 0 ? outerRadius : innerRadius
+             let currentAngle = angle * Double(i) - (.pi / 2)
+             let x = center.x + CGFloat(radius * cos(currentAngle))
+             let y = center.y + CGFloat(radius * sin(currentAngle))
+             
+             if i == 0 {
+                 path.move(to: CGPoint(x: x, y: y))
+             } else {
+                 path.addLine(to: CGPoint(x: x, y: y))
+             }
+         }
+         
+         path.closeSubpath()
+         return path
+     }
+     
+     /// Creates an arrow shape pointing upward
+     /// - Parameters:
+     ///   - center: The center of the arrow
+     ///   - size: The size/radius of the arrow
+     /// - Returns: A Path representing the arrow
+     private func createArrowPath(center: CGPoint, size: Double) -> Path {
+         let width = size * 1.5
+         let height = size * 2
+         let stemWidth = width * 0.3
+         
+         var path = Path()
+         
+         // Define arrow shape centered perfectly at the center point
+         // This ensures proper rotation around the center
+         
+         // Arrow head (triangle)
+         path.move(to: CGPoint(x: center.x, y: center.y - height * 0.5))       // Top center point
+         path.addLine(to: CGPoint(x: center.x + width * 0.5, y: center.y))     // Right point at middle height
+         path.addLine(to: CGPoint(x: center.x + stemWidth * 0.5, y: center.y)) // Right edge of stem at middle height
+         path.addLine(to: CGPoint(x: center.x + stemWidth * 0.5, y: center.y + height * 0.5)) // Bottom right of stem
+         path.addLine(to: CGPoint(x: center.x - stemWidth * 0.5, y: center.y + height * 0.5)) // Bottom left of stem
+         path.addLine(to: CGPoint(x: center.x - stemWidth * 0.5, y: center.y)) // Left edge of stem at middle height
+         path.addLine(to: CGPoint(x: center.x - width * 0.5, y: center.y))     // Left point at middle height
+         
+         path.closeSubpath()
+         return path
      }
   
      // MARK: - Gesture Handlers
@@ -448,12 +699,18 @@ struct CanvasView: View {
      /// Creates the properties panel toggle button
      private func makePropertiesButton() -> some View {
          Button(action: {
-             withAnimation(.spring()) {
-                 if showColorShapes {  // If color shapes panel is showing
-                     showColorShapes = false  // Hide it
-                     showProperties = true    // Show properties panel
-                 } else if !showProperties {  // If neither panel is showing
-                     showProperties = true    // Show properties panel
+             if showColorShapes || showShapesPanel {  // If another panel is showing
+                 isSwitchingPanels = true // Set flag to indicate we're switching panels
+                 if showColorShapes {
+                     showColorShapes = false
+                 } else if showShapesPanel {
+                     showShapesPanel = false
+                 }
+                 showProperties = true
+                 isSwitchingPanels = false
+             } else if !showProperties {  // If no panel is showing, animate in
+                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                     showProperties = true
                  }
              }
          }) {
@@ -477,12 +734,18 @@ struct CanvasView: View {
      /// Creates an alternate button to toggle the properties panel
      private func makeColorShapesButton() -> some View {
          Button(action: {
-             withAnimation(.spring()) {
-                 if showProperties {     // If properties panel is showing
-                     showProperties = false  // Hide it
-                     showColorShapes = true    // Show color shapes panel
-                 } else if !showColorShapes {  // If neither panel is showing
-                     showColorShapes = true    // Show color shapes panel
+             if showProperties || showShapesPanel {  // If another panel is showing
+                 isSwitchingPanels = true // Set flag to indicate we're switching panels
+                 if showProperties {
+                     showProperties = false
+                 } else if showShapesPanel {
+                     showShapesPanel = false
+                 }
+                 showColorShapes = true
+                 isSwitchingPanels = false
+             } else if !showColorShapes {  // If no panel is showing, animate in
+                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                     showColorShapes = true
                  }
              }
          }) {
@@ -501,6 +764,41 @@ struct CanvasView: View {
                  )
          }
          .accessibilityIdentifier("Color Shapes Button")
+     }
+  
+     /// Creates a button for the shapes panel
+     private func makeShapesButton() -> some View {
+         Button(action: {
+             if showProperties || showColorShapes {  // If another panel is showing
+                 isSwitchingPanels = true // Set flag to indicate we're switching panels
+                 if showProperties {
+                     showProperties = false
+                 } else if showColorShapes {
+                     showColorShapes = false
+                 }
+                 showShapesPanel = true
+                 isSwitchingPanels = false
+             } else if !showShapesPanel {  // If no panel is showing, animate in
+                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                     showShapesPanel = true
+                 }
+             }
+         }) {
+             Rectangle()
+                 .foregroundColor(Color(uiColor: .systemBackground))
+                 .frame(width: 60, height: 60)
+                 .cornerRadius(8)
+                 .overlay(
+                     Image(systemName: "square.on.square")
+                         .font(.system(size: 24))
+                         .foregroundColor(Color(uiColor: .systemBlue))
+                 )
+                 .overlay(
+                     RoundedRectangle(cornerRadius: 8)
+                         .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                 )
+         }
+         .accessibilityIdentifier("Shapes Button")
      }
   
      /// Creates the zoom control slider with + and - indicators
@@ -534,15 +832,16 @@ struct CanvasView: View {
                          .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
                  )
                  .frame(width: 40)
-         )
+        )
      }
   
      /// Creates the close button for the properties panel
      private func makeCloseButton() -> some View {
          Button(action: {
-             withAnimation(.spring()) {
+             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                  showProperties = false
                  showColorShapes = false
+                 showShapesPanel = false
              }
          }) {
              Rectangle()

@@ -1,5 +1,5 @@
 //
-//  ColorShapesPanel.swift
+//  ColorPropertiesPanel.swift
 //  COMP-49X-24-25-PhoneArt
 //
 //  Created by Emmett DeBruin on 02/27/25.
@@ -23,7 +23,7 @@ import SwiftUI
 /// - Integration with ColorSelectionPanel for comprehensive color management
 /// - Custom UI controls for intuitive user interaction
 /// - Ability to switch to PropertiesPanel for other shape properties
-struct ColorShapesPanel: View {
+struct ColorPropertiesPanel: View {
    // MARK: - Properties
   
    /// Currently selected tab index
@@ -42,6 +42,10 @@ struct ColorShapesPanel: View {
    /// Callback function to switch to the Properties panel
    /// Executed when the user taps the Properties button
    var onSwitchToProperties: () -> Void
+   
+   /// Callback function to switch to the Shapes panel
+   /// Executed when the user taps the Shapes button
+   var onSwitchToShapes: () -> Void
   
    // MARK: - Initialization
   
@@ -50,10 +54,12 @@ struct ColorShapesPanel: View {
    ///   - isShowing: Controls panel visibility state
    ///   - selectedColor: Binding to the currently selected color that will be applied to shapes
    ///   - onSwitchToProperties: Callback function executed when switching to the Properties panel
-   init(isShowing: Binding<Bool>, selectedColor: Binding<Color>, onSwitchToProperties: @escaping () -> Void) {
+   ///   - onSwitchToShapes: Callback function executed when switching to the Shapes panel
+   init(isShowing: Binding<Bool>, selectedColor: Binding<Color>, onSwitchToProperties: @escaping () -> Void, onSwitchToShapes: @escaping () -> Void) {
        self._isShowing = isShowing
        self._selectedColor = selectedColor
        self.onSwitchToProperties = onSwitchToProperties
+       self.onSwitchToShapes = onSwitchToShapes
    }
  
    // MARK: - Body
@@ -121,15 +127,16 @@ struct ColorShapesPanel: View {
    /// Creates the header section of the panel containing navigation buttons and close control
    /// - Returns: A view containing the header elements
    private func panelHeader() -> some View {
-       HStack {
-           // Navigation button group (Properties and ColorShapes)
+       HStack(spacing: 10) {
+           // Navigation buttons
            HStack(spacing: 10) {
                makePropertiesButton()
-               makeColorShapesButton()
+               makeColorPropertiesButton()
+               makeShapesButton()
            }
-          
+           
            Spacer()
-          
+           
            // Close button
            Image(systemName: "xmark")
                .font(.system(size: 20))
@@ -137,9 +144,7 @@ struct ColorShapesPanel: View {
                .accessibilityLabel("Close")
                .accessibilityIdentifier("CloseButton")
                .onTapGesture {
-                   withAnimation(.spring()) {
-                       isShowing = false
-                   }
+                   isShowing = false
                }
        }
        .padding(.horizontal)
@@ -161,13 +166,10 @@ struct ColorShapesPanel: View {
        .frame(maxWidth: .infinity)
    }
   
-   /// Creates a button that switches to the Properties panel when tapped
-   /// - Returns: A styled button view with the slider icon
+   /// Creates a button that switches to the Properties panel
    private func makePropertiesButton() -> some View {
        Button(action: {
-           withAnimation(.spring()) {
-               onSwitchToProperties()  // Execute the switch callback
-           }
+           onSwitchToProperties()
        }) {
            Rectangle()
                .foregroundColor(Color(uiColor: .systemBackground))
@@ -178,16 +180,16 @@ struct ColorShapesPanel: View {
                        .font(.system(size: 24))
                        .foregroundColor(Color(uiColor: .systemBlue))
                )
-               .shadow(radius: 2)
+               .overlay(
+                   RoundedRectangle(cornerRadius: 8)
+                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+               )
        }
        .accessibilityIdentifier("Properties Button")
-       .accessibilityLabel("Properties")
-       .accessibilityHint("Switch to the properties panel")
    }
- 
-   /// Creates a button representing the current (ColorShapes) panel
-   /// - Returns: A styled button view with the layers icon
-   private func makeColorShapesButton() -> some View {
+   
+   /// Creates a button for the current (Color Properties) panel
+   private func makeColorPropertiesButton() -> some View {
        Button(action: {
            // No action needed - we're already in this panel
        }) {
@@ -200,20 +202,37 @@ struct ColorShapesPanel: View {
                        .font(.system(size: 24))
                        .foregroundColor(Color(uiColor: .systemBlue))
                )
+               .shadow(radius: 2)
+       }
+       .accessibilityIdentifier("Color Properties Button")
+   }
+   
+   /// Creates a button that switches to the Shapes panel
+   private func makeShapesButton() -> some View {
+       Button(action: {
+           onSwitchToShapes()
+       }) {
+           Rectangle()
+               .foregroundColor(Color(uiColor: .systemBackground))
+               .frame(width: 60, height: 60)
+               .cornerRadius(8)
+               .overlay(
+                   Image(systemName: "square.on.square")
+                       .font(.system(size: 24))
+                       .foregroundColor(Color(uiColor: .systemBlue))
+               )
                .overlay(
                    RoundedRectangle(cornerRadius: 8)
                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
                )
        }
-       .accessibilityIdentifier("Color Shapes Button")
-       .accessibilityLabel("Color and Shapes")
-       .accessibilityHint("Currently in the color and shapes panel")
+       .accessibilityIdentifier("Shapes Button")
    }
 }
 
 
 /// A view that displays shape selection options without its own ScrollView
-/// This is used as part of a larger ScrollView in ColorShapesPanel
+/// This is used as part of a larger ScrollView in ColorPropertiesPanel
 struct ShapesSectionContent: View {
    // MARK: - Properties
   
@@ -398,16 +417,56 @@ struct ShapesSectionContent: View {
 }
 
 
+// MARK: - Testing Extensions
+
+/// Extension providing test access to ShapesSectionContent properties
+extension ShapesSectionContent {
+    /// Test access to hue text field value
+    var testHueText: String {
+        get { hueText }
+        set { hueText = newValue }
+    }
+    
+    /// Test access to saturation text field value
+    var testSaturationText: String {
+        get { saturationText }
+        set { saturationText = newValue }
+    }
+    
+    /// Test access to alpha text field value
+    var testAlphaText: String {
+        get { alphaText }
+        set { alphaText = newValue }
+    }
+    
+    /// Test access to stroke width text field value
+    var testStrokeWidthText: String {
+        get { strokeWidthText }
+        set { strokeWidthText = newValue }
+    }
+}
+
+/// Extension providing test access to ColorPropertiesPanel properties
+extension ColorPropertiesPanel {
+    /// Test access to selected tab
+    var testSelectedTab: Int {
+        get { selectedTab }
+        set { selectedTab = newValue }
+    }
+}
+
+
 // MARK: - Previews
 
 
-/// Preview provider for ColorShapesPanel
-struct ColorShapesPanel_Previews: PreviewProvider {
+/// Preview provider for ColorPropertiesPanel
+struct ColorPropertiesPanel_Previews: PreviewProvider {
    static var previews: some View {
-       ColorShapesPanel(
+       ColorPropertiesPanel(
            isShowing: .constant(true),
            selectedColor: .constant(.purple),
-           onSwitchToProperties: {}
+           onSwitchToProperties: {},
+           onSwitchToShapes: {}
        )
    }
 }
@@ -431,4 +490,4 @@ private func colorShapesSection() -> some View {
    .padding()
    .background(Color(uiColor: .systemGray6))
    .cornerRadius(8)
-}
+} 

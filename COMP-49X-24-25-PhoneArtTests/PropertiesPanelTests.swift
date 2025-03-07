@@ -1,4 +1,3 @@
-
 //
 //  PropertiesPanelTests.swift
 //  COMP-49X-24-25-PhoneArtTests
@@ -54,7 +53,8 @@ final class PropertiesPanelTests: XCTestCase {
           horizontal: .constant(horizontal),
           vertical: .constant(vertical),
           isShowing: .constant(isShowing),
-          onSwitchToColorShapes: {}
+          onSwitchToColorShapes: {},
+          onSwitchToShapes: {}
       )
   }
    /// Cleans up the test environment after each test method is called
@@ -290,7 +290,8 @@ final class PropertiesPanelTests: XCTestCase {
           horizontal: horizontal,
           vertical: vertical,
           isShowing: isShowing,
-          onSwitchToColorShapes: switchCallback
+          onSwitchToColorShapes: switchCallback,
+          onSwitchToShapes: switchCallback
       )
      
       let _ = sut.body
@@ -322,7 +323,8 @@ final class PropertiesPanelTests: XCTestCase {
           horizontal: horizontal,
           vertical: vertical,
           isShowing: isShowing,
-          onSwitchToColorShapes: switchCallback
+          onSwitchToColorShapes: switchCallback,
+          onSwitchToShapes: switchCallback
       )
      
       XCTAssertTrue(isShowing.wrappedValue)
@@ -339,7 +341,8 @@ final class PropertiesPanelTests: XCTestCase {
           horizontal: horizontal,
           vertical: vertical,
           isShowing: isHidden,
-          onSwitchToColorShapes: switchCallback
+          onSwitchToColorShapes: switchCallback,
+          onSwitchToShapes: switchCallback
       )
      
       XCTAssertFalse(isHidden.wrappedValue)
@@ -363,7 +366,8 @@ final class PropertiesPanelTests: XCTestCase {
           isShowing: .constant(true),
           onSwitchToColorShapes: {
               callbackCalled = true
-          }
+          },
+          onSwitchToShapes: {}
       )
      
       // Verify callback flag is initially false
@@ -493,7 +497,8 @@ final class PropertiesPanelTests: XCTestCase {
           horizontal: horizontal,
           vertical: vertical,
           isShowing: isShowing,
-          onSwitchToColorShapes: switchCallback
+          onSwitchToColorShapes: switchCallback,
+          onSwitchToShapes: switchCallback
       )
      
       // Test that body view is created successfully

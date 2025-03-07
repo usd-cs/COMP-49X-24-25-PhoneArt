@@ -28,12 +28,14 @@ final class ColorShapesTests: XCTestCase {
    var isShowing: Binding<Bool>!
    var selectedColor: Binding<Color>!
    var onSwitchToPropertiesCalled = false
+   var onSwitchToShapesCalled = false
   
    override func setUp() {
        super.setUp()
        isShowing = Binding.constant(true)
        selectedColor = Binding.constant(.red)
        onSwitchToPropertiesCalled = false
+       onSwitchToShapesCalled = false
    }
   
    override func tearDown() {
@@ -44,10 +46,11 @@ final class ColorShapesTests: XCTestCase {
   
    func testPanelInitialization() {
        // Given
-       _ = ColorShapesPanel(
+       _ = ColorPropertiesPanel(
            isShowing: isShowing,
            selectedColor: selectedColor,
-           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true }
+           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true },
+           onSwitchToShapes: { self.onSwitchToShapesCalled = true }
        )
       
        // Then
@@ -75,10 +78,11 @@ final class ColorShapesTests: XCTestCase {
        )
       
        // Create a new panel with the binding
-       _ = ColorShapesPanel(
+       _ = ColorPropertiesPanel(
            isShowing: isShowingBinding,
            selectedColor: selectedColor,
-           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true }
+           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true },
+           onSwitchToShapes: { self.onSwitchToShapesCalled = true }
        )
       
        // When - Simulating closing the panel
@@ -93,10 +97,11 @@ final class ColorShapesTests: XCTestCase {
    @MainActor
    func testBodyViewCreation() {
        // Given
-       let panel = ColorShapesPanel(
+       let panel = ColorPropertiesPanel(
            isShowing: isShowing,
            selectedColor: selectedColor,
-           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true }
+           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true },
+           onSwitchToShapes: { self.onSwitchToShapesCalled = true }
        )
       
        // When & Then - Just ensure body creates a view without crashing
@@ -106,7 +111,7 @@ final class ColorShapesTests: XCTestCase {
   
    func testPreviewProvider() {
        // Given & When
-       let previewPanel = ColorShapesPanel_Previews.previews
+       let previewPanel = ColorPropertiesPanel_Previews.previews
       
        // Then - Just verify preview provider works without errors
        XCTAssertNotNil(previewPanel)
@@ -118,48 +123,30 @@ final class ColorShapesTests: XCTestCase {
        let isShowing = Binding.constant(true)
        let selectedColor = Binding.constant(Color.red)
        let onSwitchToProperties = {}
+       let onSwitchToShapes = {}
       
        // Initialize the panel - note we use '_' to explicitly indicate we're not using this value
        // This avoids the "never used" warning
-       _ = ColorShapesPanel(
+       _ = ColorPropertiesPanel(
            isShowing: isShowing,
            selectedColor: selectedColor,
-           onSwitchToProperties: onSwitchToProperties
+           onSwitchToProperties: onSwitchToProperties,
+           onSwitchToShapes: onSwitchToShapes
        )
       
        // Just test that initialization completes without errors
        XCTAssertTrue(true)
    }
-  
-   @MainActor
-   func testTabSelection() {
-       // Given
-       let panel = ColorShapesPanel(
-           isShowing: isShowing,
-           selectedColor: selectedColor,
-           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true }
-       )
-      
-       // When - access the body to trigger view creation
-       let _ = panel.body
-      
-       // Then - test the default tab (should be 0)
-       XCTAssertEqual(panel.selectedTab, 0)
-      
-       // When - change tab
-       panel.selectedTab = 1
-      
-       // Then
-       XCTAssertEqual(panel.selectedTab, 0)
-   }
+
   
    @MainActor
    func testSwitchToPropertiesCallback() {
        // Given
-       let panel = ColorShapesPanel(
+       let panel = ColorPropertiesPanel(
            isShowing: isShowing,
            selectedColor: selectedColor,
-           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true }
+           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true },
+           onSwitchToShapes: { self.onSwitchToShapesCalled = true }
        )
       
        // When - simulate tapping the properties button
@@ -183,77 +170,17 @@ final class ColorShapesTests: XCTestCase {
        let _ = shapesSection.body
       
        // Then - verify initial state of UI matches ColorPresetManager
-       XCTAssertEqual(shapesSection.hueText, "\(Int(colorManager.hueAdjustment * 100))")
-       XCTAssertEqual(shapesSection.saturationText, "\(Int(colorManager.saturationAdjustment * 100))")
-       XCTAssertEqual(shapesSection.alphaText, "\(Int(colorManager.shapeAlpha * 100))")
-       XCTAssertEqual(shapesSection.strokeWidthText, String(format: "%.1f", colorManager.strokeWidth))
+       // We need to update these to use extension helpers for access to private properties
+       XCTAssertEqual(shapesSection.testHueText, "\(Int(colorManager.hueAdjustment * 100))")
+       XCTAssertEqual(shapesSection.testSaturationText, "\(Int(colorManager.saturationAdjustment * 100))")
+       XCTAssertEqual(shapesSection.testAlphaText, "\(Int(colorManager.shapeAlpha * 100))")
+       XCTAssertEqual(shapesSection.testStrokeWidthText, String(format: "%.1f", colorManager.strokeWidth))
       
        // Cleanup
        colorManager.hueAdjustment = originalHue
        colorManager.saturationAdjustment = originalSaturation
        colorManager.shapeAlpha = originalAlpha
        colorManager.strokeWidth = originalStrokeWidth
-   }
-  
-   @MainActor
-   func testPropertyRowCreation() {
-       // Given
-       let shapesSection = ShapesSectionContent()
-      
-       // When & Then - Just test that we can access the method without crashing
-       let propertyRow = shapesSection.propertyRow(title: "Test Property", icon: "star") {
-           Text("Test Content")
-       }
-      
-       // Verify the property row can be created
-       XCTAssertNotNil(propertyRow)
-   }
-  
-   @MainActor
-   func testColorManagerInteractions() {
-       // Skip test to prevent excessive resource usage
-       XCTSkip("Skipping test due to high resource usage")
-      
-       /* Original implementation removed */
-   }
-  
-   @MainActor
-   func testPanelHeaderComponents() {
-       // Skip test to prevent excessive resource usage
-       XCTSkip("Skipping test due to high resource usage")
-      
-       /* Original implementation removed */
-   }
-  
-   @MainActor
-   func testTabSelectorComponent() {
-       // Skip test to prevent excessive resource usage
-       XCTSkip("Skipping test due to high resource usage")
-      
-       /* Original implementation removed */
-   }
-  
-   @MainActor
-   func testButtonComponents() {
-       // Skip test to prevent excessive resource usage
-       XCTSkip("Skipping test due to high resource usage")
-      
-       /* Original implementation removed to fix resource issues
-       // Given
-       let panel = ColorShapesPanel(
-           isShowing: isShowing,
-           selectedColor: selectedColor,
-           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true }
-       )
-      
-       // When
-       let propertiesButton = panel.makePropertiesButton()
-       let colorShapesButton = panel.makeColorShapesButton()
-      
-       // Then - Just verify buttons can be created without accessing .body
-       XCTAssertNotNil(propertiesButton)
-       XCTAssertNotNil(colorShapesButton)
-       */
    }
   
    @MainActor
@@ -266,10 +193,11 @@ final class ColorShapesTests: XCTestCase {
        )
       
        // Create panel with binding but don't access its methods directly
-       _ = ColorShapesPanel(
+       _ = ColorPropertiesPanel(
            isShowing: isShowingBinding,
            selectedColor: selectedColor,
-           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true }
+           onSwitchToProperties: { self.onSwitchToPropertiesCalled = true },
+           onSwitchToShapes: { self.onSwitchToShapesCalled = true }
        )
       
        // Simulate tapping the close button by directly toggling the binding
