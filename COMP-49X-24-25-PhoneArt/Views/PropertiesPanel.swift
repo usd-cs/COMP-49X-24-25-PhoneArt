@@ -54,21 +54,46 @@ struct PropertiesPanel: View {
   }()
    var body: some View {
       VStack(spacing: 0) {
-          HStack(spacing: 20) {
-              HStack(spacing: 10) {
-                  makePropertiesButton()
-                  makeAlternatePropertiesButton()
-                  makeShapesButton()
-              }
-              Spacer()
-              Image(systemName: "xmark")
-                  .font(.system(size: 20))
-                  .foregroundColor(Color(uiColor: .label))
-                  .accessibilityLabel("Close")
-                  .accessibilityIdentifier("CloseButton")
-                  .onTapGesture {
+          // Panel header with evenly distributed buttons
+          HStack(alignment: .center, spacing: 0) {
+              Spacer() // Left margin spacer for equal distribution
+              
+              makePropertiesButton()
+              
+              Spacer() // Spacer between buttons for equal distribution
+              
+              makeAlternatePropertiesButton()
+              
+              Spacer() // Spacer between buttons for equal distribution
+              
+              makeShapesButton()
+              
+              Spacer() // Spacer between buttons for equal distribution
+              
+              // Close button
+              Button(action: {
+                  withAnimation(.easeInOut(duration: 0.25)) {
                       isShowing = false
                   }
+              }) {
+                  Rectangle()
+                      .foregroundColor(Color(uiColor: .systemBackground))
+                      .frame(width: 60, height: 60)
+                      .cornerRadius(8)
+                      .overlay(
+                          Image(systemName: "xmark")
+                              .font(.system(size: 24))
+                              .foregroundColor(Color(uiColor: .systemBlue))
+                      )
+                      .overlay(
+                          RoundedRectangle(cornerRadius: 8)
+                              .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                      )
+              }
+              .accessibilityLabel("Close")
+              .accessibilityIdentifier("CloseButton")
+              
+              Spacer() // Right margin spacer for equal distribution
           }
           .padding(.horizontal)
           .padding(.vertical, 4)

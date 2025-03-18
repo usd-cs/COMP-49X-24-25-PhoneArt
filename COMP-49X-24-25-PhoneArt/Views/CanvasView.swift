@@ -152,7 +152,7 @@ struct CanvasView: View {
                          .onEnded(handleDragEnd)
                  )
                  .offset(x: offset.width, y: offset.height + canvasVerticalOffset)
-                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: canvasVerticalOffset)
+                 .animation(.easeInOut(duration: 0.25), value: canvasVerticalOffset)
              }
           
              VStack(spacing: 10) {
@@ -166,16 +166,28 @@ struct CanvasView: View {
           
              VStack {
                  Spacer()
-                 HStack(spacing: 10) {
+                 // Bottom button bar with evenly distributed buttons
+                 // Using Spacers before, between, and after buttons ensures equal spacing
+                 HStack(alignment: .center, spacing: 0) {
+                     Spacer() // Left margin spacer for equal distribution
+                     
                      makePropertiesButton()
+                     
+                     Spacer() // Spacer between buttons for equal distribution
+                     
                      makeColorShapesButton()
+                     
+                     Spacer() // Spacer between buttons for equal distribution
+                     
                      makeShapesButton()
-                     Spacer()
-                     if !showProperties && !showColorShapes && !showShapesPanel {
-                         makeCloseButton()
-                     }
+                     
+                     Spacer() // Spacer between buttons for equal distribution
+                     
+                     makeCloseButton()
+                     
+                     Spacer() // Right margin spacer for equal distribution
                  }
-                 .padding(.horizontal)
+                 .padding(.horizontal, 16)
                  .padding(.bottom, 20)
              }
           
@@ -207,7 +219,10 @@ struct CanvasView: View {
                      )
                  }
                  .zIndex(3)
-                 .transition(!isSwitchingPanels ? .move(edge: .bottom) : .identity)
+                 .transition(!isSwitchingPanels ? .asymmetric(
+                     insertion: .move(edge: .bottom),
+                     removal: .move(edge: .bottom)
+                 ) : .identity)
              }
           
              if showColorShapes {
@@ -231,7 +246,10 @@ struct CanvasView: View {
                      )
                  }
                  .zIndex(3)
-                 .transition(!isSwitchingPanels ? .move(edge: .bottom) : .identity)
+                 .transition(!isSwitchingPanels ? .asymmetric(
+                     insertion: .move(edge: .bottom),
+                     removal: .move(edge: .bottom)
+                 ) : .identity)
              }
           
              if showShapesPanel {
@@ -255,23 +273,26 @@ struct CanvasView: View {
                      )
                  }
                  .zIndex(3)
-                 .transition(!isSwitchingPanels ? .move(edge: .bottom) : .identity)
+                 .transition(!isSwitchingPanels ? .asymmetric(
+                     insertion: .move(edge: .bottom),
+                     removal: .move(edge: .bottom)
+                 ) : .identity)
              }
          }
          .ignoresSafeArea()
          .onChange(of: showProperties) { _, newValue in
              if !isSwitchingPanels && newValue {
-                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {}
+                 withAnimation(.easeInOut(duration: 0.25)) {}
              }
          }
          .onChange(of: showColorShapes) { _, newValue in
              if !isSwitchingPanels && newValue {
-                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {}
+                 withAnimation(.easeInOut(duration: 0.25)) {}
              }
          }
          .onChange(of: showShapesPanel) { _, newValue in
              if !isSwitchingPanels && newValue {
-                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {}
+                 withAnimation(.easeInOut(duration: 0.25)) {}
              }
          }
          // Add an onReceive modifier to handle color preset changes
@@ -709,7 +730,7 @@ struct CanvasView: View {
                  showProperties = true
                  isSwitchingPanels = false
              } else if !showProperties {  // If no panel is showing, animate in
-                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                 withAnimation(.easeInOut(duration: 0.25)) {
                      showProperties = true
                  }
              }
@@ -744,7 +765,7 @@ struct CanvasView: View {
                  showColorShapes = true
                  isSwitchingPanels = false
              } else if !showColorShapes {  // If no panel is showing, animate in
-                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                 withAnimation(.easeInOut(duration: 0.25)) {
                      showColorShapes = true
                  }
              }
@@ -779,7 +800,7 @@ struct CanvasView: View {
                  showShapesPanel = true
                  isSwitchingPanels = false
              } else if !showShapesPanel {  // If no panel is showing, animate in
-                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                 withAnimation(.easeInOut(duration: 0.25)) {
                      showShapesPanel = true
                  }
              }
@@ -835,10 +856,10 @@ struct CanvasView: View {
         )
      }
   
-     /// Creates the close button for the properties panel
+     /// Creates the close button that's always visible
      private func makeCloseButton() -> some View {
          Button(action: {
-             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+             withAnimation(.easeInOut(duration: 0.25)) {
                  showProperties = false
                  showColorShapes = false
                  showShapesPanel = false
