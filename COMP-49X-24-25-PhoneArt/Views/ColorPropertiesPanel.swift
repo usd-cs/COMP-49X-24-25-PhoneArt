@@ -75,29 +75,48 @@ struct ColorPropertiesPanel: View {
            // Scrollable content area
            ScrollView {
                VStack(spacing: 16) {
-                   // Toggle for default colors - styled to match property rows
-                   Toggle("Toggle Default Colors", isOn: Binding(
-                       get: { ColorPresetManager.shared.useDefaultRainbowColors },
-                       set: { newValue in
-                           ColorPresetManager.shared.useDefaultRainbowColors = newValue
-                           // Always set to dynamic style (index 0) when toggled
-                           if newValue {
-                               ColorPresetManager.shared.rainbowStyle = 0
-                           }
-                       }
-                   ))
-                   .padding()
-                   .background(Color(uiColor: .systemGray6))
-                   .cornerRadius(8)
-                   .padding(.horizontal, 16)
-                   .padding(.top, 16)
-                  
                    // Content area - displays either ShapesSection or ColorSelectionPanel based on selected tab
                    if selectedTab == 0 {
                        // Shapes tab content - without outer ScrollView since we're already in one
                        ShapesSectionContent()
                            .padding(.horizontal, 16)
                    } else {
+                       // Toggle for default colors - styled to match property rows
+                       VStack(alignment: .leading, spacing: 0) {
+                           // Combined row with icon, text and toggle
+                           HStack {
+                               Image(systemName: "wand.and.stars")
+                                   .foregroundColor(.blue)
+                                   .font(.system(size: 18))
+                                   .frame(width: 24)
+                               
+                               Text("Toggle Default Colors")
+                                   .font(.headline)
+                               
+                               Spacer() // Push the toggle to the right
+                               
+                               Toggle("", isOn: Binding(
+                                   get: { ColorPresetManager.shared.useDefaultRainbowColors },
+                                   set: { newValue in
+                                       ColorPresetManager.shared.useDefaultRainbowColors = newValue
+                                       // Always set to dynamic style (index 0) when toggled
+                                       if newValue {
+                                           ColorPresetManager.shared.rainbowStyle = 0
+                                       }
+                                   }
+                               ))
+                               .labelsHidden()
+                               .frame(width: 51) // Set a fixed width to match iOS standard toggle
+                           }
+                           .padding(.vertical, 10) // Add vertical padding to match the height of other controls
+                       }
+                       .padding(.vertical, 12)
+                       .padding(.horizontal, 16)
+                       .background(Color(uiColor: .systemGray6))
+                       .cornerRadius(8)
+                       .padding(.horizontal, 16)
+                       .padding(.top, 16)
+                       
                        // Colors tab content
                        ColorSelectionPanel(selectedColor: $selectedColor)
                            .padding(.horizontal, 16)
@@ -127,25 +146,46 @@ struct ColorPropertiesPanel: View {
    /// Creates the header section of the panel containing navigation buttons and close control
    /// - Returns: A view containing the header elements
    private func panelHeader() -> some View {
-       HStack(spacing: 10) {
-           // Navigation buttons
-           HStack(spacing: 10) {
-               makePropertiesButton()
-               makeColorPropertiesButton()
-               makeShapesButton()
-           }
+       // Panel header with evenly distributed buttons
+       HStack(alignment: .center, spacing: 0) {
+           Spacer() // Left margin spacer for equal distribution
            
-           Spacer()
+           makePropertiesButton()
+           
+           Spacer() // Spacer between buttons for equal distribution
+           
+           makeColorPropertiesButton()
+           
+           Spacer() // Spacer between buttons for equal distribution
+           
+           makeShapesButton()
+           
+           Spacer() // Spacer between buttons for equal distribution
            
            // Close button
-           Image(systemName: "xmark")
-               .font(.system(size: 20))
-               .foregroundColor(Color(uiColor: .label))
-               .accessibilityLabel("Close")
-               .accessibilityIdentifier("CloseButton")
-               .onTapGesture {
+           Button(action: {
+               withAnimation(.easeInOut(duration: 0.25)) {
                    isShowing = false
                }
+           }) {
+               Rectangle()
+                   .foregroundColor(Color(uiColor: .systemBackground))
+                   .frame(width: 60, height: 60)
+                   .cornerRadius(8)
+                   .overlay(
+                       Image(systemName: "xmark")
+                           .font(.system(size: 24))
+                           .foregroundColor(Color(uiColor: .systemBlue))
+                   )
+                   .overlay(
+                       RoundedRectangle(cornerRadius: 8)
+                           .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                   )
+           }
+           .accessibilityLabel("Close")
+           .accessibilityIdentifier("CloseButton")
+           
+           Spacer() // Right margin spacer for equal distribution
        }
        .padding(.horizontal)
        .padding(.vertical, 4)
@@ -265,30 +305,32 @@ struct ShapesSectionContent: View {
        VStack(alignment: .leading, spacing: 16) {
            // Color properties - Always visible regardless of toggle state
            VStack(spacing: 12) {
-               // Hue slider
-               propertyRow(title: "Hue", icon: "paintpalette") {
-                   HStack {
-                       Slider(value: $colorManager.hueAdjustment, in: 0...1)
-                           .accessibilityIdentifier("Hue Slider")
-                           .onChange(of: colorManager.hueAdjustment) { _, newValue in
-                               hueText = "\(Int(newValue * 100))"
-                           }
-                      
-                       TextField("", text: $hueText)
-                           .frame(width: 50)
-                           .textFieldStyle(RoundedBorderTextFieldStyle())
-                           .keyboardType(.numberPad)
-                           .multilineTextAlignment(.center)
-                           .onChange(of: hueText) { _, newValue in
-                               if let value = Double(newValue), value >= 0, value <= 100 {
-                                   colorManager.hueAdjustment = value / 100
+               // Hue slider - only visible when default rainbow colors are enabled
+               if colorManager.useDefaultRainbowColors {
+                   propertyRow(title: "Hue", icon: "paintpalette") {
+                       HStack {
+                           Slider(value: $colorManager.hueAdjustment, in: 0...1)
+                               .accessibilityIdentifier("Hue Slider")
+                               .onChange(of: colorManager.hueAdjustment) { _, newValue in
+                                   hueText = "\(Int(newValue * 100))"
                                }
-                           }
-                       Text("%")
+                          
+                           TextField("", text: $hueText)
+                               .frame(width: 50)
+                               .textFieldStyle(RoundedBorderTextFieldStyle())
+                               .keyboardType(.numberPad)
+                               .multilineTextAlignment(.center)
+                               .onChange(of: hueText) { _, newValue in
+                                   if let value = Double(newValue), value >= 0, value <= 100 {
+                                       colorManager.hueAdjustment = value / 100
+                                   }
+                               }
+                           Text("%")
+                       }
                    }
                }
               
-               // Saturation slider
+               // Saturation slider - always visible
                propertyRow(title: "Saturation", icon: "drop") {
                    HStack {
                        Slider(value: $colorManager.saturationAdjustment, in: 0...1)
@@ -296,7 +338,7 @@ struct ShapesSectionContent: View {
                            .onChange(of: colorManager.saturationAdjustment) { _, newValue in
                                saturationText = "\(Int(newValue * 100))"
                            }
-                      
+                          
                        TextField("", text: $saturationText)
                            .frame(width: 50)
                            .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -379,7 +421,7 @@ struct ShapesSectionContent: View {
        .padding(16)
        .background(Color(.systemBackground))
        .cornerRadius(12)
-       .animation(.spring(), value: colorManager.useDefaultRainbowColors)
+       .animation(.easeInOut(duration: 0.25), value: colorManager.useDefaultRainbowColors)
    }
   
    // MARK: - UI Components

@@ -103,25 +103,46 @@ struct ShapesPanel: View {
     /// - Shapes panel button (current panel)
     /// - Close button
     internal func panelHeader() -> some View {
-        HStack {
-            // Navigation button group
-            HStack(spacing: 10) {
-                makePropertiesButton()
-                makeColorPropertiesButton()
-                makeShapesButton()
-            }
+        // Panel header with evenly distributed buttons
+        HStack(alignment: .center, spacing: 0) {
+            Spacer() // Left margin spacer for equal distribution
             
-            Spacer()
+            makePropertiesButton()
+            
+            Spacer() // Spacer between buttons for equal distribution
+            
+            makeColorPropertiesButton()
+            
+            Spacer() // Spacer between buttons for equal distribution
+            
+            makeShapesButton()
+            
+            Spacer() // Spacer between buttons for equal distribution
             
             // Close button
-            Image(systemName: "xmark")
-                .font(.system(size: 20))
-                .foregroundColor(Color(uiColor: .label))
-                .accessibilityLabel("Close")
-                .accessibilityIdentifier("CloseButton")
-                .onTapGesture {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.25)) {
                     isShowing = false
                 }
+            }) {
+                Rectangle()
+                    .foregroundColor(Color(uiColor: .systemBackground))
+                    .frame(width: 60, height: 60)
+                    .cornerRadius(8)
+                    .overlay(
+                        Image(systemName: "xmark")
+                            .font(.system(size: 24))
+                            .foregroundColor(Color(uiColor: .systemBlue))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                    )
+            }
+            .accessibilityLabel("Close")
+            .accessibilityIdentifier("CloseButton")
+            
+            Spacer() // Right margin spacer for equal distribution
         }
         .padding(.horizontal)
         .padding(.vertical, 4)

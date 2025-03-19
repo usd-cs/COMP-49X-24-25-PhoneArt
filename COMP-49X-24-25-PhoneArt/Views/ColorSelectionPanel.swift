@@ -284,7 +284,9 @@ class ColorPresetManager: ObservableObject {
        // Log the color selection for debugging
        print("Position \(position) using color \(colorIndex) of \(visibleColors.count) visible colors")
       
-       return visibleColors[colorIndex]
+       // Apply hue and saturation adjustments to the custom color
+       let baseColor = visibleColors[colorIndex]
+       return adjustColor(baseColor, hueShift: hueAdjustment - 0.5, saturationScale: saturationAdjustment)
    }
   
    /// Generate a rainbow color based on position
@@ -442,6 +444,29 @@ class ColorPresetManager: ObservableObject {
        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
        return [red, green, blue, alpha]
    }
+  
+   // Helper method to adjust a color with hue shift and saturation scaling
+   private func adjustColor(_ color: Color, hueShift: Double, saturationScale: Double) -> Color {
+       let uiColor = UIColor(color)
+       var hue: CGFloat = 0
+       var saturation: CGFloat = 0
+       var brightness: CGFloat = 0
+       var alpha: CGFloat = 0
+       
+       if uiColor.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha) {
+           // Adjust hue (shift by -0.5 to 0.5) only if useDefaultRainbowColors is true
+           let newHue = useDefaultRainbowColors ? 
+               (hue + CGFloat(hueShift)).truncatingRemainder(dividingBy: 1.0) : hue
+           
+           // Adjust saturation (scale by 0-1) always
+           let newSaturation = min(1.0, max(0.0, saturation * CGFloat(saturationScale)))
+           
+           return Color(hue: Double(newHue), saturation: Double(newSaturation), brightness: Double(brightness), opacity: Double(alpha))
+       }
+       
+       // Return original color if conversion fails
+       return color
+   }
 }
 
 
@@ -474,135 +499,163 @@ struct ColorSelectionPanel: View {
    var body: some View {
        ScrollView {
            VStack(alignment: .leading, spacing: 12) {
-               // Header with icon and label
-               HStack(spacing: 10) {
-                   Image(systemName: "paintpalette")
-                       .font(.title3)
-                  
-                   Text("Preset Colors")
-                       .foregroundColor(Color(uiColor: .label))
-                       .font(.body)
-               }
-               .padding(.bottom, 10)
-              
-               // Slider for number of presets that matches rotation slider style
-               HStack(spacing: 12) {
-                   Slider(
-                       value: Binding<Double>(
-                           get: { Double(presetManager.numberOfVisiblePresets) },
+               // Slider for number of presets that matches property row slider style
+               VStack(alignment: .leading) {
+                   HStack {
+                       Image(systemName: "circle.grid.2x2")
+                           .foregroundColor(.blue)
+                           .font(.system(size: 18))
+                       Text("Preset Count")
+                           .font(.headline)
+                   }
+                   
+                   HStack(spacing: 12) {
+                       Slider(
+                           value: Binding<Double>(
+                               get: { Double(presetManager.numberOfVisiblePresets) },
+                               set: { newValue in
+                                   // Immediately update the number of visible presets
+                                   let newCount = max(1, min(10, Int(newValue)))
+                                   if presetManager.numberOfVisiblePresets != newCount {
+                                       presetManager.numberOfVisiblePresets = newCount
+                                      
+                                       // Immediately notify about the change
+                                       NotificationCenter.default.post(
+                                           name: Notification.Name("ColorPresetsChanged"),
+                                           object: nil
+                                       )
+                                      
+                                       // Force UI refresh
+                                       presetManager.objectWillChange.send()
+                                   }
+                               }
+                           ),
+                           in: 1...10,
+                           step: 1
+                       )
+                       .accessibilityIdentifier("Preset Count Slider")
+                      
+                       TextField("", text: Binding<String>(
+                           get: { "\(presetManager.numberOfVisiblePresets)" },
                            set: { newValue in
-                               // Immediately update the number of visible presets
-                               let newCount = max(1, min(10, Int(newValue)))
-                               if presetManager.numberOfVisiblePresets != newCount {
-                                   presetManager.numberOfVisiblePresets = newCount
-                                  
-                                   // Immediately notify about the change
+                               if let value = Int(newValue), value >= 1, value <= 10 {
+                                   presetManager.numberOfVisiblePresets = value
+                                   // Notify about the change
                                    NotificationCenter.default.post(
                                        name: Notification.Name("ColorPresetsChanged"),
                                        object: nil
                                    )
-                                  
-                                   // Force UI refresh
-                                   presetManager.objectWillChange.send()
                                }
                            }
-                       ),
-                       in: 1...10,
-                       step: 1
-                   )
-                   .accessibilityIdentifier("Preset Count Slider")
-                  
-                   TextField("", text: Binding<String>(
-                       get: { "\(presetManager.numberOfVisiblePresets)" },
-                       set: { newValue in
-                           if let value = Int(newValue), value >= 1, value <= 10 {
-                               presetManager.numberOfVisiblePresets = value
-                               // Notify about the change
-                               NotificationCenter.default.post(
-                                   name: Notification.Name("ColorPresetsChanged"),
-                                   object: nil
-                               )
-                           }
-                       }
-                   ))
-                   .frame(width: 40)
-                   .textFieldStyle(RoundedBorderTextFieldStyle())
-                   .keyboardType(.numberPad)
-                   .multilineTextAlignment(.center)
+                       ))
+                       .frame(width: 40)
+                       .textFieldStyle(RoundedBorderTextFieldStyle())
+                       .keyboardType(.numberPad)
+                       .multilineTextAlignment(.center)
+                   }
                }
-               .padding(.vertical, 10)
+               .padding()
+               .background(Color(uiColor: .systemGray6))
+               .cornerRadius(8)
+               .padding(.horizontal, 16)
+               .padding(.bottom, 12)
               
                // Preset color slots - clean design without border
-               ScrollView(.horizontal, showsIndicators: false) {
-                   HStack(spacing: 12) {
-                       // Show the actual visible colors
-                       let visiblePresets = min(presetManager.numberOfVisiblePresets, presetManager.colorPresets.count)
-                       let visibleColors = Array(presetManager.colorPresets.prefix(visiblePresets))
-                      
-                       ForEach(0..<visiblePresets, id: \.self) { index in
-                           ColorPresetButton(
-                               color: visibleColors[index],
-                               isSelected: selectedPresetIndex == index
-                           ) {
-                               selectedPresetIndex = index
-                               selectedColor = visibleColors[index]
-                               hexValue = selectedColor.toHex() ?? "#000000"
+               VStack(alignment: .leading) {
+                   HStack {
+                       Image(systemName: "paintbrush.pointed")
+                           .foregroundColor(.blue)
+                           .font(.system(size: 18))
+                       Text("Color Presets")
+                           .font(.headline)
+                   }
+                   
+                   ScrollView(.horizontal, showsIndicators: false) {
+                       HStack(spacing: 12) {
+                           // Show the actual visible colors
+                           let visiblePresets = min(presetManager.numberOfVisiblePresets, presetManager.colorPresets.count)
+                           let visibleColors = Array(presetManager.colorPresets.prefix(visiblePresets))
+                          
+                           ForEach(0..<visiblePresets, id: \.self) { index in
+                               ColorPresetButton(
+                                   color: visibleColors[index],
+                                   isSelected: selectedPresetIndex == index
+                               ) {
+                                   selectedPresetIndex = index
+                                   selectedColor = visibleColors[index]
+                                   hexValue = selectedColor.toHex() ?? "#000000"
+                               }
                            }
                        }
+                       .padding(.horizontal, 10)
+                       .padding(.vertical, 8)
                    }
-                   .padding(.horizontal, 10)
-                   .padding(.vertical, 8)
+                   .frame(height: 70)
                }
-               .frame(height: 70)
-               .padding(.bottom, 8)
+               .padding()
+               .background(Color(uiColor: .systemGray6))
+               .cornerRadius(8)
+               .padding(.horizontal, 16)
+               .padding(.bottom, 12)
               
                // Color picker section with consistent styling
-               HStack(spacing: 16) {
-                   // Custom styled color picker
-                   ColorPicker("", selection: Binding(
-                       get: { selectedColor },
-                       set: { newColor in
-                           selectedColor = newColor
-                           // Update the color preset in our manager
-                           var updatedPresets = presetManager.colorPresets
-                           updatedPresets[selectedPresetIndex] = newColor
-                           presetManager.colorPresets = updatedPresets
-                           hexValue = newColor.toHex() ?? "#000000"
-                       }
-                   ))
-                   .labelsHidden()
-                   .frame(width: 40, height: 40)
-                   .background(
-                       Circle()
-                           .fill(selectedColor)
-                           .frame(width: 40, height: 40)
-                           .overlay(
-                               Circle()
-                                   .stroke(Color.black, lineWidth: 3)
-                           )
-                   )
-                   .scaleEffect(1.2) // Slightly larger to ensure the picker is easily tappable
-                   .clipShape(Circle())
-                  
-                   // Hex input field
-                   TextField("Hex", text: $hexValue)
-                       .textFieldStyle(RoundedBorderTextFieldStyle())
-                       .frame(height: 40)
-                       .onChange(of: hexValue) { _, newValue in
-                           if let color = Color(hex: newValue) {
-                               selectedColor = color
+               VStack(alignment: .leading) {
+                   HStack {
+                       Image(systemName: "eyedropper")
+                           .foregroundColor(.blue)
+                           .font(.system(size: 18))
+                       Text("Edit Color")
+                           .font(.headline)
+                   }
+                   
+                   HStack(spacing: 16) {
+                       // Custom styled color picker
+                       ColorPicker("", selection: Binding(
+                           get: { selectedColor },
+                           set: { newColor in
+                               selectedColor = newColor
                                // Update the color preset in our manager
                                var updatedPresets = presetManager.colorPresets
-                               updatedPresets[selectedPresetIndex] = color
+                               updatedPresets[selectedPresetIndex] = newColor
                                presetManager.colorPresets = updatedPresets
+                               hexValue = newColor.toHex() ?? "#000000"
                            }
-                       }
+                       ))
+                       .labelsHidden()
+                       .frame(width: 40, height: 40)
+                       .background(
+                           Circle()
+                               .fill(selectedColor)
+                               .frame(width: 40, height: 40)
+                               .overlay(
+                                   Circle()
+                                       .stroke(Color.black, lineWidth: 3)
+                               )
+                       )
+                       .scaleEffect(1.2) // Slightly larger to ensure the picker is easily tappable
+                       .clipShape(Circle())
+                      
+                       // Hex input field
+                       TextField("Hex", text: $hexValue)
+                           .textFieldStyle(RoundedBorderTextFieldStyle())
+                           .frame(height: 40)
+                           .onChange(of: hexValue) { _, newValue in
+                               if let color = Color(hex: newValue) {
+                                   selectedColor = color
+                                   // Update the color preset in our manager
+                                   var updatedPresets = presetManager.colorPresets
+                                   updatedPresets[selectedPresetIndex] = color
+                                   presetManager.colorPresets = updatedPresets
+                               }
+                           }
+                   }
                }
-               .padding(10)
-               .background(Color(.systemGray6))
-               .cornerRadius(10)
+               .padding()
+               .background(Color(uiColor: .systemGray6))
+               .cornerRadius(8)
+               .padding(.horizontal, 16)
            }
-           .padding(16)
+           .padding(8)
            .background(Color(.systemBackground))
            .cornerRadius(12)
        }
