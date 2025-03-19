@@ -155,6 +155,16 @@ struct CanvasView: View {
                  .animation(.easeInOut(duration: 0.25), value: canvasVerticalOffset)
              }
           
+             // Share button in upper left corner
+             VStack(spacing: 10) {
+                 makeShareButton()
+                     .padding(.bottom, 30)
+             }
+             .padding(.top, 50)
+             .padding(.leading, 20)
+             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+          
+             // Existing reset button and zoom slider in upper right
              VStack(spacing: 10) {
                  makeResetButton()
                      .padding(.bottom, 30)
@@ -880,5 +890,28 @@ struct CanvasView: View {
                  )
          }
          .accessibilityIdentifier("Close Button")
+     }
+  
+     /// Creates the share button
+     private func makeShareButton() -> some View {
+         Button(action: {
+             // Placeholder for share functionality
+             print("Share button tapped")
+         }) {
+             Rectangle()
+                 .foregroundColor(Color(uiColor: .systemBackground))
+                 .frame(width: 40, height: 40)
+                 .cornerRadius(8)
+                 .overlay(
+                     Image(systemName: "square.and.arrow.up")
+                         .font(.system(size: 20))
+                         .foregroundColor(Color(uiColor: .systemBlue))
+                 )
+                 .overlay(
+                     RoundedRectangle(cornerRadius: 8)
+                         .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                 )
+         }
+         .accessibilityIdentifier("Share Button")
      }
 }
