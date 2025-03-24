@@ -80,6 +80,13 @@ struct CanvasView: View {
      /// State variable to track stroke setting changes
      @State private var strokeSettingsTrigger = UUID()
   
+     @StateObject private var firebaseService = FirebaseService()
+  
+     /// Add state for showing alerts
+     @State private var showAlert = false
+     @State private var alertMessage = ""
+     @State private var alertTitle = ""
+  
      private func validateLayerCount(_ count: Int) -> Int {
          max(0, min(360, count))
      }
@@ -319,6 +326,13 @@ struct CanvasView: View {
          .onReceive(NotificationCenter.default.publisher(for: Notification.Name("StrokeSettingsChanged"))) { _ in
              // Update the trigger to force a refresh
              strokeSettingsTrigger = UUID()
+         }
+         .alert(isPresented: $showAlert) {
+             Alert(
+                 title: Text(alertTitle),
+                 message: Text(alertMessage),
+                 dismissButton: .default(Text("OK"))
+             )
          }
      }
   
@@ -894,10 +908,12 @@ struct CanvasView: View {
   
      /// Creates the share button
      private func makeShareButton() -> some View {
-         Button(action: {
-             // Placeholder for share functionality
-             print("Share button tapped")
-         }) {
+         Menu {
+             Button(action: saveArtwork) {
+                 Label("Save to Gallery", systemImage: "square.and.arrow.down")
+             }
+             // Add other share options here
+         } label: {
              Rectangle()
                  .foregroundColor(Color(uiColor: .systemBackground))
                  .frame(width: 40, height: 40)
@@ -913,5 +929,41 @@ struct CanvasView: View {
                  )
          }
          .accessibilityIdentifier("Share Button")
+     }
+  
+     private func saveArtwork() {
+         let artworkString = ArtworkData.createArtworkString(
+             shapeType: selectedShape,
+             rotation: shapeRotation,
+             scale: shapeScale,
+             layer: shapeLayer,
+             skewX: shapeSkewX,
+             skewY: shapeSkewY,
+             spread: shapeSpread,
+             horizontal: shapeHorizontal,
+             vertical: shapeVertical,
+             colorPresets: colorPresetManager.colorPresets,
+             backgroundColor: colorPresetManager.backgroundColor
+         )
+         
+         Task {
+             do {
+                 try await firebaseService.saveArtwork(artworkData: artworkString)
+                 // List all pieces after saving
+                 await firebaseService.listAllPieces()
+                 
+                 await MainActor.run {
+                     alertTitle = "Success"
+                     alertMessage = "Artwork saved successfully!"
+                     showAlert = true
+                 }
+             } catch {
+                 await MainActor.run {
+                     alertTitle = "Error"
+                     alertMessage = error.localizedDescription
+                     showAlert = true
+                 }
+             }
+         }
      }
 }

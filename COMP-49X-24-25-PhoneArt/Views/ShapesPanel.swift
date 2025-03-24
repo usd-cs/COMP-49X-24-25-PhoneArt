@@ -2,7 +2,7 @@
 //  ShapesPanel.swift
 //  COMP-49X-24-25-PhoneArt
 //
-//  Created by Assistant on current_date
+//  Created by Aditya Prakash on 03/18/25.
 //
 
 import SwiftUI
