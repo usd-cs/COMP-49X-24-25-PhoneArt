@@ -5,21 +5,9 @@
 //  Created by Aditya Prakash on 12/06/24.
 //
 
-
-
-
-
-
-
-
 import SwiftUI
-
-
-
-
-
-
-
+import UIKit
+import Photos
 
 /// A view that displays a draggable canvas with coordinate axes and a red circle.
 /// The canvas can be moved around the screen and reset to its original position.
@@ -59,24 +47,19 @@ struct CanvasView: View {
     @State private var showColorShapes = false
      /// Add new state variable for shapes panel
     @State private var showShapesPanel = false
-  
     /// Tracks whether we are switching between panels (rather than opening/closing)
     @State private var isSwitchingPanels = false
      /// The color currently applied to the base shape on the canvas
     /// This color can be changed through the ColorSelectionPanel
     @State private var shapeColor: Color = .red  // Default to red
-  
     /// The currently selected shape type
     @State private var selectedShape: ShapesPanel.ShapeType = .circle  // Default to circle
-  
     /// Use the shared color preset manager for real-time updates
     @ObservedObject private var colorPresetManager = ColorPresetManager.shared
      /// State variable to force view updates when color presets change
     @State private var colorUpdateTrigger = UUID()
-  
     /// State variable to track background color changes
     @State private var backgroundColorTrigger = UUID()
-  
     /// State variable to track stroke setting changes
     @State private var strokeSettingsTrigger = UUID()
      @StateObject private var firebaseService = FirebaseService()
@@ -133,7 +116,7 @@ struct CanvasView: View {
                         height: 2600
                     )
                     .contentShape(Rectangle())
-             
+                
                 Canvas { context, size in
                     drawShapes(context: context, size: size)
                 }
@@ -147,10 +130,10 @@ struct CanvasView: View {
                         .onChanged(handleDragChange)
                         .onEnded(handleDragEnd)
                 )
-                .offset(x: offset.width, y: offset.height + canvasVerticalOffset)
+                .offset(x: offset.width, y: offset.height +  canvasVerticalOffset)
                 .animation(.easeInOut(duration: 0.25), value: canvasVerticalOffset)
             }
-        
+      
             // Share button in upper left corner
             VStack(spacing: 10) {
                 makeShareButton()
@@ -159,7 +142,7 @@ struct CanvasView: View {
             .padding(.top, 50)
             .padding(.leading, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        
+    
             // Existing reset button and zoom slider in upper right
             VStack(spacing: 10) {
                 makeResetButton()
@@ -169,34 +152,34 @@ struct CanvasView: View {
             .padding(.top, 50)
             .padding(.trailing, -20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-        
+      
             VStack {
                 Spacer()
                 // Bottom button bar with evenly distributed buttons
                 // Using Spacers before, between, and after buttons ensures equal spacing
                 HStack(alignment: .center, spacing: 0) {
                     Spacer() // Left margin spacer for equal distribution
-                   
+                 
                     makePropertiesButton()
-                   
+
                     Spacer() // Spacer between buttons for equal distribution
-                   
+                 
                     makeColorShapesButton()
-                   
+                 
                     Spacer() // Spacer between buttons for equal distribution
-                   
+                 
                     makeShapesButton()
-                   
+                 
                     Spacer() // Spacer between buttons for equal distribution
-                   
+                 
                     makeCloseButton()
-                   
+                 
                     Spacer() // Right margin spacer for equal distribution
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 20)
             }
-        
+      
             if showProperties {
                 VStack {
                     Spacer()
@@ -231,7 +214,7 @@ struct CanvasView: View {
                     removal: .move(edge: .bottom)
                 ) : .identity)
             }
-        
+    
             if showColorShapes {
                 VStack {
                     Spacer()
@@ -258,7 +241,7 @@ struct CanvasView: View {
                     removal: .move(edge: .bottom)
                 ) : .identity)
             }
-        
+      
             if showShapesPanel {
                 VStack {
                     Spacer()
@@ -334,10 +317,10 @@ struct CanvasView: View {
         let centerX = size.width/2
         let centerY = size.height/2
         let center = CGPoint(x: centerX, y: centerY)
-    
+ 
         // Draw center point of the canvas
         drawCenterDot(context: context, at: center, color: .black)
-    
+ 
         let numberOfLayers = max(0, min(360, Int(shapeLayer)))
         if numberOfLayers > 0 {
             drawLayers(
@@ -377,13 +360,13 @@ struct CanvasView: View {
     ) {
         // Get the number of primitives (1-6)
         let primitiveCount = Int(validatePrimitive(shapePrimitive))
-       
+ 
         for layerIndex in 0..<layers {
             // For each primitive in the current layer, draw evenly spaced shapes
             for primitiveIndex in 0..<primitiveCount {
                 // Calculate the angle offset for each primitive shape (evenly distributed across 360°)
                 let primitiveAngleOffset = (360.0 / Double(primitiveCount)) * Double(primitiveIndex)
-               
+  
                 drawSingleShape(
                     context: context,
                     layerIndex: layerIndex,
@@ -410,25 +393,25 @@ struct CanvasView: View {
         radius: Double
     ) {
         let layerContext = context
-    
+  
         // Calculate the actual angle for this layer (clockwise) plus primitive offset
         let angleInDegrees = (shapeRotation * Double(layerIndex)) + primitiveAngleOffset
         let angleInRadians = angleInDegrees * (.pi / 180)
-    
+  
         // Scale compounds with each layer, but significantly reduced
         let scaleFactor = 0.25
         let layerScale = pow(1.0 + (shapeScale - 1.0) * scaleFactor, Double(layerIndex + 1))
         let scaledRadius = radius * layerScale
-    
+  
         // Apply spread to move shapes away from center
         let spreadDistance = shapeSpread * 2.0
         let spreadX = spreadDistance * cos(angleInRadians)
         let spreadY = spreadDistance * sin(angleInRadians)
-    
+  
         // Calculate final position with horizontal and vertical offsets
         let finalX = center.x + scaledRadius * cos(angleInRadians) + spreadX + shapeHorizontal
         let finalY = center.y + scaledRadius * sin(angleInRadians) + spreadY - shapeVertical
-    
+ 
         // Create base rectangle centered at the final position
         let baseRect = CGRect(
             x: finalX - scaledRadius,
@@ -436,7 +419,7 @@ struct CanvasView: View {
             width: scaledRadius * 2,
             height: scaledRadius * 2
         )
-    
+  
         // Create the path based on the selected shape
         let shapePath: Path
         switch selectedShape {
@@ -513,76 +496,76 @@ struct CanvasView: View {
             path.closeSubpath()
             shapePath = path
         }
-       
+   
         // Create separate transformations and apply them in the correct sequence
-       
+   
         // The key insight: Skew transformation naturally shifts the object's center
         // To fix this, we need to:
         // 1. Create the shape centered at the origin (0,0)
         // 2. Apply skew and rotation transformations (in local coordinates)
         // 3. Then translate the result to its final position
-       
+   
         // First we'll create a shape centered at the origin and a separate transform to position it
         _ = shapePath
-       
+   
         // For positioning, we use a separate transform
         _ = CGAffineTransform(translationX: 0, y: 0) // We'll modify this later
-       
+   
         // Now create the transforms for rotation and skew (relative to origin)
         var shapeTransform = CGAffineTransform.identity
-       
+   
         // 1. Apply rotation
         if abs(angleInRadians) > 0.001 {
             shapeTransform = shapeTransform.rotated(by: CGFloat(angleInRadians))
         }
-       
+   
         // 2. Apply skew (relative to origin)
         if abs(shapeSkewX) > 0.01 || abs(shapeSkewY) > 0.01 {
             // Use smaller range to prevent extreme distortion
             let skewXRad = (shapeSkewX / 100.0) * (.pi / 15) // Max ±12 degrees
             let skewYRad = (shapeSkewY / 100.0) * (.pi / 15) // Max ±12 degrees
-           
+   
             // Build skew transform (this creates a skew centered at 0,0)
             if abs(shapeSkewX) > 0.01 {
                 let shearX = CGFloat(tan(skewXRad))
                 let skewXTransform = CGAffineTransform(a: 1, b: 0, c: shearX, d: 1, tx: 0, ty: 0)
                 shapeTransform = shapeTransform.concatenating(skewXTransform)
             }
-           
+   
             if abs(shapeSkewY) > 0.01 {
                 let shearY = CGFloat(tan(skewYRad))
                 let skewYTransform = CGAffineTransform(a: 1, b: shearY, c: 0, d: 1, tx: 0, ty: 0)
                 shapeTransform = shapeTransform.concatenating(skewYTransform)
             }
         }
-       
+     
         // Now combine the transforms:
         // 1. Create the shape path (already at position finalX, finalY)
         // 2. Transform it to the origin (0,0) by subtracting finalX, finalY
         // 3. Apply rotation and skew transforms to the centered shape
         // 4. Transform it back to final position
-       
+    
         // Complete transform chain:
         let toOriginTransform = CGAffineTransform(translationX: -finalX, y: -finalY)
         let backToPositionTransform = CGAffineTransform(translationX: finalX, y: finalY)
-       
+     
         // Chain the transforms in correct order:
         // First to origin, then apply shape transformations, then back to position
         let finalTransform = toOriginTransform
             .concatenating(shapeTransform)
             .concatenating(backToPositionTransform)
-       
+     
         // Apply the complete transform chain to get the final path
         let transformedPath = shapePath.applying(finalTransform)
-       
+     
         // Determine color for this layer - cycle through presets based on visible presets
         let layerColor = colorPresetManager.colorForPosition(position: layerIndex)
-      
+    
         // Draw the shape with appropriate opacity
         let baseOpacity = colorPresetManager.shapeAlpha  // Get the global alpha setting
         let layerOpacity = layerIndex == 0 ? baseOpacity : baseOpacity * 0.8  // Apply layer-specific opacity
         layerContext.fill(transformedPath, with: .color(layerColor.opacity(layerOpacity)))
-      
+    
         // Apply stroke if width is greater than 0
         if colorPresetManager.strokeWidth > 0 {
             layerContext.stroke(
@@ -601,19 +584,19 @@ struct CanvasView: View {
     private func createPolygonPath(center: CGPoint, radius: Double, sides: Int) -> Path {
         var path = Path()
         let angle = (2.0 * .pi) / Double(sides)
-       
+ 
         for i in 0..<sides {
             let currentAngle = angle * Double(i) - (.pi / 2)
             let x = center.x + CGFloat(radius * cos(currentAngle))
             let y = center.y + CGFloat(radius * sin(currentAngle))
-           
+ 
             if i == 0 {
                 path.move(to: CGPoint(x: x, y: y))
             } else {
                 path.addLine(to: CGPoint(x: x, y: y))
             }
         }
-       
+ 
         path.closeSubpath()
         return path
     }
@@ -628,24 +611,24 @@ struct CanvasView: View {
         var path = Path()
         let totalPoints = points * 2
         let angle = (2.0 * .pi) / Double(totalPoints)
-       
+ 
         for i in 0..<totalPoints {
             let radius = i % 2 == 0 ? outerRadius : innerRadius
             let currentAngle = angle * Double(i) - (.pi / 2)
             let x = center.x + CGFloat(radius * cos(currentAngle))
             let y = center.y + CGFloat(radius * sin(currentAngle))
-           
+ 
             if i == 0 {
                 path.move(to: CGPoint(x: x, y: y))
             } else {
                 path.addLine(to: CGPoint(x: x, y: y))
             }
         }
-       
+ 
         path.closeSubpath()
         return path
     }
-   
+ 
     /// Creates an arrow shape pointing upward
     /// - Parameters:
     ///   - center: The center of the arrow
@@ -655,12 +638,12 @@ struct CanvasView: View {
         let width = size * 1.5
         let height = size * 2
         let stemWidth = width * 0.3
-       
+     
         var path = Path()
-       
+     
         // Define arrow shape centered perfectly at the center point
         // This ensures proper rotation around the center
-       
+     
         // Arrow head (triangle)
         path.move(to: CGPoint(x: center.x, y: center.y - height * 0.5))       // Top center point
         path.addLine(to: CGPoint(x: center.x + width * 0.5, y: center.y))     // Right point at middle height
@@ -669,7 +652,7 @@ struct CanvasView: View {
         path.addLine(to: CGPoint(x: center.x - stemWidth * 0.5, y: center.y + height * 0.5)) // Bottom left of stem
         path.addLine(to: CGPoint(x: center.x - stemWidth * 0.5, y: center.y)) // Left edge of stem at middle height
         path.addLine(to: CGPoint(x: center.x - width * 0.5, y: center.y))     // Left point at middle height
-       
+     
         path.closeSubpath()
         return path
     }
@@ -697,7 +680,7 @@ struct CanvasView: View {
             offset.width = lastOffset.width + value.translation.width
             offset.height = lastOffset.height + value.translation.height
         }
-    
+  
         lastOffset = offset
     }
      /// Resets the canvas position to the center of the screen
@@ -839,7 +822,7 @@ struct CanvasView: View {
                 .font(.system(size: 16, weight: .bold))
                 .foregroundColor(Color(uiColor: .secondaryLabel))
                 .padding(.bottom, 50)
-        
+  
             Slider(
                 value: $zoomLevel,
                 in: minZoomLevel...3.0,
@@ -848,7 +831,7 @@ struct CanvasView: View {
             .rotationEffect(.degrees(-90))
             .frame(width: 120)
             .accessibilityIdentifier("Zoom Slider")
-        
+   
             Image(systemName: "minus")
                 .font(.system(size: 16, weight: .bold))
                 .foregroundColor(Color(uiColor: .secondaryLabel))
@@ -893,8 +876,11 @@ struct CanvasView: View {
      /// Creates the share button
     private func makeShareButton() -> some View {
         Menu {
-            Button(action: saveArtwork) {
-                Label("Save to Gallery", systemImage: "square.and.arrow.down")
+           Button(action: saveArtwork) {
+               Label("Save to Gallery", systemImage: "square.and.arrow.down")
+           }
+           Button(action: saveToPhotos) {
+               Label("Save to Photos", systemImage: "photo")
             }
             // Add other share options here
         } label: {
@@ -929,13 +915,13 @@ struct CanvasView: View {
             colorPresets: colorPresetManager.colorPresets,
             backgroundColor: colorPresetManager.backgroundColor
         )
-       
+     
         Task {
             do {
                 try await firebaseService.saveArtwork(artworkData: artworkString)
                 // List all pieces after saving
                 await firebaseService.listAllPieces()
-               
+ 
                 await MainActor.run {
                     alertTitle = "Success"
                     alertMessage = "Artwork saved successfully!"
@@ -950,5 +936,72 @@ struct CanvasView: View {
             }
         }
     }
+  
+   /// Save artwork to Photos library
+   private func saveToPhotos() {
+       Task { @MainActor in
+           // Create a UIView-hosted version of our canvas for export - exactly matching canvas borders
+           // We'll create a slightly smaller frame to avoid the border
+           let hostingController = UIHostingController(rootView:
+               ZStack {
+                   colorPresetManager.backgroundColor
+                   Canvas { context, size in
+                       drawShapes(context: context, size: size)
+                   }
+               }
+               // Adjust the frame inward slightly to avoid borders
+               .frame(width: 1596, height: 1796)
+           )
+          
+           // Size the view to exactly match canvas interior (avoiding the border)
+           hostingController.view.frame = CGRect(x: 0, y: 0, width: 1596, height: 1796)
+           hostingController.view.backgroundColor = UIColor(colorPresetManager.backgroundColor)
+           hostingController.view.clipsToBounds = true // Ensure content is clipped to bounds
+          
+           // Important: Make the view non-interactive
+           hostingController.view.isUserInteractionEnabled = false
+          
+           // Place off-screen to avoid interfering with the UI
+           hostingController.view.frame.origin = CGPoint(x: -2000, y: -2000)
+          
+           // Add the view to the window hierarchy temporarily
+           if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first {
+               window.addSubview(hostingController.view)
+           }
+          
+           // Layout the view
+           hostingController.view.setNeedsLayout()
+           hostingController.view.layoutIfNeeded()
+          
+           // Allow render cycle to complete
+           try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+          
+           // Show a loading indicator
+           alertTitle = "Saving..."
+           alertMessage = "Saving image to Photos"
+           showAlert = true
+          
+           // Export to Photos - capture exact bounds with no offset
+           ExportService.exportToPhotoLibrary(
+               from: hostingController.view,
+               exportRect: CGRect(x: 0, y: 0, width: 1596, height: 1796),
+               includeBorder: false // Don't include border
+           ) { [weak hostingController] success, error in
+               // Clean up the temporary view - MUST be done on main thread
+               DispatchQueue.main.async {
+                   hostingController?.view.removeFromSuperview()
+                  
+                   if success {
+                       self.alertTitle = "Success"
+                       self.alertMessage = "Artwork saved to Photos successfully!"
+                   } else {
+                       self.alertTitle = "Error"
+                       self.alertMessage = error?.localizedDescription ?? "Failed to save to Photos"
+                    }
+                    self.showAlert = true
+                }
+            }
+        }
+    }
 }
-
