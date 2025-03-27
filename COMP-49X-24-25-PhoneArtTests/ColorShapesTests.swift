@@ -58,16 +58,7 @@ final class ColorShapesTests: XCTestCase {
        XCTAssertEqual(selectedColor.wrappedValue, .red)
    }
   
-   func testShapesSectionRendering() throws {
-       // This test needs to be updated or removed because ShapesSection isn't available
-      
-
-
-       try XCTSkipIf(true, "ShapesSection is not available or has been renamed")
-      
-       XCTAssertNotNil(isShowing)
-       XCTAssertNotNil(selectedColor)
-   }
+   
   
    func testPanelVisibilityToggle() {
        // Given
