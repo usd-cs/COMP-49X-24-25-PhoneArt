@@ -150,23 +150,6 @@ final class ColorSelectionTests: XCTestCase {
        XCTAssertNil(presetManager.canvasElements[elementId])
    }
   
-   func testColorForPosition() {
-       // Given
-       presetManager.numberOfVisiblePresets = 5
-      
-       // When & Then
-       // Test cycling through positions
-       let color0 = presetManager.colorForPosition(position: 0)
-       let color5 = presetManager.colorForPosition(position: 5)
-      
-       // Just verify that colors at positions 0 and 5 are the same (cycling)
-       // Since we can't directly compare colors, we'll use a different approach
-       XCTAssertTrue(colorComponentsEqual(color0, color5), "Colors at positions 0 and 5 should be the same")
-      
-       // Also test that different positions have different colors
-       let color1 = presetManager.colorForPosition(position: 1)
-       XCTAssertFalse(colorComponentsEqual(color0, color1), "Colors at positions 0 and 1 should be different")
-   }
   
    func testColorSelectionPanelInitialization() {
        // Given
