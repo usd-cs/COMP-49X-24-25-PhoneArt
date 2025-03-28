@@ -602,6 +602,12 @@ extension PropertiesPanel {
      get { verticalText }
      set { verticalText = newValue }
  }
+  /// Test access to primitive text field value
+ var testPrimitiveText: String {
+    get { primitiveText }
+    set { primitiveText = newValue }
+ }
+
 }
 
 

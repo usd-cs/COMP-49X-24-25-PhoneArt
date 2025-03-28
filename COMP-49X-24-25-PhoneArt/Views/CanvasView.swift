@@ -67,30 +67,7 @@ struct CanvasView: View {
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var alertTitle = ""
-     private func validateLayerCount(_ count: Int) -> Int {
-        max(0, min(360, count))
-    }
-     private func validateScale(_ scale: Double) -> Double {
-        max(0.5, min(2.0, scale))
-    }
-     private func validateRotation(_ rotation: Double) -> Double {
-        max(0.0, min(360.0, rotation))
-    }
-     private func validateSkewX(_ skewX: Double) -> Double {
-        max(0.0, min(100.0, skewX))
-    }
-     private func validateSkewY(_ skewY: Double) -> Double {
-        max(0.0, min(100.0, skewY))
-    }
-     private func validateSpread(_ spread: Double) -> Double {
-        max(0.0, min(100.0, spread))
-    }
-     private func validateHorizontal(_ horizontal: Double) -> Double {
-        max(-300.0, min(300.0, horizontal))
-    }
-     private func validateVertical(_ vertical: Double) -> Double {
-        max(-300.0, min(300.0, vertical))
-    }
+   
      private func validatePrimitive(_ primitive: Double) -> Double {
         max(1.0, min(6.0, primitive))
     }
