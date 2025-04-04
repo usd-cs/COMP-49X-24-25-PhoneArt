@@ -23,7 +23,7 @@ class FirebaseService: ObservableObject {
     }
     
     // Save artwork data with proper collection/document structure
-    func saveArtwork(artworkData: String, title: String? = nil) async throws {
+    func saveArtwork(artworkData: String, title: String? = nil) async throws -> DocumentReference {
         let deviceId = getDeviceId()
         
         // First, ensure the device document exists
@@ -50,6 +50,8 @@ class FirebaseService: ObservableObject {
         // Decode and print the artwork string values
         print("\nDecoding saved artwork:")
         decodeArtworkString(artworkData)
+        
+        return pieceRef
     }
     
     // Get all artwork for current device
