@@ -24,12 +24,12 @@ struct CanvasView: View {
         height: (UIScreen.main.bounds.height - 1800) / 2
     )
      /// Previous offset position of the canvas, used for calculating the next position during drag gestures
-    @State private var lastOffset: CGSize = CGSize(
+    @State internal var lastOffset: CGSize = CGSize(
         width: (UIScreen.main.bounds.width - 1600) / 2,
         height: (UIScreen.main.bounds.height - 1800) / 2
     )
      /// Properties panel visibility state
-    @State private var showProperties = false
+    @State internal var showProperties = false
      /// Shape transformation properties
     @State private var shapeRotation: Double = 0
     @State private var shapeScale: Double = 1.0
@@ -44,9 +44,9 @@ struct CanvasView: View {
      /// Add zoom state property
     @State private var zoomLevel: Double = 1.0
      /// Add new state variable
-    @State private var showColorShapes = false
+    @State internal var showColorShapes = false
      /// Add new state variable for shapes panel
-    @State private var showShapesPanel = false
+    @State internal var showShapesPanel = false
     /// Tracks whether we are switching between panels (rather than opening/closing)
     @State private var isSwitchingPanels = false
      /// The color currently applied to the base shape on the canvas
@@ -62,24 +62,38 @@ struct CanvasView: View {
     @State private var backgroundColorTrigger = UUID()
     /// State variable to track stroke setting changes
     @State private var strokeSettingsTrigger = UUID()
-     @StateObject private var firebaseService = FirebaseService()
+     @StateObject internal var firebaseService: FirebaseService // Make internal and declare type
      /// Add state for showing alerts
-    @State private var showAlert = false
-    @State private var alertMessage = ""
-    @State private var alertTitle = ""
+    @State internal var showAlert = false // Make internal
+    @State internal var alertMessage = "" // Make internal
+    @State internal var alertTitle = "" // Make internal
+    
+    /// State variable to store the UUID of the saved artwork
+    @State internal var confirmedArtworkId: IdentifiableArtworkID? = nil // Make internal
    
-     private func validatePrimitive(_ primitive: Double) -> Double {
+    // Add initializer for dependency injection
+    init(firebaseService: FirebaseService = FirebaseService()) {
+        _firebaseService = StateObject(wrappedValue: firebaseService)
+        // Need to initialize other @State properties manually if not default
+        // For properties with default initial values like offset, showProperties, etc.,
+        // Swift initializes them automatically. If any @State property didn't have
+        // a default value assigned inline, you'd initialize it here.
+    }
+    
+    // Make internal for testing
+    internal func validatePrimitive(_ primitive: Double) -> Double {
         max(1.0, min(6.0, primitive))
     }
      /// Computed vertical offset for the canvas when properties panel or color shapes panel is shown
-    private var canvasVerticalOffset: CGFloat {
+    internal var canvasVerticalOffset: CGFloat {
         (showProperties || showColorShapes || showShapesPanel) ? -UIScreen.main.bounds.height / 7 : 0
     }
      /// Computed minimum zoom level to fit canvas width to screen width
     private var minZoomLevel: Double {
         UIScreen.main.bounds.width / 1600.0
     }
-     private func validateZoom(_ zoom: Double) -> Double {
+     // Make internal for testing
+    internal func validateZoom(_ zoom: Double) -> Double {
         max(minZoomLevel, min(3.0, zoom))  // Updated to use dynamic minimum
     }
      // MARK: - Body
@@ -283,6 +297,27 @@ struct CanvasView: View {
                 message: Text(alertMessage),
                 dismissButton: .default(Text("OK"))
             )
+        }
+        // Apply the overlay modifier to the ZStack
+        .overlay {
+            // Conditionally display the modal overlay here
+            if let confirmedId = confirmedArtworkId {
+                ZStack {
+                    // Dimming background
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+                        .onTapGesture { // Optional: Allow dismissing by tapping background
+                           // confirmedArtworkId = nil 
+                        }
+                    
+                    // Confirmation View
+                    SaveConfirmationView(artworkId: confirmedId.id) {
+                        // Action to dismiss the modal
+                        confirmedArtworkId = nil
+                    }
+                }
+                .transition(.opacity.animation(.easeInOut))
+            }
         }
     }
      /// Draws shapes on the canvas above the origin point
@@ -552,13 +587,8 @@ struct CanvasView: View {
             )
         }
     }
-     /// Creates a regular polygon path
-    /// - Parameters:
-    ///   - center: The center point of the polygon
-    ///   - radius: The radius from center to vertices
-    ///   - sides: The number of sides
-    /// - Returns: A Path representing the polygon
-    private func createPolygonPath(center: CGPoint, radius: Double, sides: Int) -> Path {
+     // Make internal for testing
+    internal func createPolygonPath(center: CGPoint, radius: Double, sides: Int) -> Path {
         var path = Path()
         let angle = (2.0 * .pi) / Double(sides)
  
@@ -577,14 +607,8 @@ struct CanvasView: View {
         path.closeSubpath()
         return path
     }
-     /// Creates a star path
-    /// - Parameters:
-    ///   - center: The center of the star
-    ///   - innerRadius: The radius of inner points
-    ///   - outerRadius: The radius of outer points
-    ///   - points: The number of points
-    /// - Returns: A Path representing the star
-    private func createStarPath(center: CGPoint, innerRadius: Double, outerRadius: Double, points: Int) -> Path {
+     // Make internal for testing
+    internal func createStarPath(center: CGPoint, innerRadius: Double, outerRadius: Double, points: Int) -> Path {
         var path = Path()
         let totalPoints = points * 2
         let angle = (2.0 * .pi) / Double(totalPoints)
@@ -606,12 +630,8 @@ struct CanvasView: View {
         return path
     }
  
-    /// Creates an arrow shape pointing upward
-    /// - Parameters:
-    ///   - center: The center of the arrow
-    ///   - size: The size/radius of the arrow
-    /// - Returns: A Path representing the arrow
-    private func createArrowPath(center: CGPoint, size: Double) -> Path {
+    // Make internal for testing
+    internal func createArrowPath(center: CGPoint, size: Double) -> Path {
         let width = size * 1.5
         let height = size * 2
         let stemWidth = width * 0.3
@@ -661,7 +681,7 @@ struct CanvasView: View {
         lastOffset = offset
     }
      /// Resets the canvas position to the center of the screen
-    private func resetPosition() {
+    internal func resetPosition() {
         withAnimation(.spring(
             response: 0.8,
             dampingFraction: 0.5,
@@ -856,9 +876,13 @@ struct CanvasView: View {
            Button(action: saveArtwork) {
                Label("Save to Gallery", systemImage: "square.and.arrow.down")
            }
+           .accessibilityIdentifier("Save to Gallery Button")
+           
            Button(action: saveToPhotos) {
                Label("Save to Photos", systemImage: "photo")
             }
+            .accessibilityIdentifier("Save to Photos Button")
+            
             // Add other share options here
         } label: {
             Rectangle()
@@ -877,7 +901,9 @@ struct CanvasView: View {
         }
         .accessibilityIdentifier("Share Button")
     }
-     private func saveArtwork() {
+     // Modify access level
+     // private func saveArtwork() {
+     internal func saveArtwork() {
         let artworkString = ArtworkData.createArtworkString(
             shapeType: selectedShape,
             rotation: shapeRotation,
@@ -895,14 +921,12 @@ struct CanvasView: View {
      
         Task {
             do {
-                try await firebaseService.saveArtwork(artworkData: artworkString)
+                let pieceRef = try await firebaseService.saveArtwork(artworkData: artworkString)
                 // List all pieces after saving
                 await firebaseService.listAllPieces()
  
                 await MainActor.run {
-                    alertTitle = "Success"
-                    alertMessage = "Artwork saved successfully!"
-                    showAlert = true
+                    confirmedArtworkId = IdentifiableArtworkID(id: pieceRef.documentID)
                 }
             } catch {
                 await MainActor.run {
@@ -981,4 +1005,89 @@ struct CanvasView: View {
             }
         }
     }
+}
+
+/// A view that shows confirmation of a saved artwork with the ability to copy the ID
+struct SaveConfirmationView: View {
+    let artworkId: String
+    @State private var isCopied = false
+    let dismissAction: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 60))
+                .foregroundColor(.green)
+                .padding(.top, 30)
+            
+            Text("Artwork Saved Successfully!")
+                .font(.headline)
+                .multilineTextAlignment(.center)
+                .accessibilityIdentifier("Save Confirmation Text")
+            
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Artwork ID:")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                HStack {
+                    Text(artworkId)
+                        .font(.system(.body, design: .monospaced))
+                        .padding(10)
+                        .background(Color(uiColor: .secondarySystemBackground))
+                        .cornerRadius(8)
+                        .accessibilityIdentifier("Saved Artwork ID Text")
+                    
+                    Button(action: {
+                        UIPasteboard.general.string = artworkId
+                        withAnimation {
+                            isCopied = true
+                        }
+                        
+                        // Reset the copied state after 2 seconds
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            isCopied = false
+                        }
+                    }) {
+                        Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
+                            .foregroundColor(isCopied ? .green : Color(uiColor: .systemBlue))
+                            .padding(8)
+                            .background(Color(uiColor: .tertiarySystemBackground))
+                            .cornerRadius(8)
+                    }
+                    .accessibilityIdentifier("Copy ID Button")
+                }
+            }
+            .padding(.horizontal, 20)
+            
+            Text("Share this ID with friends so they can view your artwork!")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 20)
+            
+            Button("Done") {
+                dismissAction()
+            }
+            .accessibilityIdentifier("Save Confirmation Done Button")
+            .padding(.vertical, 12)
+            .padding(.horizontal, 30)
+            .background(Color(uiColor: .systemBlue))
+            .foregroundColor(.white)
+            .cornerRadius(10)
+            .padding(.top, 20)
+            .padding(.bottom, 30)
+        }
+        .accessibilityIdentifier("Save Confirmation View")
+        .frame(width: 350)
+        .background(Color(uiColor: .systemBackground))
+        .cornerRadius(16)
+        .shadow(radius: 10)
+        .padding()
+    }
+}
+
+// Add this struct
+struct IdentifiableArtworkID: Identifiable {
+    let id: String
 }

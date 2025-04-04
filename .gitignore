@@ -5,6 +5,7 @@
 
 # Testing
 /coverage
+*.xcresult
 
 # Next.js
 /next/
@@ -24,6 +25,7 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 
 # IDE/Editor specific
 .idea/
@@ -31,6 +33,10 @@ yarn-error.log*
 
 # OS specific
 .DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 
 # Docker
 docker-compose.override.yml
@@ -38,7 +44,6 @@ docker-compose.*.yml
 .docker/
 
 # Xcode
-.DS_Store
 xcuserdata/
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
@@ -60,17 +65,36 @@ DerivedData/
 !default.mode2v3
 *.perspectivev3
 !default.perspectivev3
+timeline.xctimeline
+playground.xcworkspace
 
 # Swift Package Manager
 .build/
 Packages/
 Package.pins
 Package.resolved
-*.xcodeproj
 .swiftpm
+
+# Swift generated files
+*.generated.swift
 
 # Firebase
 GoogleService-Info.plist
 
 # Logs
-*.log 
+*.log
+
+# Additional project specific files
+.xcode-coverage
+*.xcarchive
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+# Ignore temp files
+*.tmp
+*.temp
+
+# Ignore Mac specific folder metadata
+.AppleDouble
+.LSOverride 
