@@ -2,7 +2,7 @@
 //  ImportArtworkView.swift
 //  COMP-49X-24-25-PhoneArt
 //
-//  Created by Assistant on 4/30/25.
+//  Created by Zachary Letcher on 04/06/25.
 //
 
 import SwiftUI
