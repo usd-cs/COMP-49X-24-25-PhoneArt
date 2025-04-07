@@ -70,6 +70,8 @@ struct CanvasView: View {
     
     /// State variable to store the UUID of the saved artwork
     @State internal var confirmedArtworkId: IdentifiableArtworkID? = nil // Make internal
+    /// State variable for showing the import artwork sheet
+    @State private var showImportSheet = false
    
     // Add initializer for dependency injection
     init(firebaseService: FirebaseService = FirebaseService()) {
@@ -301,13 +303,13 @@ struct CanvasView: View {
         // Apply the overlay modifier to the ZStack
         .overlay {
             // Conditionally display the modal overlay here
-            if let confirmedId = confirmedArtworkId {
-                ZStack {
-                    // Dimming background
+            ZStack { // Wrap existing and new overlay content in a ZStack
+                if let confirmedId = confirmedArtworkId {
+                    // Dimming background for Save Confirmation
                     Color.black.opacity(0.4)
                         .ignoresSafeArea()
-                        .onTapGesture { // Optional: Allow dismissing by tapping background
-                           // confirmedArtworkId = nil 
+                        .onTapGesture {
+                            // confirmedArtworkId = nil // Optional dismiss
                         }
                     
                     // Confirmation View
@@ -315,8 +317,33 @@ struct CanvasView: View {
                         // Action to dismiss the modal
                         confirmedArtworkId = nil
                     }
+                    .transition(.opacity.animation(.easeInOut)) // Apply transition here
                 }
-                .transition(.opacity.animation(.easeInOut))
+                
+                // Conditionally display Import View
+                if showImportSheet {
+                    // Dimming background for Import View
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            showImportSheet = false // Dismiss on background tap
+                        }
+                    
+                    // Import View
+                    ImportArtworkView()
+                        // Note: ImportArtworkView uses @Environment(\\.dismiss)
+                        // which should work here, but might need adjustment
+                        // if dismissal doesn't behave as expected.
+                        // We also need to observe showImportSheet to know when to dismiss.
+                        .onChange(of: showImportSheet) { _, newValue in
+                            // If the parent state changes to false, ensure dismissal logic runs if needed
+                            if !newValue {
+                                // Potentially call dismiss() if ImportArtworkView manages its own presentation state
+                                // Environment dismiss should handle this implicitly when presented this way.
+                            }
+                        }
+                    .transition(.opacity.animation(.easeInOut)) // Apply transition here
+                }
             }
         }
     }
@@ -870,36 +897,45 @@ struct CanvasView: View {
         }
         .accessibilityIdentifier("Close Button")
     }
-     /// Creates the share button
+     /// Creates the share button for the top navigation bar
     private func makeShareButton() -> some View {
-        Menu {
-           Button(action: saveArtwork) {
-               Label("Save to Gallery", systemImage: "square.and.arrow.down")
-           }
-           .accessibilityIdentifier("Save to Gallery Button")
-           
-           Button(action: saveToPhotos) {
-               Label("Save to Photos", systemImage: "photo")
+        VStack(spacing: 15) {
+            // Import button
+            Button(action: {
+                showImportSheet = true
+            }) {
+                VStack {
+                    Image(systemName: "plus")
+                        .font(.system(size: 24))
+                    Text("Import")
+                        .font(.caption)
+                }
             }
-            .accessibilityIdentifier("Save to Photos Button")
+            .accessibilityIdentifier("Import Button")
             
-            // Add other share options here
-        } label: {
-            Rectangle()
-                .foregroundColor(Color(uiColor: .systemBackground))
-                .frame(width: 40, height: 40)
-                .cornerRadius(8)
-                .overlay(
+            // Share button
+            Menu {
+                Button(action: saveArtwork) {
+                    Label("Save to Gallery", systemImage: "square.and.arrow.down")
+                }
+                .accessibilityIdentifier("Save to Gallery Button")
+                
+                Button(action: saveToPhotos) {
+                    Label("Save to Photos", systemImage: "photo")
+                }
+                .accessibilityIdentifier("Save to Photos Button")
+                
+                // Add other share options here
+            } label: {
+                VStack {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 20))
-                        .foregroundColor(Color(uiColor: .systemBlue))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                )
+                        .font(.system(size: 24))
+                    Text("Share")
+                        .font(.caption)
+                }
+            }
+            .accessibilityIdentifier("Share Button")
         }
-        .accessibilityIdentifier("Share Button")
     }
      // Modify access level
      // private func saveArtwork() {
