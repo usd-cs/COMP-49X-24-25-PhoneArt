@@ -47,6 +47,8 @@ struct CanvasView: View {
     @State internal var showColorShapes = false
      /// Add new state variable for shapes panel
     @State internal var showShapesPanel = false
+    /// Add state variable for the gallery panel
+   @State internal var showGalleryPanel = false
     /// Tracks whether we are switching between panels (rather than opening/closing)
     @State private var isSwitchingPanels = false
      /// The color currently applied to the base shape on the canvas
@@ -88,7 +90,7 @@ struct CanvasView: View {
     }
      /// Computed vertical offset for the canvas when properties panel or color shapes panel is shown
     internal var canvasVerticalOffset: CGFloat {
-        (showProperties || showColorShapes || showShapesPanel) ? -UIScreen.main.bounds.height / 7 : 0
+       (showProperties || showColorShapes || showShapesPanel || showGalleryPanel) ? -UIScreen.main.bounds.height / 7 : 0
     }
      /// Computed minimum zoom level to fit canvas width to screen width
     private var minZoomLevel: Double {
@@ -162,6 +164,10 @@ struct CanvasView: View {
                     Spacer() // Spacer between buttons for equal distribution
                  
                     makeShapesButton()
+
+                    Spacer() // Spacer between buttons for equal distribution
+               
+                    makeGalleryButton()
                  
                     Spacer() // Spacer between buttons for equal distribution
                  
@@ -173,94 +179,62 @@ struct CanvasView: View {
                 .padding(.bottom, 20)
             }
       
+            // Conditional Overlays for Panels
             if showProperties {
-                VStack {
-                    Spacer()
-                    PropertiesPanel(
-                        rotation: $shapeRotation,
-                        scale: $shapeScale,
-                        layer: $shapeLayer,
-                        skewX: $shapeSkewX,
-                        skewY: $shapeSkewY,
-                        spread: $shapeSpread,
-                        horizontal: $shapeHorizontal,
-                        vertical: $shapeVertical,
-                        primitive: $shapePrimitive,
-                        isShowing: $showProperties,
-                        onSwitchToColorShapes: {
-                            isSwitchingPanels = true
-                            showProperties = false
-                            showColorShapes = true
-                            isSwitchingPanels = false
-                        },
-                        onSwitchToShapes: {
-                            isSwitchingPanels = true
-                            showProperties = false
-                            showShapesPanel = true
-                            isSwitchingPanels = false
-                        }
-                    )
-                }
-                .zIndex(3)
-                .transition(!isSwitchingPanels ? .asymmetric(
-                    insertion: .move(edge: .bottom),
-                    removal: .move(edge: .bottom)
-                ) : .identity)
-            }
+               panelOverlay {
+                   PropertiesPanel(
+                       rotation: $shapeRotation,
+                       scale: $shapeScale,
+                       layer: $shapeLayer,
+                       skewX: $shapeSkewX,
+                       skewY: $shapeSkewY,
+                       spread: $shapeSpread,
+                       horizontal: $shapeHorizontal,
+                       vertical: $shapeVertical,
+                       primitive: $shapePrimitive,
+                       isShowing: $showProperties,
+                       onSwitchToColorShapes: switchToColorShapes,
+                       onSwitchToShapes: switchToShapes,
+                       onSwitchToGallery: switchToGallery
+                   )
+               }
+           }
     
             if showColorShapes {
-                VStack {
-                    Spacer()
-                    ColorPropertiesPanel(
-                        isShowing: $showColorShapes,
-                        selectedColor: $shapeColor,
-                        onSwitchToProperties: {
-                            isSwitchingPanels = true
-                            showColorShapes = false
-                            showProperties = true
-                            isSwitchingPanels = false
-                        },
-                        onSwitchToShapes: {
-                            isSwitchingPanels = true
-                            showColorShapes = false
-                            showShapesPanel = true
-                            isSwitchingPanels = false
-                        }
-                    )
-                }
-                .zIndex(3)
-                .transition(!isSwitchingPanels ? .asymmetric(
-                    insertion: .move(edge: .bottom),
-                    removal: .move(edge: .bottom)
-                ) : .identity)
-            }
+               panelOverlay {
+                   ColorPropertiesPanel(
+                       isShowing: $showColorShapes,
+                       selectedColor: $shapeColor,
+                       onSwitchToProperties: switchToProperties,
+                       onSwitchToShapes: switchToShapes,
+                       onSwitchToGallery: switchToGallery
+                   )
+               }
+           }
       
             if showShapesPanel {
-                VStack {
-                    Spacer()
-                    ShapesPanel(
-                        selectedShape: $selectedShape,
-                        isShowing: $showShapesPanel,
-                        onSwitchToProperties: {
-                            isSwitchingPanels = true
-                            showShapesPanel = false
-                            showProperties = true
-                            isSwitchingPanels = false
-                        },
-                        onSwitchToColorProperties: {
-                            isSwitchingPanels = true
-                            showShapesPanel = false
-                            showColorShapes = true
-                            isSwitchingPanels = false
-                        }
-                    )
-                }
-                .zIndex(3)
-                .transition(!isSwitchingPanels ? .asymmetric(
-                    insertion: .move(edge: .bottom),
-                    removal: .move(edge: .bottom)
-                ) : .identity)
-            }
+               panelOverlay {
+                   ShapesPanel(
+                       selectedShape: $selectedShape,
+                       isShowing: $showShapesPanel,
+                       onSwitchToProperties: switchToProperties,
+                       onSwitchToColorProperties: switchToColorShapes,
+                       onSwitchToGallery: switchToGallery
+                   )
+               }
+           }
+
+            // Add overlay for the new Gallery Panel
+            if showGalleryPanel {
+               panelOverlay {
+                   GalleryPanel(
+                       isShowing: $showGalleryPanel,
+                       onSwitchToProperties: switchToProperties,
+                       onSwitchToColorShapes: switchToColorShapes,
+                       onSwitchToShapes: switchToShapes
+                   )
+               }
+           }
         }
         .ignoresSafeArea()
         .onChange(of: showProperties) { _, newValue in
@@ -748,108 +722,82 @@ struct CanvasView: View {
         }
         .accessibilityIdentifier("Reset Position")
     }
-     /// Creates the properties panel toggle button
-    private func makePropertiesButton() -> some View {
-        Button(action: {
-            if showColorShapes || showShapesPanel {  // If another panel is showing
-                isSwitchingPanels = true // Set flag to indicate we're switching panels
-                if showColorShapes {
-                    showColorShapes = false
-                } else if showShapesPanel {
-                    showShapesPanel = false
-                }
-                showProperties = true
-                isSwitchingPanels = false
-            } else if !showProperties {  // If no panel is showing, animate in
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    showProperties = true
-                }
-            }
-        }) {
-            Rectangle()
-                .foregroundColor(Color(uiColor: .systemBackground))
-                .frame(width: 60, height: 60)
-                .cornerRadius(8)
-                .overlay(
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 24))
-                        .foregroundColor(Color(uiColor: .systemBlue))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                )
-        }
-        .accessibilityIdentifier("Properties Button")
-    }
-     /// Creates an alternate button to toggle the properties panel
-    private func makeColorShapesButton() -> some View {
-        Button(action: {
-            if showProperties || showShapesPanel {  // If another panel is showing
-                isSwitchingPanels = true // Set flag to indicate we're switching panels
-                if showProperties {
-                    showProperties = false
-                } else if showShapesPanel {
-                    showShapesPanel = false
-                }
-                showColorShapes = true
-                isSwitchingPanels = false
-            } else if !showColorShapes {  // If no panel is showing, animate in
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    showColorShapes = true
-                }
-            }
-        }) {
-            Rectangle()
-                .foregroundColor(Color(uiColor: .systemBackground))
-                .frame(width: 60, height: 60)
-                .cornerRadius(8)
-                .overlay(
-                    Image(systemName: "square.3.stack.3d")
-                        .font(.system(size: 24))
-                        .foregroundColor(Color(uiColor: .systemBlue))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                )
-        }
-        .accessibilityIdentifier("Color Shapes Button")
-    }
-     /// Creates a button for the shapes panel
-    private func makeShapesButton() -> some View {
-        Button(action: {
-            if showProperties || showColorShapes {  // If another panel is showing
-                isSwitchingPanels = true // Set flag to indicate we're switching panels
-                if showProperties {
-                    showProperties = false
-                } else if showColorShapes {
-                    showColorShapes = false
-                }
-                showShapesPanel = true
-                isSwitchingPanels = false
-            } else if !showShapesPanel {  // If no panel is showing, animate in
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    showShapesPanel = true
-                }
-            }
-        }) {
-            Rectangle()
-                .foregroundColor(Color(uiColor: .systemBackground))
-                .frame(width: 60, height: 60)
-                .cornerRadius(8)
-                .overlay(
-                    Image(systemName: "square.on.square")
-                        .font(.system(size: 24))
-                        .foregroundColor(Color(uiColor: .systemBlue))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                )
-        }
-        .accessibilityIdentifier("Shapes Button")
-    }
+    /// Creates the properties panel toggle button
+   private func makePropertiesButton() -> some View {
+       Button(action: {
+           if showProperties {
+               showProperties = false
+           } else {
+               switchToProperties()
+           }
+       }) {
+           Rectangle()
+               .foregroundColor(Color(uiColor: .systemBackground))
+               .frame(width: 50, height: 50)
+               .cornerRadius(8)
+               .overlay(
+                   Image(systemName: "slider.horizontal.3")
+                       .font(.system(size: 22))
+                       .foregroundColor(Color(uiColor: .systemBlue))
+               )
+               .overlay(
+                   RoundedRectangle(cornerRadius: 8)
+                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+               )
+       }
+       .accessibilityIdentifier("Properties Button")
+   }
+    /// Creates an alternate button to toggle the properties panel
+   private func makeColorShapesButton() -> some View {
+       Button(action: {
+           if showColorShapes {
+               showColorShapes = false
+           } else {
+               switchToColorShapes()
+           }
+       }) {
+           Rectangle()
+               .foregroundColor(Color(uiColor: .systemBackground))
+               .frame(width: 50, height: 50)
+               .cornerRadius(8)
+               .overlay(
+                   Image(systemName: "square.3.stack.3d")
+                       .font(.system(size: 22))
+                       .foregroundColor(Color(uiColor: .systemBlue))
+               )
+               .overlay(
+                   RoundedRectangle(cornerRadius: 8)
+                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+               )
+       }
+       .accessibilityIdentifier("Color Shapes Button")
+   }
+    /// Creates a button for the shapes panel
+   private func makeShapesButton() -> some View {
+       Button(action: {
+           if showShapesPanel {
+               showShapesPanel = false
+           } else {
+               switchToShapes()
+           }
+       }) {
+           Rectangle()
+               .foregroundColor(Color(uiColor: .systemBackground))
+               .frame(width: 50, height: 50)
+               .cornerRadius(8)
+               .overlay(
+                   Image(systemName: "square.on.square")
+                       .font(.system(size: 22))
+                       .foregroundColor(Color(uiColor: .systemBlue))
+               )
+               .overlay(
+                   RoundedRectangle(cornerRadius: 8)
+                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+               )
+       }
+       .accessibilityIdentifier("Shapes Button")
+   }
+
      /// Creates the zoom control slider with + and - indicators
     private func makeZoomSlider() -> some View {
         VStack(spacing: 8) {
@@ -884,30 +832,30 @@ struct CanvasView: View {
        )
     }
      /// Creates the close button that's always visible
-    private func makeCloseButton() -> some View {
-        Button(action: {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                showProperties = false
-                showColorShapes = false
-                showShapesPanel = false
-            }
-        }) {
-            Rectangle()
-                .foregroundColor(Color(uiColor: .systemBackground))
-                .frame(width: 60, height: 60)
-                .cornerRadius(8)
-                .overlay(
-                    Image(systemName: "xmark")
-                        .font(.system(size: 24))
-                        .foregroundColor(Color(uiColor: .systemBlue))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                )
-        }
-        .accessibilityIdentifier("Close Button")
-    }
+   private func makeCloseButton() -> some View {
+       Button(action: {
+           // Close all panels
+           showProperties = false
+           showColorShapes = false
+           showShapesPanel = false
+           showGalleryPanel = false
+       }) {
+           Rectangle()
+               .foregroundColor(Color(uiColor: .systemBackground))
+               .frame(width: 50, height: 50)
+               .cornerRadius(8)
+               .overlay(
+                   Image(systemName: "xmark")
+                       .font(.system(size: 22))
+                       .foregroundColor(Color(uiColor: .systemBlue))
+               )
+               .overlay(
+                   RoundedRectangle(cornerRadius: 8)
+                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+               )
+       }
+       .accessibilityIdentifier("Close Button")
+   }
      /// Creates the share button for the top navigation bar
     private func makeShareButton() -> some View {
         VStack(spacing: 20) { // Increased spacing from 10 to 20
@@ -963,6 +911,30 @@ struct CanvasView: View {
             }
             .accessibilityIdentifier("Share Button")
         }
+
+        /// Creates a button for the Gallery (placeholder).
+        internal func makeGalleryButton() -> some View {
+            Button(action: {
+            onSwitchToGallery() // Call the gallery switch callback
+            }) {
+            Rectangle()
+                .foregroundColor(Color(uiColor: .systemBackground))
+                .frame(width: 50, height: 50) // Set size
+                .cornerRadius(8)
+                .overlay(
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 22)) // Set size
+                        .foregroundColor(Color(uiColor: .systemBlue))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                )
+            }
+            .accessibilityIdentifier("Gallery Button")
+        }
+
+
     }
      // Modify access level
      // private func saveArtwork() {
@@ -1123,6 +1095,52 @@ struct CanvasView: View {
         guard let string = stringValue else { return nil }
         return Double(string)
     }
+
+    /// Generic function to handle panel switching logic
+   private func switchPanel(hideOthersAndShow panelToShow: Binding<Bool>) {
+       isSwitchingPanels = true
+       showProperties = false
+       showColorShapes = false
+       showShapesPanel = false
+       showGalleryPanel = false
+       panelToShow.wrappedValue = true
+       isSwitchingPanels = false
+   }
+   
+   /// Switch to Properties panel
+   private func switchToProperties() {
+       switchPanel(hideOthersAndShow: $showProperties)
+   }
+   
+   /// Switch to Color Shapes panel
+   private func switchToColorShapes() {
+       switchPanel(hideOthersAndShow: $showColorShapes)
+   }
+   
+   /// Switch to Shapes panel
+   private func switchToShapes() {
+       switchPanel(hideOthersAndShow: $showShapesPanel)
+   }
+  
+   /// Switch to Gallery panel
+   private func switchToGallery() {
+       switchPanel(hideOthersAndShow: $showGalleryPanel)
+   }
+
+
+   /// Helper view modifier to wrap panel content with standard layout and transition
+   @ViewBuilder
+   private func panelOverlay<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+       VStack {
+           Spacer()
+           content()
+       }
+       .zIndex(3) // Ensure panels appear above the canvas content
+       .transition(!isSwitchingPanels ? .asymmetric(
+           insertion: .move(edge: .bottom),
+           removal: .move(edge: .bottom)
+       ) : .identity) // Use standard transition unless switching panels
+   }
 }
 
 /// A view that shows confirmation of a saved artwork with the ability to copy the ID

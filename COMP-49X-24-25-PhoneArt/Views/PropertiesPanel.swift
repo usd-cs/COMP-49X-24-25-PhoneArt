@@ -45,6 +45,7 @@ struct PropertiesPanel: View {
  @Binding var isShowing: Bool
  var onSwitchToColorShapes: () -> Void  // Callback for switching to Color panel
  var onSwitchToShapes: () -> Void       // Callback for switching to Shapes panel
+ var onSwitchToGallery: () -> Void     // Callback for switching to Gallery panel
   // MARK: - Text Field States
   @State private var rotationText: String
  @State private var scaleText: String
@@ -78,7 +79,12 @@ struct PropertiesPanel: View {
              Spacer() // Spacer between buttons for equal distribution
             
              makeShapesButton()
-            
+
+             Spacer() // Spacer between buttons for equal distribution
+
+             // Add the Gallery Button
+             makeGalleryButton()
+
              Spacer() // Spacer between buttons for equal distribution
             
              // Close button
@@ -89,11 +95,11 @@ struct PropertiesPanel: View {
              }) {
                  Rectangle()
                      .foregroundColor(Color(uiColor: .systemBackground))
-                     .frame(width: 60, height: 60)
+                     .frame(width: 50, height: 50)
                      .cornerRadius(8)
                      .overlay(
                          Image(systemName: "xmark")
-                             .font(.system(size: 24))
+                             .font(.system(size: 22))
                              .foregroundColor(Color(uiColor: .systemBlue))
                      )
                      .overlay(
@@ -388,11 +394,11 @@ struct PropertiesPanel: View {
        }) {
            Rectangle()
                .foregroundColor(Color(uiColor: .systemBackground))
-               .frame(width: 60, height: 60)
+               .frame(width: 50, height: 50)
                .cornerRadius(8)
                .overlay(
                    Image(systemName: "slider.horizontal.3")
-                       .font(.system(size: 24))
+                       .font(.system(size: 22))
                        .foregroundColor(Color(uiColor: .systemBlue))
                )
                .shadow(radius: 2)
@@ -407,11 +413,11 @@ struct PropertiesPanel: View {
        }) {
            Rectangle()
                .foregroundColor(Color(uiColor: .systemBackground))
-               .frame(width: 60, height: 60)
+               .frame(width: 50, height: 50)
                .cornerRadius(8)
                .overlay(
                    Image(systemName: "square.3.stack.3d")
-                       .font(.system(size: 24))
+                       .font(.system(size: 22))
                        .foregroundColor(Color(uiColor: .systemBlue))
                )
                .overlay(
@@ -429,11 +435,11 @@ struct PropertiesPanel: View {
        }) {
            Rectangle()
                .foregroundColor(Color(uiColor: .systemBackground))
-               .frame(width: 60, height: 60)
+               .frame(width: 50, height: 50)
                .cornerRadius(8)
                .overlay(
                    Image(systemName: "square.on.square")
-                       .font(.system(size: 24))
+                       .font(.system(size: 22))
                        .foregroundColor(Color(uiColor: .systemBlue))
                )
                .overlay(
@@ -443,6 +449,29 @@ struct PropertiesPanel: View {
        }
        .accessibilityIdentifier("Shapes Button")
    }
+
+   /// Creates a button for the Gallery (placeholder).
+   internal func makeGalleryButton() -> some View {
+       Button(action: {
+           onSwitchToGallery() // Call the gallery switch callback
+       }) {
+           Rectangle()
+               .foregroundColor(Color(uiColor: .systemBackground))
+               .frame(width: 50, height: 50) // Set size
+               .cornerRadius(8)
+               .overlay(
+                   Image(systemName: "photo.on.rectangle.angled")
+                       .font(.system(size: 22)) // Set size
+                       .foregroundColor(Color(uiColor: .systemBlue))
+               )
+               .overlay(
+                   RoundedRectangle(cornerRadius: 8)
+                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+               )
+       }
+       .accessibilityIdentifier("Gallery Button")
+   }
+
   // MARK: - Initialization
   /// Initializes a new PropertiesPanel with the given bindings
  /// - Parameters:
@@ -458,9 +487,10 @@ struct PropertiesPanel: View {
  ///   - isShowing: Binding for panel visibility
  ///   - onSwitchToColorShapes: Callback for switching to ColorPropertiesPanel
  ///   - onSwitchToShapes: Callback for switching to Shapes panel
+ ///   - onSwitchToGallery: Callback for switching to Gallery panel 
  init(rotation: Binding<Double>, scale: Binding<Double>, layer: Binding<Double>, skewX: Binding<Double>, skewY: Binding<Double>,
       spread: Binding<Double>, horizontal: Binding<Double>, vertical: Binding<Double>, primitive: Binding<Double>, isShowing: Binding<Bool>,
-      onSwitchToColorShapes: @escaping () -> Void, onSwitchToShapes: @escaping () -> Void) {
+      onSwitchToColorShapes: @escaping () -> Void, onSwitchToShapes: @escaping () -> Void, onSwitchToColorShapes: @escaping () -> Void, onSwitchToShapes: @escaping () -> Void, onSwitchToGallery: @escaping () -> Void) {
      self._rotation = rotation
      self._scale = scale
      self._layer = layer
@@ -473,6 +503,7 @@ struct PropertiesPanel: View {
      self._isShowing = isShowing
      self.onSwitchToColorShapes = onSwitchToColorShapes
      self.onSwitchToShapes = onSwitchToShapes
+     self.onSwitchToGallery = onSwitchToGallery
   
      // Initialize text fields with formatted values
      self._rotationText = State(initialValue: "\(Int(rotation.wrappedValue))")
@@ -628,7 +659,8 @@ struct PropertiesPanel_Previews: PreviewProvider {
            primitive: .constant(1),
            isShowing: .constant(true),
            onSwitchToColorShapes: {},
-           onSwitchToShapes: {}
+           onSwitchToShapes: {},
+           onSwitchToGallery: {}
        )
    }
 }
