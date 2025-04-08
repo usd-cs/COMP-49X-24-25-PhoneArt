@@ -143,7 +143,7 @@ struct CanvasView: View {
                 makeZoomSlider()
             }
             .padding(.top, 50)
-            .padding(.trailing, -20)
+            .padding(.trailing, -30)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
       
             VStack {
@@ -330,12 +330,17 @@ struct CanvasView: View {
                         }
                     
                     // Import View
-                    ImportArtworkView(onImportSuccess: { artworkString in // Pass the callback
-                        // Decode and apply the imported artwork string
-                        self.applyImportedArtwork(artworkString)
-                        // Dismiss the import sheet
-                        self.showImportSheet = false
-                    })
+                    ImportArtworkView(
+                        onImportSuccess: { artworkString in // Pass the callback
+                            // Decode and apply the imported artwork string
+                            self.applyImportedArtwork(artworkString)
+                            // Dismiss the import sheet
+                            self.showImportSheet = false
+                        },
+                        onClose: { // Add the onClose callback
+                            self.showImportSheet = false
+                        }
+                    )
                     .onChange(of: showImportSheet) { _, newValue in
                         // If the parent state changes to false, ensure dismissal logic runs if needed
                         if !newValue {
@@ -726,14 +731,19 @@ struct CanvasView: View {
      /// Creates the reset position button
     private func makeResetButton() -> some View {
         Button(action: resetPosition) {
-            Rectangle()
-                .foregroundColor(Color(uiColor: .systemBlue))
+            Rectangle() // Keep the Rectangle as the base shape
+                .foregroundColor(.clear) // Make the rectangle transparent
                 .frame(width: 40, height: 40)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
+                .background(Color(uiColor: .systemBackground)) // Apply background color
+                .cornerRadius(8) // Apply corner radius
+                .overlay( // Apply icon overlay
                     Image(systemName: "arrow.down.forward.and.arrow.up.backward")
                         .font(.system(size: 20))
-                        .foregroundColor(Color(uiColor: .systemBackground))
+                        .foregroundColor(Color(uiColor: .systemBlue)) // Use systemBlue for icon
+                )
+                .overlay( // Apply border overlay
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
                 )
         }
         .accessibilityIdentifier("Reset Position")
@@ -900,17 +910,25 @@ struct CanvasView: View {
     }
      /// Creates the share button for the top navigation bar
     private func makeShareButton() -> some View {
-        VStack(spacing: 15) {
+        VStack(spacing: 20) { // Increased spacing from 10 to 20
             // Import button
             Button(action: {
                 showImportSheet = true
             }) {
                 VStack {
                     Image(systemName: "plus")
-                        .font(.system(size: 24))
-                    Text("Import")
-                        .font(.caption)
+                        .font(.system(size: 20)) // Slightly smaller icon to fit
+                        .foregroundColor(Color(uiColor: .systemBlue))
+                    // Text("Import") removed
                 }
+                .padding(8)
+                .frame(width: 40, height: 40) // Changed size to match reset button
+                .background(Color(uiColor: .systemBackground))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                )
             }
             .accessibilityIdentifier("Import Button")
             
@@ -930,10 +948,18 @@ struct CanvasView: View {
             } label: {
                 VStack {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 24))
-                    Text("Share")
-                        .font(.caption)
+                        .font(.system(size: 20)) // Slightly smaller icon to fit
+                        .foregroundColor(Color(uiColor: .systemBlue))
+                    // Text("Share") removed
                 }
+                .padding(8)
+                .frame(width: 40, height: 40) // Changed size to match reset button
+                .background(Color(uiColor: .systemBackground))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                )
             }
             .accessibilityIdentifier("Share Button")
         }
