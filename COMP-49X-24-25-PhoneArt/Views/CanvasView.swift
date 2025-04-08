@@ -330,18 +330,19 @@ struct CanvasView: View {
                         }
                     
                     // Import View
-                    ImportArtworkView()
-                        // Note: ImportArtworkView uses @Environment(\\.dismiss)
-                        // which should work here, but might need adjustment
-                        // if dismissal doesn't behave as expected.
-                        // We also need to observe showImportSheet to know when to dismiss.
-                        .onChange(of: showImportSheet) { _, newValue in
-                            // If the parent state changes to false, ensure dismissal logic runs if needed
-                            if !newValue {
-                                // Potentially call dismiss() if ImportArtworkView manages its own presentation state
-                                // Environment dismiss should handle this implicitly when presented this way.
-                            }
+                    ImportArtworkView(onImportSuccess: { artworkString in // Pass the callback
+                        // Decode and apply the imported artwork string
+                        self.applyImportedArtwork(artworkString)
+                        // Dismiss the import sheet
+                        self.showImportSheet = false
+                    })
+                    .onChange(of: showImportSheet) { _, newValue in
+                        // If the parent state changes to false, ensure dismissal logic runs if needed
+                        if !newValue {
+                            // Potentially call dismiss() if ImportArtworkView manages its own presentation state
+                            // Environment dismiss should handle this implicitly when presented this way.
                         }
+                    }
                     .transition(.opacity.animation(.easeInOut)) // Apply transition here
                 }
             }
@@ -1040,6 +1041,61 @@ struct CanvasView: View {
                 }
             }
         }
+    }
+
+    // Function to apply imported artwork data to the canvas state
+    private func applyImportedArtwork(_ artworkString: String) {
+        print("Applying imported artwork string:")
+        // Decode the string into a dictionary
+        let decodedParams = ArtworkData.decode(from: artworkString)
+        print("Decoded parameters: \(decodedParams)")
+
+        // Update state variables - use helper function for safe unwrapping and type conversion
+        self.selectedShape = ShapesPanel.ShapeType(rawValue: decodedParams["shape"] ?? "circle") ?? .circle
+        self.shapeRotation = doubleValue(from: decodedParams["rotation"]) ?? 0
+        self.shapeScale = doubleValue(from: decodedParams["scale"]) ?? 1.0
+        self.shapeLayer = doubleValue(from: decodedParams["layer"]) ?? 0
+        self.shapeSkewX = doubleValue(from: decodedParams["skewX"]) ?? 0
+        self.shapeSkewY = doubleValue(from: decodedParams["skewY"]) ?? 0
+        self.shapeSpread = doubleValue(from: decodedParams["spread"]) ?? 0
+        self.shapeHorizontal = doubleValue(from: decodedParams["horizontal"]) ?? 0
+        self.shapeVertical = doubleValue(from: decodedParams["vertical"]) ?? 0
+        self.shapePrimitive = doubleValue(from: decodedParams["primitive"]) ?? 1.0
+        
+        // Update colors via ColorPresetManager
+        if let colorsString = decodedParams["colors"] {
+            let importedColors = ArtworkData.reconstructColors(from: colorsString)
+            // Ensure we have exactly 10 presets if necessary, padding with defaults if needed
+            var finalPresets = importedColors
+            if finalPresets.count < 10 {
+                let defaultColors: [Color] = [.purple, .blue, .pink, .yellow, .green, .red, .orange, .cyan, .indigo, .mint]
+                for i in finalPresets.count..<10 {
+                    finalPresets.append(defaultColors[i % defaultColors.count])
+                }
+            } else if finalPresets.count > 10 {
+                finalPresets = Array(finalPresets.prefix(10))
+            }
+            colorPresetManager.colorPresets = finalPresets
+            print("Applied \(finalPresets.count) color presets.")
+        }
+
+        if let backgroundString = decodedParams["background"],
+           let bgColor = ArtworkData.hexToColor(backgroundString) {
+            colorPresetManager.backgroundColor = bgColor
+            print("Applied background color: \(bgColor)")
+        }
+        
+        // You might need to also update other ColorPresetManager settings
+        // if they were part of the artwork string (e.g., strokeColor, strokeWidth, alpha)
+        // For now, assuming only presets and background are in the string.
+
+        print("Finished applying imported artwork.")
+    }
+
+    // Helper function to safely convert String? to Double?
+    private func doubleValue(from stringValue: String?) -> Double? {
+        guard let string = stringValue else { return nil }
+        return Double(string)
     }
 }
 

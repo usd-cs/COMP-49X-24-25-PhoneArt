@@ -46,7 +46,7 @@ struct ArtworkData: Codable {
    /// Converts a hexadecimal color string to a SwiftUI Color
   /// - Parameter hex: The hex color string to convert
   /// - Returns: A SwiftUI Color if conversion succeeds, nil otherwise
-  private static func hexToColor(_ hex: String) -> Color? {
+  static func hexToColor(_ hex: String) -> Color? {
       var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
       hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
     
