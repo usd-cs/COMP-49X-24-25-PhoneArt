@@ -423,7 +423,7 @@ struct CanvasView: View {
         let scaledRadius = radius * layerScale
   
         // Apply spread to move shapes away from center
-        let spreadDistance = shapeSpread * 2.0
+        let spreadDistance = max(shapeSpread * Double(layerIndex), Double(layerIndex))
         let spreadX = spreadDistance * cos(angleInRadians)
         let spreadY = spreadDistance * sin(angleInRadians)
   
@@ -857,85 +857,86 @@ struct CanvasView: View {
        .accessibilityIdentifier("Close Button")
    }
      /// Creates the share button for the top navigation bar
-    private func makeShareButton() -> some View {
-        VStack(spacing: 20) { // Increased spacing from 10 to 20
-            // Import button
-            Button(action: {
-                showImportSheet = true
-            }) {
-                VStack {
-                    Image(systemName: "plus")
-                        .font(.system(size: 20)) // Slightly smaller icon to fit
-                        .foregroundColor(Color(uiColor: .systemBlue))
-                    // Text("Import") removed
-                }
-                .padding(8)
-                .frame(width: 40, height: 40) // Changed size to match reset button
-                .background(Color(uiColor: .systemBackground))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                )
-            }
-            .accessibilityIdentifier("Import Button")
-            
-            // Share button
-            Menu {
-                Button(action: saveArtwork) {
-                    Label("Save to Gallery", systemImage: "square.and.arrow.down")
-                }
-                .accessibilityIdentifier("Save to Gallery Button")
-                
-                Button(action: saveToPhotos) {
-                    Label("Save to Photos", systemImage: "photo")
-                }
-                .accessibilityIdentifier("Save to Photos Button")
-                
-                // Add other share options here
-            } label: {
-                VStack {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 20)) // Slightly smaller icon to fit
-                        .foregroundColor(Color(uiColor: .systemBlue))
-                    // Text("Share") removed
-                }
-                .padding(8)
-                .frame(width: 40, height: 40) // Changed size to match reset button
-                .background(Color(uiColor: .systemBackground))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                )
-            }
-            .accessibilityIdentifier("Share Button")
-        }
-
-        /// Creates a button for the Gallery (placeholder).
-        internal func makeGalleryButton() -> some View {
-            Button(action: {
-            onSwitchToGallery() // Call the gallery switch callback
-            }) {
-            Rectangle()
-                .foregroundColor(Color(uiColor: .systemBackground))
-                .frame(width: 50, height: 50) // Set size
-                .cornerRadius(8)
-                .overlay(
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 22)) // Set size
-                        .foregroundColor(Color(uiColor: .systemBlue))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                )
-            }
-            .accessibilityIdentifier("Gallery Button")
-        }
+       private func makeShareButton() -> some View {
+           return VStack(spacing: 20) { // Increased spacing from 10 to 20
+               // Import button
+               Button(action: {
+                   showImportSheet = true
+               }) {
+                   VStack {
+                       Image(systemName: "plus")
+                           .font(.system(size: 20)) // Slightly smaller icon to fit
+                           .foregroundColor(Color(uiColor: .systemBlue))
+                       // Text("Import") removed
+                   }
+                   .padding(8)
+                   .frame(width: 40, height: 40) // Changed size to match reset button
+                   .background(Color(uiColor: .systemBackground))
+                   .cornerRadius(8)
+                   .overlay(
+                       RoundedRectangle(cornerRadius: 8)
+                           .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                   )
+               }
+               .accessibilityIdentifier("Import Button")
+              
+               // Share button
+               Menu {
+                   Button(action: saveArtwork) {
+                       Label("Save to Gallery", systemImage: "square.and.arrow.down")
+                   }
+                   .accessibilityIdentifier("Save to Gallery Button")
+                  
+                   Button(action: saveToPhotos) {
+                       Label("Save to Photos", systemImage: "photo")
+                   }
+                   .accessibilityIdentifier("Save to Photos Button")
+                  
+                   // Add other share options here
+               } label: {
+                   VStack {
+                       Image(systemName: "square.and.arrow.up")
+                           .font(.system(size: 20)) // Slightly smaller icon to fit
+                           .foregroundColor(Color(uiColor: .systemBlue))
+                       // Text("Share") removed
+                   }
+                   .padding(8)
+                   .frame(width: 40, height: 40) // Changed size to match reset button
+                   .background(Color(uiColor: .systemBackground))
+                   .cornerRadius(8)
+                   .overlay(
+                       RoundedRectangle(cornerRadius: 8)
+                           .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                   )
+               }
+               .accessibilityIdentifier("Share Button")
+           }
+       }
 
 
-    }
+       /// Creates a button for the Gallery.
+       private func makeGalleryButton() -> some View {
+           Button(action: {
+              switchToGallery() // Use the correct callback method
+           }) {
+              Rectangle()
+                  .foregroundColor(Color(uiColor: .systemBackground))
+                  .frame(width: 50, height: 50) // Set size
+                  .cornerRadius(8)
+                  .overlay(
+                      Image(systemName: "photo.on.rectangle.angled")
+                          .font(.system(size: 22)) // Set size
+                          .foregroundColor(Color(uiColor: .systemBlue))
+                  )
+                  .overlay(
+                      RoundedRectangle(cornerRadius: 8)
+                          .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                  )
+           }
+           .accessibilityIdentifier("Gallery Button")
+       }
+
+
      // Modify access level
      // private func saveArtwork() {
      internal func saveArtwork() {

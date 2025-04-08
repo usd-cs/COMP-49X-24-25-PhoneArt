@@ -488,9 +488,9 @@ struct PropertiesPanel: View {
  ///   - onSwitchToColorShapes: Callback for switching to ColorPropertiesPanel
  ///   - onSwitchToShapes: Callback for switching to Shapes panel
  ///   - onSwitchToGallery: Callback for switching to Gallery panel 
- init(rotation: Binding<Double>, scale: Binding<Double>, layer: Binding<Double>, skewX: Binding<Double>, skewY: Binding<Double>,
-      spread: Binding<Double>, horizontal: Binding<Double>, vertical: Binding<Double>, primitive: Binding<Double>, isShowing: Binding<Bool>,
-      onSwitchToColorShapes: @escaping () -> Void, onSwitchToShapes: @escaping () -> Void, onSwitchToColorShapes: @escaping () -> Void, onSwitchToShapes: @escaping () -> Void, onSwitchToGallery: @escaping () -> Void) {
+    init(rotation: Binding<Double>, scale: Binding<Double>, layer: Binding<Double>, skewX: Binding<Double>, skewY: Binding<Double>,
+         spread: Binding<Double>, horizontal: Binding<Double>, vertical: Binding<Double>, primitive: Binding<Double>, isShowing: Binding<Bool>,
+         onSwitchToColorShapes: @escaping () -> Void, onSwitchToShapes: @escaping () -> Void, onSwitchToGallery: @escaping () -> Void) {
      self._rotation = rotation
      self._scale = scale
      self._layer = layer
