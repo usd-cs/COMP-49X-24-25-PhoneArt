@@ -59,6 +59,9 @@ struct ShapesPanel: View {
     /// Callback function to switch to the Color Properties panel
     var onSwitchToColorProperties: () -> Void
     
+    /// Callback function to switch to the Gallery panel
+    var onSwitchToGallery: () -> Void
+
     // MARK: - Body
     
     var body: some View {
@@ -101,6 +104,7 @@ struct ShapesPanel: View {
     /// - Properties panel button
     /// - Color properties panel button  
     /// - Shapes panel button (current panel)
+    /// - Gallery button
     /// - Close button
     internal func panelHeader() -> some View {
         // Panel header with evenly distributed buttons
@@ -116,7 +120,12 @@ struct ShapesPanel: View {
             Spacer() // Spacer between buttons for equal distribution
             
             makeShapesButton()
-            
+
+            Spacer() // Spacer between buttons for equal distribution
+
+            // Add the Gallery Button
+            makeGalleryButton()
+
             Spacer() // Spacer between buttons for equal distribution
             
             // Close button
@@ -127,11 +136,11 @@ struct ShapesPanel: View {
             }) {
                 Rectangle()
                     .foregroundColor(Color(uiColor: .systemBackground))
-                    .frame(width: 60, height: 60)
+                    .frame(width: 50, height: 50)
                     .cornerRadius(8)
                     .overlay(
                         Image(systemName: "xmark")
-                            .font(.system(size: 24))
+                            .font(.system(size: 22))
                             .foregroundColor(Color(uiColor: .systemBlue))
                     )
                     .overlay(
@@ -195,11 +204,11 @@ struct ShapesPanel: View {
         }) {
             Rectangle()
                 .foregroundColor(Color(uiColor: .systemBackground))
-                .frame(width: 60, height: 60)
+                .frame(width: 50, height: 50)
                 .cornerRadius(8)
                 .overlay(
                     Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 24))
+                        .font(.system(size: 22))
                         .foregroundColor(Color(uiColor: .systemBlue))
                 )
                 .overlay(
@@ -218,11 +227,11 @@ struct ShapesPanel: View {
         }) {
             Rectangle()
                 .foregroundColor(Color(uiColor: .systemBackground))
-                .frame(width: 60, height: 60)
+                .frame(width: 50, height: 50)
                 .cornerRadius(8)
                 .overlay(
                     Image(systemName: "square.3.stack.3d")
-                        .font(.system(size: 24))
+                        .font(.system(size: 22))
                         .foregroundColor(Color(uiColor: .systemBlue))
                 )
                 .overlay(
@@ -242,17 +251,39 @@ struct ShapesPanel: View {
         }) {
             Rectangle()
                 .foregroundColor(Color(uiColor: .systemBackground))
-                .frame(width: 60, height: 60)
+                .frame(width: 50, height: 50)
                 .cornerRadius(8)
                 .overlay(
                     Image(systemName: "square.on.square")
-                        .font(.system(size: 24))
+                        .font(.system(size: 22))
                         .foregroundColor(Color(uiColor: .systemBlue))
                 )
                 .shadow(radius: 2)
         }
         .accessibilityIdentifier("Shapes Button")
     }
+
+    /// Creates a button for the Gallery (placeholder).
+   internal func makeGalleryButton() -> some View {
+       Button(action: {
+           onSwitchToGallery() // Call the gallery switch callback
+       }) {
+           Rectangle()
+               .foregroundColor(Color(uiColor: .systemBackground))
+               .frame(width: 50, height: 50) // Set size
+               .cornerRadius(8)
+               .overlay(
+                   Image(systemName: "photo.on.rectangle.angled")
+                       .font(.system(size: 22)) // Set size
+                       .foregroundColor(Color(uiColor: .systemBlue))
+               )
+               .overlay(
+                   RoundedRectangle(cornerRadius: 8)
+                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+               )
+       }
+       .accessibilityIdentifier("Gallery Button")
+   }
 }
 
 // MARK: - Previews
@@ -264,7 +295,8 @@ struct ShapesPanel_Previews: PreviewProvider {
             selectedShape: .constant(.circle),
             isShowing: .constant(true),
             onSwitchToProperties: {},
-            onSwitchToColorProperties: {}
+            onSwitchToColorProperties: {},
+            onSwitchToGallery: {} // Add dummy callback for preview
         )
     }
 }

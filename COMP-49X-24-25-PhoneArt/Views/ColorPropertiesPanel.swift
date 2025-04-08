@@ -46,6 +46,9 @@ struct ColorPropertiesPanel: View {
    /// Callback function to switch to the Shapes panel
    /// Executed when the user taps the Shapes button
    var onSwitchToShapes: () -> Void
+
+   /// Callback function to switch to the Gallery panel
+  var onSwitchToGallery: () -> Void
   
    // MARK: - Initialization
   
@@ -55,12 +58,16 @@ struct ColorPropertiesPanel: View {
    ///   - selectedColor: Binding to the currently selected color that will be applied to shapes
    ///   - onSwitchToProperties: Callback function executed when switching to the Properties panel
    ///   - onSwitchToShapes: Callback function executed when switching to the Shapes panel
-   init(isShowing: Binding<Bool>, selectedColor: Binding<Color>, onSwitchToProperties: @escaping () -> Void, onSwitchToShapes: @escaping () -> Void) {
-       self._isShowing = isShowing
-       self._selectedColor = selectedColor
-       self.onSwitchToProperties = onSwitchToProperties
-       self.onSwitchToShapes = onSwitchToShapes
-   }
+   ///   - onSwitchToGallery: Callback function executed when switching to the Gallery panel
+    init(isShowing: Binding<Bool>, selectedColor: Binding<Color>, onSwitchToProperties: @escaping () -> Void, onSwitchToShapes: @escaping () -> Void, onSwitchToGallery: @escaping () -> Void) {
+      self._isShowing = isShowing
+      self._selectedColor = selectedColor
+      self.onSwitchToProperties = onSwitchToProperties
+      self.onSwitchToShapes = onSwitchToShapes
+      self.onSwitchToGallery = onSwitchToGallery
+    }
+
+
  
    // MARK: - Body
   
@@ -159,6 +166,11 @@ struct ColorPropertiesPanel: View {
            Spacer() // Spacer between buttons for equal distribution
            
            makeShapesButton()
+
+           Spacer() // Spacer between buttons for equal distribution
+         
+           // Add the Gallery Button
+           makeGalleryButton()
            
            Spacer() // Spacer between buttons for equal distribution
            
@@ -170,11 +182,11 @@ struct ColorPropertiesPanel: View {
            }) {
                Rectangle()
                    .foregroundColor(Color(uiColor: .systemBackground))
-                   .frame(width: 60, height: 60)
+                   .frame(width: 50, height: 50)
                    .cornerRadius(8)
                    .overlay(
                        Image(systemName: "xmark")
-                           .font(.system(size: 24))
+                           .font(.system(size: 22))
                            .foregroundColor(Color(uiColor: .systemBlue))
                    )
                    .overlay(
@@ -213,11 +225,11 @@ struct ColorPropertiesPanel: View {
        }) {
            Rectangle()
                .foregroundColor(Color(uiColor: .systemBackground))
-               .frame(width: 60, height: 60)
+               .frame(width: 50, height: 50)
                .cornerRadius(8)
                .overlay(
                    Image(systemName: "slider.horizontal.3")
-                       .font(.system(size: 24))
+                       .font(.system(size: 22))
                        .foregroundColor(Color(uiColor: .systemBlue))
                )
                .overlay(
@@ -235,11 +247,11 @@ struct ColorPropertiesPanel: View {
        }) {
            Rectangle()
                .foregroundColor(Color(uiColor: .systemBackground))
-               .frame(width: 60, height: 60)
+               .frame(width: 50, height: 50)
                .cornerRadius(8)
                .overlay(
                    Image(systemName: "square.3.stack.3d")
-                       .font(.system(size: 24))
+                       .font(.system(size: 22))
                        .foregroundColor(Color(uiColor: .systemBlue))
                )
                .shadow(radius: 2)
@@ -254,11 +266,11 @@ struct ColorPropertiesPanel: View {
        }) {
            Rectangle()
                .foregroundColor(Color(uiColor: .systemBackground))
-               .frame(width: 60, height: 60)
+               .frame(width: 50, height: 50)
                .cornerRadius(8)
                .overlay(
                    Image(systemName: "square.on.square")
-                       .font(.system(size: 24))
+                       .font(.system(size: 22))
                        .foregroundColor(Color(uiColor: .systemBlue))
                )
                .overlay(
@@ -267,6 +279,28 @@ struct ColorPropertiesPanel: View {
                )
        }
        .accessibilityIdentifier("Shapes Button")
+   }
+
+   /// Creates a button for the Gallery (placeholder).
+   internal func makeGalleryButton() -> some View {
+       Button(action: {
+           onSwitchToGallery() // Call the gallery switch callback
+       }) {
+           Rectangle()
+               .foregroundColor(Color(uiColor: .systemBackground))
+               .frame(width: 50, height: 50) // Set size
+               .cornerRadius(8)
+               .overlay(
+                   Image(systemName: "photo.on.rectangle.angled")
+                       .font(.system(size: 22)) // Set size
+                       .foregroundColor(Color(uiColor: .systemBlue))
+               )
+               .overlay(
+                   RoundedRectangle(cornerRadius: 8)
+                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+               )
+       }
+       .accessibilityIdentifier("Gallery Button")
    }
 }
 
@@ -508,7 +542,8 @@ struct ColorPropertiesPanel_Previews: PreviewProvider {
            isShowing: .constant(true),
            selectedColor: .constant(.purple),
            onSwitchToProperties: {},
-           onSwitchToShapes: {}
+           onSwitchToShapes: {},
+           onSwitchToGallery: {}
        )
    }
 }
