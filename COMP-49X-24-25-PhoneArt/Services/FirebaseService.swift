@@ -45,7 +45,10 @@ class FirebaseService: ObservableObject {
                 "title": title as Any
             ])
         
-        print("Successfully saved artwork piece with ID: \(pieceRef.documentID)")
+        // Update the newly created document to include its own ID as a field
+        try await pieceRef.updateData(["pieceId": pieceRef.documentID])
+        
+        print("Successfully saved artwork piece with ID: \(pieceRef.documentID) and added pieceId field.")
         
         // Decode and print the artwork string values
         print("\nDecoding saved artwork:")
@@ -162,5 +165,40 @@ class FirebaseService: ObservableObject {
             }
         }
         print("===========================")
+    }
+    
+    // Function to fetch a specific artwork piece by its ID using a collection group query
+    func getArtwork(byPieceId pieceId: String) async throws -> ArtworkData? {
+        print("Attempting to fetch artwork with piece ID: \(pieceId)")
+        
+        // Query the 'pieces' collection group using the 'pieceId' field
+        let query = db.collectionGroup("pieces")
+            .whereField("pieceId", isEqualTo: pieceId) // Query against the stored field
+            .limit(to: 1)
+        
+        let snapshot = try await query.getDocuments()
+        
+        guard let document = snapshot.documents.first else {
+            print("No artwork found with piece ID: \(pieceId)")
+            // Consider throwing a specific error like `ImportError.notFound`
+            return nil
+        }
+        
+        print("Found document: \(document.documentID) in path: \(document.reference.path)")
+        
+        do {
+            // Decode the document data into ArtworkData
+            let artworkData = try document.data(as: ArtworkData.self)
+            print("Successfully decoded artwork data.")
+            
+            // Optionally decode and print for verification during development
+            // decodeArtworkString(artworkData.artworkString)
+            
+            return artworkData
+        } catch {
+            print("Error decoding artwork data for piece ID \(pieceId): \(error)")
+            // Rethrow the decoding error so the caller can handle it
+            throw error
+        }
     }
 } 

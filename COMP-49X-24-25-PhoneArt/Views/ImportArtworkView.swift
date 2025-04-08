@@ -15,6 +15,13 @@ struct ImportArtworkView: View {
     @State private var importResult: ImportResult?
     @Environment(\.dismiss) private var dismiss
     
+    // Callback to pass successful import data back
+    var onImportSuccess: ((String) -> Void)?
+    
+    // State for showing alerts
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    
     // Simple model for import results
     enum ImportResult: Equatable {
         case success(message: String)
@@ -122,7 +129,13 @@ struct ImportArtworkView: View {
                 print("Import Success (handle UI)")
             } else if case .failure(let message) = newResult {
                 print("Import Failed: \(message) (handle UI)")
+                // Update alert state and show it
+                self.alertMessage = message
+                self.showingAlert = true
             }
+        }
+        .alert(isPresented: $showingAlert) {
+            Alert(title: Text("Import Failed"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
     }
     
@@ -130,27 +143,63 @@ struct ImportArtworkView: View {
         // Reset previous results
         importResult = nil
         isProcessing = true
+        showingAlert = false // Reset alert state
+        alertMessage = ""
         
-        // Get the trimmed artwork ID
         let id = artworkIdText.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // Simulate processing
-        // In a real implementation, this would call the Firebase service to retrieve the artwork
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            // Placeholder for actual implementation
-            if !id.isEmpty {
-                // Simulate success for now
-                print("Simulating successful import for ID: \(id)")
-                // In a real scenario, you'd fetch data here
-                // Let's assume fetch is successful:
-                self.importResult = .success(message: "Artwork imported successfully!")
-                // Consider dismissing the view on success:
-                // dismiss()
-            } else {
-                self.importResult = .failure(message: "Please enter a valid artwork ID")
-            }
+        // Ensure ID is not empty before proceeding
+        guard !id.isEmpty else {
+            self.importResult = .failure(message: "Please enter a valid artwork ID.")
             self.isProcessing = false
+            return
         }
+        
+        print("Starting import task for ID: \(id)")
+        
+        Task { // Use Task for async operation
+            do {
+                // Call the Firebase service to fetch artwork by ID
+                let fetchedArtworkData = try await FirebaseService.shared.getArtwork(byPieceId: id)
+                
+                // Ensure data was found
+                guard let artworkData = fetchedArtworkData else {
+                    // Handle case where artwork ID was not found in Firestore
+                    await MainActor.run { // Update state on main thread
+                        self.importResult = .failure(message: "Artwork ID not found. Please check the ID and try again.")
+                        self.isProcessing = false
+                    }
+                    return
+                }
+                
+                // Artwork found, call the success callback
+                print("Artwork found and decoded. Calling onImportSuccess.")
+                await MainActor.run { // Update state on main thread
+                    onImportSuccess?(artworkData.artworkString) // Pass the raw string data
+                    self.importResult = .success(message: "Import successful - data passed back.") // Set success state
+                    // Dismissal is now handled by the parent view (CanvasView) via the callback
+                    // dismiss() // Remove direct dismissal from here
+                    self.isProcessing = false
+                }
+                
+            } catch let decodingError as DecodingError {
+                // Handle errors during decoding (e.g., data format mismatch)
+                print("Decoding error during import: \(decodingError)")
+                await MainActor.run { // Update state on main thread
+                    self.importResult = .failure(message: "Failed to process artwork data. It might be corrupted or in an old format. Error: \(decodingError.localizedDescription)")
+                    self.isProcessing = false
+                }
+            } catch {
+                // Handle other errors (network, Firestore unavailable, etc.)
+                print("Error during import: \(error)")
+                await MainActor.run { // Update state on main thread
+                    self.importResult = .failure(message: "An error occurred during import: \(error.localizedDescription)")
+                    self.isProcessing = false
+                }
+            }
+        }
+        
+        // Removed the DispatchQueue.main.asyncAfter simulation block
     }
 }
 
