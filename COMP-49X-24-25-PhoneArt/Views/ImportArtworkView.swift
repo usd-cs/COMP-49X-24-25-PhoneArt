@@ -17,6 +17,8 @@ struct ImportArtworkView: View {
     
     // Callback to pass successful import data back
     var onImportSuccess: ((String) -> Void)?
+    // Add callback for closing the sheet
+    var onClose: (() -> Void)?
     
     // State for showing alerts
     @State private var showingAlert = false
@@ -109,9 +111,9 @@ struct ImportArtworkView: View {
             .fixedSize(horizontal: true, vertical: false)
             .accessibilityIdentifier("Import Button")
 
-            // Close button (using dismiss)
+            // Close button (using new onClose callback)
             Button("Close") {
-                dismiss()
+                onClose?() // Call the new callback
             }
             .foregroundColor(.blue)
             .padding(.top, 5)
@@ -234,5 +236,6 @@ extension ImportArtworkView.ImportResult {
 }
 
 #Preview {
-    ImportArtworkView()
+    // Update preview to provide a dummy onClose action
+    ImportArtworkView(onClose: { print("Preview Close Tapped") })
 } 
