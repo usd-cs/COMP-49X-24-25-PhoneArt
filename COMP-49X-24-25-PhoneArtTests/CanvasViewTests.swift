@@ -411,7 +411,8 @@ final class CanvasViewTests: XCTestCase {
            primitive: .constant(1.0),
            isShowing: binding,
            onSwitchToColorShapes: {},
-           onSwitchToShapes: {}
+           onSwitchToShapes: {},
+           onSwitchToGallery: {}
        )
        
        // Verify panel exists
@@ -435,7 +436,8 @@ final class CanvasViewTests: XCTestCase {
            isShowing: binding,
            selectedColor: .constant(.red),
            onSwitchToProperties: {},
-           onSwitchToShapes: {}
+           onSwitchToShapes: {},
+           onSwitchToGallery: {}
        )
        
        // Verify panel exists
@@ -459,7 +461,8 @@ final class CanvasViewTests: XCTestCase {
            selectedShape: .constant(.circle),
            isShowing: binding,
            onSwitchToProperties: {},
-           onSwitchToColorProperties: {}
+           onSwitchToColorProperties: {},
+           onSwitchToGallery: {}
        )
        
        // Verify panel exists
@@ -522,7 +525,22 @@ class MockFirebaseService: FirebaseService {
    var listAllPiecesCalled = false
    var mockError: Error?
    var mockDocumentID: String = "default-mock-id" // Customizable ID
-  
+
+   // Properties for getArtwork() mocking
+   var getArtworkListCalled = false
+   var mockArtworkList: [ArtworkData] = []
+
+   // Properties for getArtwork(byPieceId:) mocking
+   var getArtworkByIdCalled = false
+   var mockArtworkDataResult: ArtworkData? // Can be nil to simulate not found
+   
+   // IMPORTANT: Override the shared instance when this class is instantiated
+   override init() {
+       super.init()
+       // Replace the shared instance with this mock
+       FirebaseService.shared = self
+   }
+
    // Use a different method name to avoid ambiguity
    func mockSaveArtwork(artworkData: String, title: String? = nil) async throws -> MockDocumentReference {
        saveArtworkCalled = true
@@ -535,6 +553,54 @@ class MockFirebaseService: FirebaseService {
   
    override func listAllPieces() async {
        listAllPiecesCalled = true
+   }
+
+   // Mock implementation for getArtwork()
+   override func getArtwork() async throws -> [ArtworkData] {
+       getArtworkListCalled = true
+       if let error = mockError {
+           throw error
+       }
+       // Copy the mock list to ensure tests don't affect each other
+       // Make sure each item has a valid ID (assigned by the ArtworkData initializer)
+       let result = Array(mockArtworkList)
+       // Add specific mock IDs to items for testing
+       for (index, item) in result.enumerated() {
+           if let mutableItem = item as? NSObject {
+               mutableItem.setValue("mock-id-\(index)", forKey: "id")
+           }
+       }
+       return result
+   }
+
+   // Mock implementation for getArtwork(byPieceId:)
+   override func getArtwork(byPieceId pieceId: String) async throws -> ArtworkData? {
+       getArtworkByIdCalled = true
+       if let error = mockError {
+           throw error
+       }
+       // If we have a mock result, ensure it has an ID
+       if var mockResult = mockArtworkDataResult {
+           if let mutableMockResult = mockResult as? NSObject {
+               mutableMockResult.setValue(pieceId, forKey: "id")
+               mockResult = mutableMockResult as! ArtworkData
+           }
+           return mockResult
+       }
+       // Return nil if simulating not found
+       return nil
+   }
+   
+   // IMPORTANT: Add saveArtwork override to match method signature in FirebaseService
+   override func saveArtwork(artworkData: String, title: String? = nil) async throws -> DocumentReference {
+       saveArtworkCalled = true
+       if let error = mockError {
+           throw error
+       }
+       // Create a real DocumentReference object from Firestore
+       let db = Firestore.firestore()
+       let docRef = db.collection("mockCollection").document(mockDocumentID)
+       return docRef
    }
 }
 

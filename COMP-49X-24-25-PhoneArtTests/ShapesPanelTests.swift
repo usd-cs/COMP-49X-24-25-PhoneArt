@@ -34,7 +34,8 @@ final class ShapesPanelTests: XCTestCase {
            selectedShape: .constant(selectedShape),
            isShowing: .constant(isShowing),
            onSwitchToProperties: { self.switchToPropertiesCalled = true },
-           onSwitchToColorProperties: { self.switchToColorPropertiesCalled = true }
+           onSwitchToColorProperties: { self.switchToColorPropertiesCalled = true },
+           onSwitchToGallery: {}
        )
    }
   
@@ -94,7 +95,8 @@ final class ShapesPanelTests: XCTestCase {
            selectedShape: .constant(.circle),
            isShowing: .constant(true),
            onSwitchToProperties: { self.switchToPropertiesCalled = true },
-           onSwitchToColorProperties: { }
+           onSwitchToColorProperties: { },
+           onSwitchToGallery: {}
        )
       
        // Directly call the action to simulate button press
@@ -112,7 +114,8 @@ final class ShapesPanelTests: XCTestCase {
            selectedShape: .constant(.circle),
            isShowing: .constant(true),
            onSwitchToProperties: { },
-           onSwitchToColorProperties: { self.switchToColorPropertiesCalled = true }
+           onSwitchToColorProperties: { self.switchToColorPropertiesCalled = true },
+           onSwitchToGallery: {}
        )
       
        // Directly call the action to simulate button press
@@ -181,7 +184,8 @@ final class ShapesPanelTests: XCTestCase {
            selectedShape: .constant(.circle),
            isShowing: isShowingBinding,
            onSwitchToProperties: { },
-           onSwitchToColorProperties: { }
+           onSwitchToColorProperties: { },
+           onSwitchToGallery: {}
        )
       
        // Verify initial state
@@ -216,7 +220,8 @@ final class ShapesPanelTests: XCTestCase {
            selectedShape: .constant(diamondShape),
            isShowing: .constant(true),
            onSwitchToProperties: { },
-           onSwitchToColorProperties: { }
+           onSwitchToColorProperties: { },
+           onSwitchToGallery: {}
        )
       
        let newHostingController = UIHostingController(rootView: newPanel)
@@ -240,7 +245,8 @@ final class ShapesPanelTests: XCTestCase {
            selectedShape: shapeBinding,
            isShowing: .constant(true),
            onSwitchToProperties: { },
-           onSwitchToColorProperties: { }
+           onSwitchToColorProperties: { },
+           onSwitchToGallery: {}
        )
       
        // Create a view hierarchy
@@ -274,7 +280,8 @@ final class ShapesPanelTests: XCTestCase {
            selectedShape: .constant(.circle),
            isShowing: isShowingBinding,
            onSwitchToProperties: { },
-           onSwitchToColorProperties: { }
+           onSwitchToColorProperties: { },
+           onSwitchToGallery: {}
        )
       
        // Create a view hierarchy
@@ -302,7 +309,8 @@ final class ShapesPanelTests: XCTestCase {
            selectedShape: .constant(.circle),
            isShowing: .constant(true),
            onSwitchToProperties: {},
-           onSwitchToColorProperties: {}
+           onSwitchToColorProperties: {},
+           onSwitchToGallery: {}
        )
       
        // Create a view hierarchy to ensure the preview structure works properly
@@ -322,7 +330,8 @@ final class ShapesPanelTests: XCTestCase {
                selectedShape: .constant(shape),
                isShowing: .constant(true),
                onSwitchToProperties: { },
-               onSwitchToColorProperties: { }
+               onSwitchToColorProperties: { },
+               onSwitchToGallery: {}
            )
           
            // Create a view for the component directly
@@ -335,7 +344,8 @@ final class ShapesPanelTests: XCTestCase {
                selectedShape: .constant(differentShape),
                isShowing: .constant(true),
                onSwitchToProperties: { },
-               onSwitchToColorProperties: { }
+               onSwitchToColorProperties: { },
+               onSwitchToGallery: {}
            )
           
            // Create a view for the component directly
@@ -362,7 +372,8 @@ final class ShapesPanelTests: XCTestCase {
                selectedShape: .constant(shapeType),
                isShowing: .constant(true),
                onSwitchToProperties: { },
-               onSwitchToColorProperties: { }
+               onSwitchToColorProperties: { },
+               onSwitchToGallery: {}
            )
           
            let testController = UIHostingController(rootView: testPanel)
@@ -389,7 +400,8 @@ final class ShapesPanelTests: XCTestCase {
            selectedShape: .constant(.circle),
            isShowing: .constant(true),
            onSwitchToProperties: { propertiesCallbackExecuted = true },
-           onSwitchToColorProperties: { colorPropertiesCallbackExecuted = true }
+           onSwitchToColorProperties: { colorPropertiesCallbackExecuted = true },
+           onSwitchToGallery: {}
        )
       
        // Test all button closures

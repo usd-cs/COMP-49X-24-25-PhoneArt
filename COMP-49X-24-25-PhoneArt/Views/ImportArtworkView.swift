@@ -10,24 +10,34 @@ import UIKit // Added UIKit for UIPasteboard
 
 /// A view that allows users to enter an artwork ID to import saved artwork
 struct ImportArtworkView: View {
-    @State private var artworkIdText = ""
-    @State private var isProcessing = false
-    @State private var importResult: ImportResult?
+    @State var artworkIdText = ""
+    @State var isProcessing = false
+    @State var importResult: ImportResult?
+    @State var showingAlert = false
+    @State var alertMessage = ""
     @Environment(\.dismiss) private var dismiss
+    
+    // Firebase service dependency for testing
+    var firebaseService: FirebaseService
     
     // Callback to pass successful import data back
     var onImportSuccess: ((String) -> Void)?
     // Add callback for closing the sheet
     var onClose: (() -> Void)?
     
-    // State for showing alerts
-    @State private var showingAlert = false
-    @State private var alertMessage = ""
-    
     // Simple model for import results
     enum ImportResult: Equatable {
         case success(message: String)
         case failure(message: String)
+    }
+    
+    // Initializer with optional Firebase service parameter
+    init(onImportSuccess: ((String) -> Void)? = nil, 
+         onClose: (() -> Void)? = nil,
+         firebaseService: FirebaseService = FirebaseService.shared) {
+        self.onImportSuccess = onImportSuccess
+        self.onClose = onClose
+        self.firebaseService = firebaseService
     }
     
     var body: some View {
@@ -141,7 +151,7 @@ struct ImportArtworkView: View {
         }
     }
     
-    private func importArtwork() {
+    func importArtwork() {
         // Reset previous results
         importResult = nil
         isProcessing = true
@@ -161,8 +171,8 @@ struct ImportArtworkView: View {
         
         Task { // Use Task for async operation
             do {
-                // Call the Firebase service to fetch artwork by ID
-                let fetchedArtworkData = try await FirebaseService.shared.getArtwork(byPieceId: id)
+                // Call the Firebase service to fetch artwork by ID using injected service
+                let fetchedArtworkData = try await self.firebaseService.getArtwork(byPieceId: id)
                 
                 // Ensure data was found
                 guard let artworkData = fetchedArtworkData else {

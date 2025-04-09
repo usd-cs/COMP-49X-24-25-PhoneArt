@@ -135,7 +135,8 @@ final class ShapesPanelIntegrationTests: XCTestCase {
            selectedShape: selectedShapeBinding,
            isShowing: isShowingBinding,
            onSwitchToProperties: { self.switchedToProperties = true },
-           onSwitchToColorProperties: { self.switchedToColorProperties = true }
+           onSwitchToColorProperties: { self.switchedToColorProperties = true },
+           onSwitchToGallery: {}
        )
       
        // Test that hiding the panel updates the parent state
@@ -170,11 +171,12 @@ final class ShapesPanelIntegrationTests: XCTestCase {
        )
       
        // Create the panel
-       _ = ShapesPanel(
+       let panel = ShapesPanel(
            selectedShape: selectedShapeBinding,
            isShowing: .constant(true),
            onSwitchToProperties: { },
-           onSwitchToColorProperties: { }
+           onSwitchToColorProperties: { },
+           onSwitchToGallery: {}
        )
       
        // Test setting each shape type
@@ -223,7 +225,8 @@ final class ShapesPanelIntegrationTests: XCTestCase {
            selectedShape: .constant(.circle),
            isShowing: isShapesShowing,
            onSwitchToProperties: onSwitchToProperties,
-           onSwitchToColorProperties: onSwitchToColorProperties
+           onSwitchToColorProperties: onSwitchToColorProperties,
+           onSwitchToGallery: {}
        )
       
        // Test switching to properties panel

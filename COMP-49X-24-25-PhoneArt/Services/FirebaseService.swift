@@ -11,11 +11,15 @@ import FirebaseFirestore
 import UIKit
 
 class FirebaseService: ObservableObject {
+    #if DEBUG
+    static var shared = FirebaseService() // Make it mutable for testing
+    #else
     static let shared = FirebaseService()
+    #endif
     private let db = Firestore.firestore()
     
-    // Get unique device identifier
-    private func getDeviceId() -> String {
+    // Get unique device identifier - make internal so CanvasView can access it when creating ArtworkData
+    internal func getDeviceId() -> String {
         if let deviceId = UIDevice.current.identifierForVendor?.uuidString {
             return deviceId
         }
@@ -42,7 +46,8 @@ class FirebaseService: ObservableObject {
                 "deviceId": deviceId,
                 "artworkString": artworkData,
                 "timestamp": Timestamp(date: Date()),
-                "title": title as Any
+                "title": title as Any,
+                "pieceId": "" // Placeholder, will be updated below
             ])
         
         // Update the newly created document to include its own ID as a field
@@ -55,6 +60,31 @@ class FirebaseService: ObservableObject {
         decodeArtworkString(artworkData)
         
         return pieceRef
+    }
+    
+    /// Updates an existing artwork document in Firestore.
+    /// - Parameters:
+    ///   - artwork: The ArtworkData object containing the deviceId and pieceId of the document to update.
+    ///   - newArtworkString: The new artwork string to save.
+    /// - Throws: An error if the update fails or if the artwork is missing necessary IDs.
+    func updateArtwork(artwork: ArtworkData, newArtworkString: String) async throws {
+        guard let pieceId = artwork.pieceId else {
+            throw NSError(domain: "FirebaseService", code: 400, userInfo: [NSLocalizedDescriptionKey: "Missing pieceId for update"])
+        }
+        
+        let deviceId = artwork.deviceId // Use the deviceId from the loaded artwork
+        let pieceRef = db.collection("artwork").document(deviceId).collection("pieces").document(pieceId)
+        
+        // Update specific fields: artworkString and timestamp
+        // Keep original deviceId, pieceId, and title (unless title update is desired)
+        try await pieceRef.updateData([
+            "artworkString": newArtworkString,
+            "timestamp": Timestamp(date: Date())
+        ])
+        
+        print("Successfully updated artwork piece with ID: \(pieceId)")
+        print("\nDecoding updated artwork:")
+        decodeArtworkString(newArtworkString)
     }
     
     // Get all artwork for current device

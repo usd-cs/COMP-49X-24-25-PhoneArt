@@ -321,7 +321,15 @@ class TestingFirebaseService {
            vertical: vertical,
            primitive: primitive,
            colorPresets: colorPresets,
-           backgroundColor: backgroundColor
+           backgroundColor: backgroundColor,
+           useDefaultRainbowColors: false,
+           rainbowStyle: 0,
+           hueAdjustment: 0.0,
+           saturationAdjustment: 0.0,
+           numberOfVisiblePresets: 5,
+           strokeColor: .black,
+           strokeWidth: 1.0,
+           shapeAlpha: 1.0
        )
    }
   

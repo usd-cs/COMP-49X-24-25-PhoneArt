@@ -72,8 +72,14 @@ struct CanvasView: View {
     
     /// State variable to store the UUID of the saved artwork
     @State internal var confirmedArtworkId: IdentifiableArtworkID? = nil // Make internal
+    /// State variable to control the visibility of the save artwork prompt
+    @State private var showingSavePrompt = false
+    /// State variable to store the title entered by the user in the prompt
+    @State private var artworkTitleInput = ""
     /// State variable for showing the import artwork sheet
     @State private var showImportSheet = false
+    /// State variable to track the currently loaded artwork (if any)
+    @State private var loadedArtworkData: ArtworkData? = nil
    
     // Add initializer for dependency injection
     init(firebaseService: FirebaseService = FirebaseService()) {
@@ -90,7 +96,17 @@ struct CanvasView: View {
     }
      /// Computed vertical offset for the canvas when properties panel or color shapes panel is shown
     internal var canvasVerticalOffset: CGFloat {
-       (showProperties || showColorShapes || showShapesPanel || showGalleryPanel) ? -UIScreen.main.bounds.height / 7 : 0
+        // Estimate heights: Standard ~350, Gallery ~550
+        let standardPanelOffset: CGFloat = -150 // Shift up less for shorter panels
+        let galleryPanelOffset: CGFloat = -220  // Shift up more for the taller gallery
+
+        if showGalleryPanel {
+            return galleryPanelOffset
+        } else if showProperties || showColorShapes || showShapesPanel {
+            return standardPanelOffset
+        } else {
+            return 0 // No panel, no offset
+        }
     }
      /// Computed minimum zoom level to fit canvas width to screen width
     private var minZoomLevel: Double {
@@ -231,12 +247,28 @@ struct CanvasView: View {
                        isShowing: $showGalleryPanel,
                        onSwitchToProperties: switchToProperties,
                        onSwitchToColorShapes: switchToColorShapes,
-                       onSwitchToShapes: switchToShapes
+                       onSwitchToShapes: switchToShapes,
+                       onLoadArtwork: loadArtwork
                    )
                }
            }
         }
         .ignoresSafeArea()
+        // Alert for naming the artwork before saving
+        .alert("Save Artwork", isPresented: $showingSavePrompt) {
+            TextField("Enter Artwork Title (Optional)", text: $artworkTitleInput)
+                .autocapitalization(.words)
+                .accessibilityIdentifier("Artwork Title TextField")
+            Button("Cancel", role: .cancel) { }
+            Button("Save") {
+                // Call saveArtwork with the entered title (or nil if empty)
+                let titleToSave = artworkTitleInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                saveArtwork(title: titleToSave.isEmpty ? nil : titleToSave)
+            }
+            .accessibilityIdentifier("Save Artwork Button")
+        } message: {
+            Text("Enter an optional title for your artwork.")
+        }
         .onChange(of: showProperties) { _, newValue in
             if !isSwitchingPanels && newValue {
                 withAnimation(.easeInOut(duration: 0.25)) {}
@@ -459,9 +491,9 @@ struct CanvasView: View {
             path.closeSubpath()
             shapePath = path
         case .hexagon:
-            shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 6)
+            shapePath = ShapeUtils.createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 6)
         case .star:
-            shapePath = createStarPath(center: CGPoint(x: finalX, y: finalY), innerRadius: scaledRadius * 0.4, outerRadius: scaledRadius, points: 5)
+            shapePath = ShapeUtils.createStarPath(center: CGPoint(x: finalX, y: finalY), innerRadius: scaledRadius * 0.4, outerRadius: scaledRadius, points: 5)
         case .rectangle:
             shapePath = Path(CGRect(
                 x: finalX - scaledRadius,
@@ -485,11 +517,11 @@ struct CanvasView: View {
             path.closeSubpath()
             shapePath = path
         case .pentagon:
-            shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 5)
+            shapePath = ShapeUtils.createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 5)
         case .octagon:
-            shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 8)
+            shapePath = ShapeUtils.createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 8)
         case .arrow:
-            shapePath = createArrowPath(center: CGPoint(x: finalX, y: finalY), size: scaledRadius)
+            shapePath = ShapeUtils.createArrowPath(center: CGPoint(x: finalX, y: finalY), size: scaledRadius)
         case .rhombus:
             var path = Path()
             path.move(to: CGPoint(x: finalX, y: finalY - scaledRadius))
@@ -593,72 +625,6 @@ struct CanvasView: View {
                 lineWidth: CGFloat(colorPresetManager.strokeWidth)
             )
         }
-    }
-     // Make internal for testing
-    internal func createPolygonPath(center: CGPoint, radius: Double, sides: Int) -> Path {
-        var path = Path()
-        let angle = (2.0 * .pi) / Double(sides)
- 
-        for i in 0..<sides {
-            let currentAngle = angle * Double(i) - (.pi / 2)
-            let x = center.x + CGFloat(radius * cos(currentAngle))
-            let y = center.y + CGFloat(radius * sin(currentAngle))
- 
-            if i == 0 {
-                path.move(to: CGPoint(x: x, y: y))
-            } else {
-                path.addLine(to: CGPoint(x: x, y: y))
-            }
-        }
- 
-        path.closeSubpath()
-        return path
-    }
-     // Make internal for testing
-    internal func createStarPath(center: CGPoint, innerRadius: Double, outerRadius: Double, points: Int) -> Path {
-        var path = Path()
-        let totalPoints = points * 2
-        let angle = (2.0 * .pi) / Double(totalPoints)
- 
-        for i in 0..<totalPoints {
-            let radius = i % 2 == 0 ? outerRadius : innerRadius
-            let currentAngle = angle * Double(i) - (.pi / 2)
-            let x = center.x + CGFloat(radius * cos(currentAngle))
-            let y = center.y + CGFloat(radius * sin(currentAngle))
- 
-            if i == 0 {
-                path.move(to: CGPoint(x: x, y: y))
-            } else {
-                path.addLine(to: CGPoint(x: x, y: y))
-            }
-        }
- 
-        path.closeSubpath()
-        return path
-    }
- 
-    // Make internal for testing
-    internal func createArrowPath(center: CGPoint, size: Double) -> Path {
-        let width = size * 1.5
-        let height = size * 2
-        let stemWidth = width * 0.3
-     
-        var path = Path()
-     
-        // Define arrow shape centered perfectly at the center point
-        // This ensures proper rotation around the center
-     
-        // Arrow head (triangle)
-        path.move(to: CGPoint(x: center.x, y: center.y - height * 0.5))       // Top center point
-        path.addLine(to: CGPoint(x: center.x + width * 0.5, y: center.y))     // Right point at middle height
-        path.addLine(to: CGPoint(x: center.x + stemWidth * 0.5, y: center.y)) // Right edge of stem at middle height
-        path.addLine(to: CGPoint(x: center.x + stemWidth * 0.5, y: center.y + height * 0.5)) // Bottom right of stem
-        path.addLine(to: CGPoint(x: center.x - stemWidth * 0.5, y: center.y + height * 0.5)) // Bottom left of stem
-        path.addLine(to: CGPoint(x: center.x - stemWidth * 0.5, y: center.y)) // Left edge of stem at middle height
-        path.addLine(to: CGPoint(x: center.x - width * 0.5, y: center.y))     // Left point at middle height
-     
-        path.closeSubpath()
-        return path
     }
      // MARK: - Gesture Handlers
      /// Handles continuous updates during drag gesture
@@ -856,58 +822,51 @@ struct CanvasView: View {
        }
        .accessibilityIdentifier("Close Button")
    }
-     /// Creates the share button for the top navigation bar
+     /// Creates the share button group for the top navigation bar
        private func makeShareButton() -> some View {
-           return VStack(spacing: 20) { // Increased spacing from 10 to 20
-               // Import button
-               Button(action: {
-                   showImportSheet = true
-               }) {
-                   VStack {
-                       Image(systemName: "plus")
-                           .font(.system(size: 20)) // Slightly smaller icon to fit
-                           .foregroundColor(Color(uiColor: .systemBlue))
-                       // Text("Import") removed
-                   }
-                   .padding(8)
-                   .frame(width: 40, height: 40) // Changed size to match reset button
-                   .background(Color(uiColor: .systemBackground))
-                   .cornerRadius(8)
-                   .overlay(
-                       RoundedRectangle(cornerRadius: 8)
-                           .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                   )
-               }
-               .accessibilityIdentifier("Import Button")
-              
-               // Share button
+           return VStack(spacing: 20) {
+               // --- Top Button Menu (New / Import) ---
                Menu {
-                   Button(action: saveArtwork) {
-                       Label("Save to Gallery", systemImage: "square.and.arrow.down")
+                   Button(action: resetCanvasToDefault) {
+                       Label("New Canvas", systemImage: "doc.badge.plus")
                    }
-                   .accessibilityIdentifier("Save to Gallery Button")
-                  
+                   .accessibilityIdentifier("New Canvas Button")
+
+                   Button(action: { showImportSheet = true }) {
+                       Label("Import from ID...", systemImage: "square.and.arrow.down") // Icon indicates retrieving
+                   }
+                   .accessibilityIdentifier("Import Button")
+
+               } label: {
+                   buttonIcon(systemName: "plus") // Keep the plus icon for the menu
+               }
+               .accessibilityIdentifier("New/Import Menu")
+
+               // --- Bottom Button Menu (Share/Save) ---
+               Menu {
+                   // Conditional Save Button
+                   if let artworkToUpdate = loadedArtworkData {
+                       Button(action: { updateCurrentArtwork(artwork: artworkToUpdate) }) {
+                           Label("Save", systemImage: "square.and.arrow.down")
+                       }
+                       .accessibilityIdentifier("Save Update Button")
+                   } // Else (no loaded artwork), this button doesn't appear
+
+                   // --- Save as New Button ---
+                   Button(action: { showSaveAsNewPrompt() }) {
+                       Label("Save as New...", systemImage: "square.and.arrow.down.on.square")
+                   }
+                   .accessibilityIdentifier("Save as New Button")
+
+                   // --- Save to Photos Button ---
                    Button(action: saveToPhotos) {
                        Label("Save to Photos", systemImage: "photo")
                    }
                    .accessibilityIdentifier("Save to Photos Button")
-                  
+
                    // Add other share options here
                } label: {
-                   VStack {
-                       Image(systemName: "square.and.arrow.up")
-                           .font(.system(size: 20)) // Slightly smaller icon to fit
-                           .foregroundColor(Color(uiColor: .systemBlue))
-                       // Text("Share") removed
-                   }
-                   .padding(8)
-                   .frame(width: 40, height: 40) // Changed size to match reset button
-                   .background(Color(uiColor: .systemBackground))
-                   .cornerRadius(8)
-                   .overlay(
-                       RoundedRectangle(cornerRadius: 8)
-                           .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                   )
+                   buttonIcon(systemName: "square.and.arrow.up")
                }
                .accessibilityIdentifier("Share Button")
            }
@@ -939,34 +898,31 @@ struct CanvasView: View {
 
      // Modify access level
      // private func saveArtwork() {
-     internal func saveArtwork() {
-        let artworkString = ArtworkData.createArtworkString(
-            shapeType: selectedShape,
-            rotation: shapeRotation,
-            scale: shapeScale,
-            layer: shapeLayer,
-            skewX: shapeSkewX,
-            skewY: shapeSkewY,
-            spread: shapeSpread,
-            horizontal: shapeHorizontal,
-            vertical: shapeVertical,
-            primitive: shapePrimitive,
-            colorPresets: colorPresetManager.colorPresets,
-            backgroundColor: colorPresetManager.backgroundColor
-        )
-     
+     internal func saveArtwork(title: String? = nil) {
+        let artworkString = getCurrentArtworkString()
+
         Task {
             do {
-                let pieceRef = try await firebaseService.saveArtwork(artworkData: artworkString)
-                // List all pieces after saving
+                let pieceRef = try await firebaseService.saveArtwork(artworkData: artworkString, title: title)
+                let newPieceId = pieceRef.documentID
+
+                // Update the loadedArtworkData state to reflect the newly saved piece
+                self.loadedArtworkData = ArtworkData(
+                    deviceId: firebaseService.getDeviceId(), // Get current device ID
+                    artworkString: artworkString,
+                    timestamp: Date(), // Use current time
+                    title: title,
+                    pieceId: newPieceId
+                )
+
                 await firebaseService.listAllPieces()
- 
+
                 await MainActor.run {
-                    confirmedArtworkId = IdentifiableArtworkID(id: pieceRef.documentID)
+                    confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
                 }
             } catch {
                 await MainActor.run {
-                    alertTitle = "Error"
+                    alertTitle = "Error Saving New"
                     alertMessage = error.localizedDescription
                     showAlert = true
                 }
@@ -999,9 +955,6 @@ struct CanvasView: View {
            hostingController.view.isUserInteractionEnabled = false
           
            // Place off-screen to avoid interfering with the UI
-           hostingController.view.frame.origin = CGPoint(x: -2000, y: -2000)
-          
-           // Add the view to the window hierarchy temporarily
            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first {
                window.addSubview(hostingController.view)
@@ -1084,11 +1037,60 @@ struct CanvasView: View {
             print("Applied background color: \(bgColor)")
         }
         
-        // You might need to also update other ColorPresetManager settings
-        // if they were part of the artwork string (e.g., strokeColor, strokeWidth, alpha)
-        // For now, assuming only presets and background are in the string.
+        // Apply saved preset count if available
+        if let presetCountString = decodedParams["presetCount"], let presetCount = Int(presetCountString) {
+            // Validate the range (1-10)
+            colorPresetManager.numberOfVisiblePresets = max(1, min(10, presetCount))
+            print("Applied numberOfVisiblePresets: \(presetCount)")
+        }
+        
+        // --- Re-add Apply color mode settings --- 
+        if let useRainbowString = decodedParams["useRainbow"] {
+            colorPresetManager.useDefaultRainbowColors = (useRainbowString == "true")
+            print("Applied useDefaultRainbowColors: \(colorPresetManager.useDefaultRainbowColors)")
+        }
+
+        if let styleString = decodedParams["rainbowStyle"], let style = Int(styleString) {
+            colorPresetManager.rainbowStyle = style
+            print("Applied rainbowStyle: \(style)")
+        }
+
+        if let hueAdjString = decodedParams["hueAdj"], let hueAdj = Double(hueAdjString) {
+            colorPresetManager.hueAdjustment = hueAdj
+            print("Applied hueAdjustment: \(hueAdj)")
+        }
+
+        if let satAdjString = decodedParams["satAdj"], let satAdj = Double(satAdjString) {
+            colorPresetManager.saturationAdjustment = satAdj
+            print("Applied saturationAdjustment: \(satAdj)")
+        }
+        // --- End Re-add ---
+
+        // Note: Stroke and Alpha are not currently saved in artworkString, 
+        // so they are not applied during import.
 
         print("Finished applying imported artwork.")
+        
+        // --- Apply Stroke and Alpha --- 
+        if let strokeColorString = decodedParams["strokeColor"], 
+           let color = ArtworkData.hexToColor(strokeColorString) {
+            colorPresetManager.strokeColor = color
+            print("Applied strokeColor: \(color)")
+        }
+
+        // Use the existing doubleValue helper for strokeWidth and alpha
+        if let strokeWidth = doubleValue(from: decodedParams["strokeWidth"]) {
+            // Clamp stroke width to a reasonable range (e.g., 0-20)
+            colorPresetManager.strokeWidth = max(0, min(20.0, strokeWidth))
+            print("Applied strokeWidth: \(colorPresetManager.strokeWidth)")
+        }
+
+        if let alpha = doubleValue(from: decodedParams["alpha"]) {
+            // Clamp alpha to 0-1 range
+            colorPresetManager.shapeAlpha = max(0.0, min(1.0, alpha))
+            print("Applied shapeAlpha: \(colorPresetManager.shapeAlpha)")
+        }
+        // --- End Apply Stroke and Alpha ---
     }
 
     // Helper function to safely convert String? to Double?
@@ -1142,89 +1144,173 @@ struct CanvasView: View {
            removal: .move(edge: .bottom)
        ) : .identity) // Use standard transition unless switching panels
    }
-}
 
-/// A view that shows confirmation of a saved artwork with the ability to copy the ID
-struct SaveConfirmationView: View {
-    let artworkId: String
-    @State private var isCopied = false
-    let dismissAction: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.green)
-                .padding(.top, 30)
-            
-            Text("Artwork Saved Successfully!")
-                .font(.headline)
-                .multilineTextAlignment(.center)
-                .accessibilityIdentifier("Save Confirmation Text")
-            
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Artwork ID:")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                HStack {
-                    Text(artworkId)
-                        .font(.system(.body, design: .monospaced))
-                        .padding(10)
-                        .background(Color(uiColor: .secondarySystemBackground))
-                        .cornerRadius(8)
-                        .accessibilityIdentifier("Saved Artwork ID Text")
-                    
-                    Button(action: {
-                        UIPasteboard.general.string = artworkId
-                        withAnimation {
-                            isCopied = true
-                        }
-                        
-                        // Reset the copied state after 2 seconds
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            isCopied = false
-                        }
-                    }) {
-                        Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
-                            .foregroundColor(isCopied ? .green : Color(uiColor: .systemBlue))
-                            .padding(8)
-                            .background(Color(uiColor: .tertiarySystemBackground))
-                            .cornerRadius(8)
-                    }
-                    .accessibilityIdentifier("Copy ID Button")
+    /// Loads the parameters from a saved ArtworkData object into the current canvas state.
+    private func loadArtwork(artwork: ArtworkData) {
+        print("[CanvasView] Loading artwork: \(artwork.title ?? "Untitled") (ID: \(artwork.id))")
+        // Store the loaded artwork data, including its pieceId
+        self.loadedArtworkData = artwork
+
+        let decodedParams = ArtworkData.decode(from: artwork.artworkString)
+        print("[CanvasView] Decoded params for load: \(decodedParams)")
+
+        // Helper to safely extract double values
+        func doubleValue(from key: String, default defaultValue: Double) -> Double {
+            guard let stringValue = decodedParams[key], let value = Double(stringValue) else {
+                print("[CanvasView Load] Warning: Could not decode Double for key '\(key)', using default: \(defaultValue)")
+                return defaultValue
+            }
+            // Note: Validation happens within ArtworkData.decode, so we trust the values here
+            return value
+        }
+
+        // Update shape parameters
+        shapeRotation = doubleValue(from: "rotation", default: shapeRotation)
+        shapeScale = doubleValue(from: "scale", default: shapeScale)
+        shapeLayer = doubleValue(from: "layer", default: shapeLayer)
+        shapeSkewX = doubleValue(from: "skewX", default: shapeSkewX)
+        shapeSkewY = doubleValue(from: "skewY", default: shapeSkewY)
+        shapeSpread = doubleValue(from: "spread", default: shapeSpread)
+        shapeHorizontal = doubleValue(from: "horizontal", default: shapeHorizontal)
+        shapeVertical = doubleValue(from: "vertical", default: shapeVertical)
+        shapePrimitive = doubleValue(from: "primitive", default: shapePrimitive)
+
+        // Update selected shape type
+        if let shapeString = decodedParams["shape"],
+           let loadedShape = ShapesPanel.ShapeType(rawValue: shapeString) {
+            selectedShape = loadedShape
+            print("[CanvasView Load] Loaded shape: \(loadedShape.rawValue)")
+        } else {
+             print("[CanvasView Load] Warning: Could not decode 'shape'.")
+        }
+
+        // Update ColorPresetManager with decoded color settings
+        // This handles presets, background, rainbow settings, stroke, alpha, etc.
+        ColorPresetManager.shared.update(from: decodedParams)
+
+        // Reset zoom and position (optional, but often desired when loading)
+        // resetPositionAndZoom()
+        // Commented out reset - user might want to keep current view
+
+        print("[CanvasView] Finished loading artwork.")
+
+        // Force UI refresh (though ColorPresetManager updates should trigger it)
+        // self.objectWillChange.send() // Usually not needed due to @State updates
+    }
+
+    /// Shows the prompt for entering a title when saving new artwork.
+    private func showSaveAsNewPrompt() {
+        artworkTitleInput = "" // Reset title input
+        showingSavePrompt = true // Show the alert
+    }
+
+    /// Updates the currently loaded artwork in Firestore with the current canvas state.
+    private func updateCurrentArtwork(artwork: ArtworkData) {
+        guard let pieceId = artwork.pieceId else {
+            // Should not happen if the button is only shown for loaded artwork
+            print("Error: Attempted to update artwork without a pieceId.")
+            alertTitle = "Error"
+            alertMessage = "Cannot update artwork: Missing original ID."
+            showAlert = true
+            return
+        }
+        print("Attempting to update artwork with pieceId: \(pieceId)")
+
+        let currentArtworkString = getCurrentArtworkString()
+
+        Task {
+            do {
+                try await firebaseService.updateArtwork(artwork: artwork, newArtworkString: currentArtworkString)
+                // Optionally update the local loadedArtworkData timestamp or string if needed
+                // self.loadedArtworkData?.timestamp = Date() // Example
+                await MainActor.run {
+                    // Show success feedback (optional)
+                    alertTitle = "Success"
+                    alertMessage = "Artwork '\(artwork.title ?? "Untitled")' updated successfully!"
+                    showAlert = true
+                    // Maybe show the confirmation view?
+                    // confirmedArtworkId = IdentifiableArtworkID(id: pieceId)
+                }
+            } catch {
+                await MainActor.run {
+                    alertTitle = "Error Updating"
+                    alertMessage = error.localizedDescription
+                    showAlert = true
                 }
             }
-            .padding(.horizontal, 20)
-            
-            Text("Share this ID with friends so they can view your artwork!")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 20)
-            
-            Button("Done") {
-                dismissAction()
-            }
-            .accessibilityIdentifier("Save Confirmation Done Button")
-            .padding(.vertical, 12)
-            .padding(.horizontal, 30)
-            .background(Color(uiColor: .systemBlue))
-            .foregroundColor(.white)
-            .cornerRadius(10)
-            .padding(.top, 20)
-            .padding(.bottom, 30)
         }
-        .accessibilityIdentifier("Save Confirmation View")
-        .frame(width: 350)
-        .background(Color(uiColor: .systemBackground))
-        .cornerRadius(16)
-        .shadow(radius: 10)
-        .padding()
+    }
+
+    /// Helper function to generate the artwork string from the current canvas state.
+    private func getCurrentArtworkString() -> String {
+        return ArtworkData.createArtworkString(
+            shapeType: selectedShape,
+            rotation: shapeRotation,
+            scale: shapeScale,
+            layer: shapeLayer,
+            skewX: shapeSkewX,
+            skewY: shapeSkewY,
+            spread: shapeSpread,
+            horizontal: shapeHorizontal,
+            vertical: shapeVertical,
+            primitive: shapePrimitive,
+            colorPresets: colorPresetManager.colorPresets,
+            backgroundColor: colorPresetManager.backgroundColor,
+            useDefaultRainbowColors: colorPresetManager.useDefaultRainbowColors,
+            rainbowStyle: colorPresetManager.rainbowStyle,
+            hueAdjustment: colorPresetManager.hueAdjustment,
+            saturationAdjustment: colorPresetManager.saturationAdjustment,
+            numberOfVisiblePresets: colorPresetManager.numberOfVisiblePresets,
+            strokeColor: colorPresetManager.strokeColor,
+            strokeWidth: colorPresetManager.strokeWidth,
+            shapeAlpha: colorPresetManager.shapeAlpha
+        )
+    }
+
+    /// Resets the canvas state and color settings to their default values.
+    private func resetCanvasToDefault() {
+        print("[CanvasView] Resetting canvas to default state.")
+
+        // Reset shape parameters
+        shapeRotation = 0
+        shapeScale = 1.0
+        shapeLayer = 0
+        shapeSkewX = 0
+        shapeSkewY = 0
+        shapeSpread = 0
+        shapeHorizontal = 0
+        shapeVertical = 0
+        shapePrimitive = 1
+        selectedShape = .circle // Default shape
+
+        // Reset color manager
+        ColorPresetManager.shared.resetToDefaults()
+
+        // Clear loaded artwork data
+        loadedArtworkData = nil
+
+        // Reset zoom and position
+        resetPosition() // Call the existing position reset function
+        zoomLevel = 1.0   // Reset zoom level to default
+
+        print("[CanvasView] Canvas reset complete.")
     }
 }
 
-// Add this struct
-struct IdentifiableArtworkID: Identifiable {
-    let id: String
+/// Helper for share/import button appearance
+@ViewBuilder
+private func buttonIcon(systemName: String) -> some View {
+    VStack {
+        Image(systemName: systemName)
+            .font(.system(size: 20))
+            .foregroundColor(Color(uiColor: .systemBlue))
+    }
+    .padding(8)
+    .frame(width: 40, height: 40)
+    .background(Color(uiColor: .systemBackground))
+    .cornerRadius(8)
+    .overlay(
+        RoundedRectangle(cornerRadius: 8)
+            .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+    )
 }

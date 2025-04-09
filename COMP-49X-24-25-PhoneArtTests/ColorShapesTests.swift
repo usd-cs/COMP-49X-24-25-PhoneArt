@@ -50,7 +50,8 @@ final class ColorShapesTests: XCTestCase {
            isShowing: isShowing,
            selectedColor: selectedColor,
            onSwitchToProperties: { self.onSwitchToPropertiesCalled = true },
-           onSwitchToShapes: { self.onSwitchToShapesCalled = true }
+           onSwitchToShapes: { self.onSwitchToShapesCalled = true },
+           onSwitchToGallery: {}
        )
       
        // Then
@@ -73,7 +74,8 @@ final class ColorShapesTests: XCTestCase {
            isShowing: isShowingBinding,
            selectedColor: selectedColor,
            onSwitchToProperties: { self.onSwitchToPropertiesCalled = true },
-           onSwitchToShapes: { self.onSwitchToShapesCalled = true }
+           onSwitchToShapes: { self.onSwitchToShapesCalled = true },
+           onSwitchToGallery: {}
        )
       
        // When - Simulating closing the panel
@@ -92,7 +94,8 @@ final class ColorShapesTests: XCTestCase {
            isShowing: isShowing,
            selectedColor: selectedColor,
            onSwitchToProperties: { self.onSwitchToPropertiesCalled = true },
-           onSwitchToShapes: { self.onSwitchToShapesCalled = true }
+           onSwitchToShapes: { self.onSwitchToShapesCalled = true },
+           onSwitchToGallery: {}
        )
       
        // When & Then - Just ensure body creates a view without crashing
@@ -115,6 +118,7 @@ final class ColorShapesTests: XCTestCase {
        let selectedColor = Binding.constant(Color.red)
        let onSwitchToProperties = {}
        let onSwitchToShapes = {}
+       let onSwitchToGallery = {}
       
        // Initialize the panel - note we use '_' to explicitly indicate we're not using this value
        // This avoids the "never used" warning
@@ -122,7 +126,8 @@ final class ColorShapesTests: XCTestCase {
            isShowing: isShowing,
            selectedColor: selectedColor,
            onSwitchToProperties: onSwitchToProperties,
-           onSwitchToShapes: onSwitchToShapes
+           onSwitchToShapes: onSwitchToShapes,
+           onSwitchToGallery: onSwitchToGallery
        )
       
        // Just test that initialization completes without errors
@@ -137,7 +142,8 @@ final class ColorShapesTests: XCTestCase {
            isShowing: isShowing,
            selectedColor: selectedColor,
            onSwitchToProperties: { self.onSwitchToPropertiesCalled = true },
-           onSwitchToShapes: { self.onSwitchToShapesCalled = true }
+           onSwitchToShapes: { self.onSwitchToShapesCalled = true },
+           onSwitchToGallery: {}
        )
       
        // When - simulate tapping the properties button
@@ -188,7 +194,8 @@ final class ColorShapesTests: XCTestCase {
            isShowing: isShowingBinding,
            selectedColor: selectedColor,
            onSwitchToProperties: { self.onSwitchToPropertiesCalled = true },
-           onSwitchToShapes: { self.onSwitchToShapesCalled = true }
+           onSwitchToShapes: { self.onSwitchToShapesCalled = true },
+           onSwitchToGallery: {}
        )
       
        // Simulate tapping the close button by directly toggling the binding

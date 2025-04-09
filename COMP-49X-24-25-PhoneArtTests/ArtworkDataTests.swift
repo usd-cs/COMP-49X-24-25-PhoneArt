@@ -37,7 +37,15 @@ final class ArtworkDataTests: XCTestCase {
             vertical: vertical,
             primitive: primitive,
             colorPresets: colorPresets,
-            backgroundColor: backgroundColor
+            backgroundColor: backgroundColor,
+            useDefaultRainbowColors: false,
+            rainbowStyle: 0,
+            hueAdjustment: 0.0,
+            saturationAdjustment: 0.0,
+            numberOfVisiblePresets: 5,
+            strokeColor: .black,
+            strokeWidth: 1.0,
+            shapeAlpha: 1.0
         )
         
         // Parse the artwork string to verify the values
@@ -72,7 +80,15 @@ final class ArtworkDataTests: XCTestCase {
             vertical: 400,       // Beyond max
             primitive: 10,       // Beyond max
             colorPresets: [.red, .blue],
-            backgroundColor: .black
+            backgroundColor: .black,
+            useDefaultRainbowColors: false,
+            rainbowStyle: 0,
+            hueAdjustment: 0.0,
+            saturationAdjustment: 0.0,
+            numberOfVisiblePresets: 2,
+            strokeColor: .clear,
+            strokeWidth: 0.0,
+            shapeAlpha: 1.0
         )
         
         // Decode and verify values are clamped
@@ -146,7 +162,15 @@ final class ArtworkDataTests: XCTestCase {
             vertical: 0,
             primitive: 1,
             colorPresets: [.red, .blue, .green],
-            backgroundColor: .black
+            backgroundColor: .black,
+            useDefaultRainbowColors: false,
+            rainbowStyle: 0,
+            hueAdjustment: 0.0,
+            saturationAdjustment: 0.0,
+            numberOfVisiblePresets: 3,
+            strokeColor: .black,
+            strokeWidth: 1.0,
+            shapeAlpha: 1.0
         )
         
         // Extract the colors string
