@@ -19,6 +19,7 @@ final class GalleryPanelTests: XCTestCase {
             onSwitchToProperties: {},
             onSwitchToColorShapes: {},
             onSwitchToShapes: {},
+            onLoadArtwork: { _ in },
             firebaseService: mockFirebaseService
         )
     }
