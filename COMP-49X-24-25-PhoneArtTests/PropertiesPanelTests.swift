@@ -37,6 +37,8 @@ final class PropertiesPanelTests: XCTestCase {
  var primitive: Double!
  var isShowing: Bool!
  var sut: PropertiesPanel!
+ var switchToColorShapesCalled = false
+ var switchToShapesCalled = false
   /// Sets up the test environment before each test method is called
  override func setUp() {
      super.setUp()
@@ -64,9 +66,12 @@ final class PropertiesPanelTests: XCTestCase {
          vertical: .constant(vertical),
          primitive: .constant(primitive),
          isShowing: .constant(isShowing),
-         onSwitchToColorShapes: {},
-         onSwitchToShapes: {}
+         onSwitchToColorShapes: { self.switchToColorShapesCalled = true },
+         onSwitchToShapes: { self.switchToShapesCalled = true },
+         onSwitchToGallery: {}
      )
+     switchToColorShapesCalled = false
+     switchToShapesCalled = false
  }
   /// Cleans up the test environment after each test method is called
  override func tearDown() {
@@ -82,6 +87,8 @@ final class PropertiesPanelTests: XCTestCase {
      primitive = nil
      isShowing = nil
      sut = nil
+     switchToColorShapesCalled = false
+     switchToShapesCalled = false
      super.tearDown()
  }
   /// Tests the initial values of the properties
@@ -310,7 +317,8 @@ final class PropertiesPanelTests: XCTestCase {
          primitive: primitive,
          isShowing: isShowing,
          onSwitchToColorShapes: switchCallback,
-         onSwitchToShapes: switchCallback
+         onSwitchToShapes: switchCallback,
+         onSwitchToGallery: {}
      )
    
      let _ = sut.body
@@ -344,7 +352,8 @@ final class PropertiesPanelTests: XCTestCase {
          primitive: primitive,
          isShowing: isShowing,
          onSwitchToColorShapes: switchCallback,
-         onSwitchToShapes: switchCallback
+         onSwitchToShapes: switchCallback,
+         onSwitchToGallery: {}
      )
    
      XCTAssertTrue(isShowing.wrappedValue)
@@ -363,7 +372,8 @@ final class PropertiesPanelTests: XCTestCase {
          primitive: primitive,
          isShowing: isHidden,
          onSwitchToColorShapes: switchCallback,
-         onSwitchToShapes: switchCallback
+         onSwitchToShapes: switchCallback,
+         onSwitchToGallery: {}
      )
    
      XCTAssertFalse(isHidden.wrappedValue)
@@ -388,7 +398,8 @@ final class PropertiesPanelTests: XCTestCase {
          onSwitchToColorShapes: {
              callbackCalled = true
          },
-         onSwitchToShapes: {}
+         onSwitchToShapes: {},
+         onSwitchToGallery: {}
      )
    
      // Verify callback flag is initially false
@@ -525,7 +536,8 @@ final class PropertiesPanelTests: XCTestCase {
          primitive: primitive,
          isShowing: isShowing,
          onSwitchToColorShapes: switchCallback,
-         onSwitchToShapes: switchCallback
+         onSwitchToShapes: switchCallback,
+         onSwitchToGallery: {}
      )
    
      // Test that body view is created successfully

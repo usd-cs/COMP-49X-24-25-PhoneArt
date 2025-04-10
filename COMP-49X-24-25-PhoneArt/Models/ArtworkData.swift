@@ -4,12 +4,24 @@ import SwiftUI
 
 /// A model representing artwork data that can be encoded/decoded for storage and transmission
 /// Contains the artwork string representation, device ID, timestamp and optional title
-struct ArtworkData: Codable {
+struct ArtworkData: Codable, Identifiable, Equatable {
+  var id: String { pieceId ?? artworkString }
+
   let deviceId: String
   let artworkString: String
   let timestamp: Date
   let title: String?
-   /// Constants defining valid ranges for different artwork parameters
+  var pieceId: String? // Firestore document ID (optional, as it doesn't exist until saved)
+
+  enum CodingKeys: String, CodingKey {
+      case deviceId
+      case artworkString
+      case timestamp
+      case title
+      case pieceId // Ensure this matches the field name added in FirebaseService.saveArtwork
+  }
+
+  /// Constants defining valid ranges for different artwork parameters
   private struct ValidationRanges {
       static let rotation = 0.0...360.0    // Rotation angle in degrees
       static let scale = 0.5...2.0         // Scale factor
@@ -73,6 +85,14 @@ struct ArtworkData: Codable {
   ///   - primitive: Primitive shape type value
   ///   - colorPresets: Array of colors used in the artwork
   ///   - backgroundColor: Background color of the artwork
+  ///   - useDefaultRainbowColors: Flag indicating whether to use default rainbow colors
+  ///   - rainbowStyle: Rainbow style
+  ///   - hueAdjustment: Hue adjustment
+  ///   - saturationAdjustment: Saturation adjustment
+  ///   - numberOfVisiblePresets: Number of visible presets
+  ///   - strokeColor: Stroke color of the artwork
+  ///   - strokeWidth: Stroke width of the artwork
+  ///   - shapeAlpha: Alpha value of the artwork
   /// - Returns: A semicolon-separated string containing all validated artwork parameters
   static func createArtworkString(
       shapeType: ShapesPanel.ShapeType,
@@ -86,7 +106,15 @@ struct ArtworkData: Codable {
       vertical: Double,
       primitive: Double,
       colorPresets: [Color],
-      backgroundColor: Color
+      backgroundColor: Color,
+      useDefaultRainbowColors: Bool,
+      rainbowStyle: Int,
+      hueAdjustment: Double,
+      saturationAdjustment: Double,
+      numberOfVisiblePresets: Int,
+      strokeColor: Color,
+      strokeWidth: Double,
+      shapeAlpha: Double
   ) -> String {
       // Validate all numeric inputs
       let validatedData = [
@@ -101,7 +129,15 @@ struct ArtworkData: Codable {
           "vertical": String(validate(vertical, in: ValidationRanges.vertical)),
           "primitive": String(validate(primitive, in: ValidationRanges.primitive)),
           "colors": colorPresets.map { colorToHex($0) }.joined(separator: ","),
-          "background": colorToHex(backgroundColor)
+          "background": colorToHex(backgroundColor),
+          "useRainbow": String(useDefaultRainbowColors),
+          "rainbowStyle": String(rainbowStyle),
+          "hueAdj": String(hueAdjustment),
+          "satAdj": String(saturationAdjustment),
+          "presetCount": String(numberOfVisiblePresets),
+          "strokeColor": colorToHex(strokeColor),
+          "strokeWidth": String(strokeWidth),
+          "alpha": String(shapeAlpha)
       ]
     
       return validatedData.map { "\($0.key):\($0.value)" }.joined(separator: ";")

@@ -261,147 +261,29 @@ class ColorPresetManager: ObservableObject {
    func colorForPosition(position: Int) -> Color {
        // If using default rainbow colors, generate a rainbow color based on position
        if useDefaultRainbowColors {
+           // Use the shared ColorUtils functions
+           let currentHueAdj = self.hueAdjustment
+           let currentSatAdj = self.saturationAdjustment
            switch rainbowStyle {
            case 1:
-               return cyberpunkRainbowColor(for: position)
+               return ColorUtils.cyberpunkRainbowColor(for: position, hueAdjustment: currentHueAdj, saturationAdjustment: currentSatAdj)
            case 2:
-               return halfSpectrumRainbowColor(for: position)
+               return ColorUtils.halfSpectrumRainbowColor(for: position, hueAdjustment: currentHueAdj, saturationAdjustment: currentSatAdj)
            default:
-               return rainbowColor(for: position)
+               return ColorUtils.rainbowColor(for: position, hueAdjustment: currentHueAdj, saturationAdjustment: currentSatAdj)
            }
        }
-      
+
        // Otherwise use preset colors
-       // Ensure we only use the number of visible presets
        let visibleColors = Array(colorPresets.prefix(min(numberOfVisiblePresets, colorPresets.count)))
-      
-       // If there are no colors visible, return a default color
        guard !visibleColors.isEmpty else { return .black }
-      
-       // Use modulo to cycle through the visible colors based on position
        let colorIndex = position % visibleColors.count
-      
-       // Log the color selection for debugging
-       print("Position \(position) using color \(colorIndex) of \(visibleColors.count) visible colors")
-      
-       // Apply hue and saturation adjustments to the custom color
        let baseColor = visibleColors[colorIndex]
-       return adjustColor(baseColor, hueShift: hueAdjustment - 0.5, saturationScale: saturationAdjustment)
-   }
-  
-   /// Generate a rainbow color based on position
-   /// - Parameter position: The position in the sequence
-   /// - Returns: A color from the rainbow sequence
-   private func rainbowColor(for position: Int) -> Color {
-       // Create a more vibrant and dynamic rainbow pattern
-       // Use trigonometric functions to create oscillating patterns
-      
-       // FASTER CYCLE: Make colors repeat more frequently by multiplying position
-       // This makes the color wheel repeat every 12 positions instead of 360
-       _ = 12
-       let scaledPosition = (position * 30) % 360
-      
-       // Base angle adjusted by position
-       let angle = Double(position) * 0.1
-      
-       // Oscillating hue with non-linear progression
-       let baseHue = (Double(scaledPosition) / 360.0)
-       let hueShift = 0.15 * sin(angle * 0.5)
-      
-       // Apply the user's hue adjustment
-       let hueOffset = hueAdjustment - 0.5 // Convert 0-1 range to -0.5 to +0.5 range
-       let finalHue = (baseHue + hueShift + hueOffset).truncatingRemainder(dividingBy: 1.0)
-      
-       // Dynamic saturation - slight variations to add depth
-       let saturationBase = 0.9 * saturationAdjustment // Apply user's saturation preference
-       let saturationVariation = 0.1 * sin(angle * 0.7) * saturationAdjustment
-       let saturation = min(1.0, max(0.3, saturationBase + saturationVariation))
-      
-       // Dynamic brightness - adds visual interest
-       let brightnessBase = 0.95
-       let brightnessVariation = 0.1 * cos(angle * 0.3)
-       let brightness = min(1.0, max(0.8, brightnessBase + brightnessVariation))
-      
-       return Color(hue: finalHue, saturation: saturation, brightness: brightness)
-   }
-  
-   /// Generate a cyberpunk-inspired rainbow color based on position
-   /// - Parameter position: The position in the sequence
-   /// - Returns: A color with cyberpunk aesthetic
-   private func cyberpunkRainbowColor(for position: Int) -> Color {
-       // Create a more extreme, vibrant cyberpunk color pattern
-       // Inspired by neon city lights and cyberpunk aesthetics
-      
-       // FASTER CYCLE: Make colors repeat more frequently
-       // This makes the color wheel repeat every 15 positions
-       _ = 15
-       let scaledPosition = (position * 24) % 360
-      
-       // Use position to create a non-linear progression through color space
-       let normalizedPosition = Double(position) * 0.05
-      
-       // Complex hue calculation with multiple sine waves for more interesting patterns
-       let baseHue = (Double(scaledPosition) / 360.0)
-       let hueShift1 = 0.2 * sin(normalizedPosition * 1.1)
-       let hueShift2 = 0.15 * sin(normalizedPosition * 0.7 + 2.0)
-      
-       // Apply the user's hue adjustment
-       let hueOffset = hueAdjustment - 0.5 // Convert 0-1 range to -0.5 to +0.5 range
-       let finalHue = (baseHue + hueShift1 + hueShift2 + hueOffset).truncatingRemainder(dividingBy: 1.0)
-      
-       // Oscillating saturation with occasional dips for color contrast
-       let satPhase = sin(normalizedPosition * 0.5)
-       // Apply user's saturation preference
-       let saturation = min(1.0, (0.85 + (0.15 * satPhase)) * saturationAdjustment)
-      
-       // Brightness that occasionally flares brighter for "neon" effect
-       let brightPhase = 0.5 * sin(normalizedPosition * 1.7) + 0.5 * cos(normalizedPosition * 2.3)
-       let brightness = min(1.0, 0.85 + 0.15 * brightPhase)
-      
-       return Color(hue: finalHue, saturation: saturation, brightness: brightness)
-   }
-  
-   /// Generate a half-spectrum rainbow that cycles through approximately half the color wheel
-   /// - Parameter position: The position in the sequence
-   /// - Returns: A color from a limited part of the color spectrum
-   private func halfSpectrumRainbowColor(for position: Int) -> Color {
-       // FASTER CYCLE: Make colors repeat more frequently
-       // This makes the color range repeat every 10 positions
-       _ = 10
-       let scaledPosition = (position * 18) % 180
-      
-       // Use a range of only 180 degrees (half) of the color wheel
-       // We'll use the range from purple to green which includes vibrant colors
-      
-       // Start at purple (270°) and go 180° around the wheel
-       let startHue = 0.75 // Purple (270° / 360° = 0.75)
-       let hueRange = 0.5  // Half the wheel (180° / 360° = 0.5)
-      
-       // Base angle with smaller increments to make the transition smoother
-       let angle = Double(position) * 0.05
-      
-       // Calculate the base hue in our limited range
-       let positionInRange = Double(scaledPosition) / 180.0
-       // Apply the user's hue adjustment
-       let hueOffset = hueAdjustment - 0.5 // Convert 0-1 range to -0.5 to +0.5 range
-       let baseHue = startHue + (positionInRange * hueRange) + hueOffset
-       let wrappedHue = baseHue.truncatingRemainder(dividingBy: 1.0)
-      
-       // Add oscillation to the hue for more interest
-       let hueShift = 0.08 * sin(angle * 0.7)
-       let finalHue = (wrappedHue + hueShift).truncatingRemainder(dividingBy: 1.0)
-      
-       // Dynamic saturation and brightness similar to the full rainbow
-       // Apply user's saturation preference
-       let saturationBase = 0.95 * saturationAdjustment
-       let saturationVariation = 0.05 * sin(angle * 0.9) * saturationAdjustment
-       let saturation = min(1.0, max(0.3, saturationBase + saturationVariation))
-      
-       let brightnessBase = 0.95
-       let brightnessVariation = 0.05 * cos(angle * 0.5)
-       let brightness = min(1.0, max(0.9, brightnessBase + brightnessVariation))
-      
-       return Color(hue: finalHue, saturation: saturation, brightness: brightness)
+
+       // Use the shared ColorUtils.adjustColor function
+       // IMPORTANT: Always pass false for useDefaultRainbowColors when adjusting PRESETS
+       // This prevents applying rainbow hue shift to preset colors.
+       return ColorUtils.adjustColor(baseColor, hueShift: hueAdjustment - 0.5, saturationScale: saturationAdjustment, useDefaultRainbowColors: false)
    }
   
    // This is triggered whenever colorPresets changes
@@ -444,28 +326,136 @@ class ColorPresetManager: ObservableObject {
        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
        return [red, green, blue, alpha]
    }
-  
-   // Helper method to adjust a color with hue shift and saturation scaling
-   private func adjustColor(_ color: Color, hueShift: Double, saturationScale: Double) -> Color {
-       let uiColor = UIColor(color)
-       var hue: CGFloat = 0
-       var saturation: CGFloat = 0
-       var brightness: CGFloat = 0
-       var alpha: CGFloat = 0
-       
-       if uiColor.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha) {
-           // Adjust hue (shift by -0.5 to 0.5) only if useDefaultRainbowColors is true
-           let newHue = useDefaultRainbowColors ? 
-               (hue + CGFloat(hueShift)).truncatingRemainder(dividingBy: 1.0) : hue
-           
-           // Adjust saturation (scale by 0-1) always
-           let newSaturation = min(1.0, max(0.0, saturation * CGFloat(saturationScale)))
-           
-           return Color(hue: Double(newHue), saturation: Double(newSaturation), brightness: Double(brightness), opacity: Double(alpha))
+
+   /// Updates the ColorPresetManager's properties based on decoded artwork parameters.
+   /// - Parameter decodedParams: A dictionary decoded from an ArtworkData string.
+   func update(from decodedParams: [String: String]) {
+       print("[ColorPresetManager] Updating from decoded params: \(decodedParams)")
+
+       // Helper to safely extract double values
+       func doubleValue(from key: String, default defaultValue: Double) -> Double {
+           guard let stringValue = decodedParams[key], let value = Double(stringValue) else {
+               print("[ColorPresetManager] Warning: Could not decode Double for key '\(key)', using default: \(defaultValue)")
+               return defaultValue
+           }
+           return value
        }
+       // Helper to safely extract Int values
+       func intValue(from key: String, default defaultValue: Int) -> Int {
+           guard let stringValue = decodedParams[key], let value = Int(stringValue) else {
+                print("[ColorPresetManager] Warning: Could not decode Int for key '\(key)', using default: \(defaultValue)")
+               return defaultValue
+           }
+           return value
+       }
+       // Helper to safely extract Bool values
+       func boolValue(from key: String, default defaultValue: Bool) -> Bool {
+           guard let stringValue = decodedParams[key] else {
+                print("[ColorPresetManager] Warning: Could not decode Bool for key '\(key)', using default: \(defaultValue)")
+               return defaultValue
+           }
+           return stringValue.lowercased() == "true"
+       }
+
+       // Update Presets
+       if let colorsString = decodedParams["colors"] {
+           let loadedColors = ArtworkData.reconstructColors(from: colorsString)
+           if !loadedColors.isEmpty {
+               // Ensure we always have at least 10 slots, padding if necessary
+               var finalPresets = loadedColors
+               if finalPresets.count < 10 {
+                   let defaultColors: [Color] = [.purple, .blue, .pink, .yellow, .green, .red, .orange, .cyan, .indigo, .mint]
+                   for i in finalPresets.count..<10 {
+                       finalPresets.append(defaultColors[i % defaultColors.count])
+                   }
+               }
+               self.colorPresets = finalPresets
+               print("[ColorPresetManager] Updated presets. Count: \(finalPresets.count)")
+           } else {
+               print("[ColorPresetManager] Warning: Decoded 'colors' string resulted in empty array.")
+           }
+       }
+
+       // Update Background Color
+       if let backgroundHex = decodedParams["background"],
+          let bgColor = ArtworkData.hexToColor(backgroundHex) {
+           self.backgroundColor = bgColor
+           print("[ColorPresetManager] Updated background color to: \(backgroundHex)")
+       } else {
+            print("[ColorPresetManager] Warning: Could not decode 'background' color.")
+       }
+
+       // Update Rainbow Mode & Settings
+       self.useDefaultRainbowColors = boolValue(from: "useRainbow", default: self.useDefaultRainbowColors)
+       self.rainbowStyle = intValue(from: "rainbowStyle", default: self.rainbowStyle)
+       self.hueAdjustment = doubleValue(from: "hueAdj", default: self.hueAdjustment)
+       self.saturationAdjustment = doubleValue(from: "satAdj", default: self.saturationAdjustment)
+       print("[ColorPresetManager] Updated rainbow settings: use=\(useDefaultRainbowColors), style=\(rainbowStyle), hue=\(hueAdjustment), sat=\(saturationAdjustment)")
+
+       // Update Preset Count (visible presets)
+       self.numberOfVisiblePresets = intValue(from: "presetCount", default: self.numberOfVisiblePresets)
+       print("[ColorPresetManager] Updated numberOfVisiblePresets to: \(numberOfVisiblePresets)")
+
+       // Update Stroke & Alpha
+       self.strokeColor = ArtworkData.hexToColor(decodedParams["strokeColor"] ?? "") ?? self.strokeColor
+       self.strokeWidth = doubleValue(from: "strokeWidth", default: self.strokeWidth)
+       self.shapeAlpha = doubleValue(from: "alpha", default: self.shapeAlpha)
+       print("[ColorPresetManager] Updated stroke/alpha: width=\(strokeWidth), alpha=\(shapeAlpha), color=\(strokeColor.toHex() ?? "N/A")")
        
-       // Return original color if conversion fails
-       return color
+       // Crucially, trigger notifications/updates AFTER all properties are set
+       objectWillChange.send()
+       NotificationCenter.default.post(name: Notification.Name("ColorPresetsChanged"), object: nil)
+       NotificationCenter.default.post(name: Notification.Name("BackgroundColorChanged"), object: nil)
+       NotificationCenter.default.post(name: Notification.Name("StrokeSettingsChanged"), object: nil)
+       print("[ColorPresetManager] Update complete and notifications sent.")
+   }
+
+   /// Resets all manager properties to their initial default values.
+   func resetToDefaults() {
+       print("[ColorPresetManager] Resetting to default values.")
+       // Default Presets
+       self.colorPresets = [
+           .purple, .blue, .pink, .yellow, .green,
+           .red, .orange, .cyan, .indigo, .mint
+       ]
+       self.numberOfVisiblePresets = 5
+
+       // Default Rainbow Settings
+       self.useDefaultRainbowColors = false
+       self.rainbowStyle = 0
+       self.hueAdjustment = 0.5
+       self.saturationAdjustment = 0.8
+
+       // Default Background
+       self.backgroundColor = .white
+
+       // Default Stroke & Alpha
+       self.strokeColor = .black
+       self.strokeWidth = 2.0
+       self.shapeAlpha = 1.0
+
+       // Save defaults to UserDefaults (optional, could also clear them)
+       savePresetsToUserDefaults()
+       UserDefaults.standard.set(numberOfVisiblePresets, forKey: "numberOfVisiblePresets")
+       UserDefaults.standard.set(useDefaultRainbowColors, forKey: "useDefaultRainbowColors")
+       UserDefaults.standard.set(rainbowStyle, forKey: "rainbowStyle")
+       if let bgColorData = try? JSONEncoder().encode(colorToComponents(backgroundColor)) {
+           UserDefaults.standard.set(bgColorData, forKey: "canvasBackgroundColor")
+       }
+       if let strokeColorData = try? JSONEncoder().encode(colorToComponents(strokeColor)) {
+           UserDefaults.standard.set(strokeColorData, forKey: "shapeStrokeColor")
+       }
+       UserDefaults.standard.set(strokeWidth, forKey: "shapeStrokeWidth")
+       UserDefaults.standard.set(shapeAlpha, forKey: "shapeAlpha")
+       UserDefaults.standard.set(hueAdjustment, forKey: "hueAdjustment")
+       UserDefaults.standard.set(saturationAdjustment, forKey: "saturationAdjustment")
+
+       // Trigger updates
+       objectWillChange.send()
+       NotificationCenter.default.post(name: Notification.Name("ColorPresetsChanged"), object: nil)
+       NotificationCenter.default.post(name: Notification.Name("BackgroundColorChanged"), object: nil)
+       NotificationCenter.default.post(name: Notification.Name("StrokeSettingsChanged"), object: nil)
+       print("[ColorPresetManager] Reset complete and notifications sent.")
    }
 }
 
