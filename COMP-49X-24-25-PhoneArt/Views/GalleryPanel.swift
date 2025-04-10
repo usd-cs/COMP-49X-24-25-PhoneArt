@@ -400,22 +400,61 @@ struct ArtworkGridItem: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading) {
-            // Display the generated thumbnail or a placeholder
-            Image(uiImage: thumbnail ?? placeholder)
-                .resizable()
-                .aspectRatio(1, contentMode: .fit) // Keep it square
-                .background(Color(.systemGray6)) // Background behind the image
-                .cornerRadius(8)
+        VStack(alignment: .leading, spacing: 8) {
+           // Display the generated thumbnail or a placeholder
+           Image(uiImage: thumbnail ?? placeholder)
+               .resizable()
+               .aspectRatio(1, contentMode: .fit) // Keep it square
+               .background(Color(.systemGray6)) // Background behind the image
+               .cornerRadius(8)
 
-            Text(artwork.title ?? "Untitled")
-                .font(.caption.weight(.semibold))
-                .lineLimit(1)
 
-            Text(Self.dateFormatter.string(from: artwork.timestamp))
-                .font(.caption2)
-                .foregroundColor(.secondary)
-        }
+           // Row with title/date on left and action buttons on right
+           HStack {
+               // Title and timestamp on the left
+               VStack(alignment: .leading, spacing: 2) {
+                   Text(artwork.title ?? "Untitled")
+                       .font(.caption.weight(.semibold))
+                       .lineLimit(1)
+
+
+                   Text(Self.dateFormatter.string(from: artwork.timestamp))
+                       .font(.caption2)
+                       .foregroundColor(.secondary)
+               }
+              
+               Spacer()
+              
+               // Action buttons on the right
+               HStack(spacing: 8) {
+                   // Edit/Rename button
+                   Button(action: {
+                       // Just UI for now - no action
+                       print("Edit/Rename button tapped for: \(artwork.id)")
+                   }) {
+                       Image(systemName: "pencil")
+                           .font(.system(size: 14))
+                           .foregroundColor(.blue)
+                   }
+                   .frame(width: 30, height: 30)
+                   .background(Color(.systemBackground))
+                   .cornerRadius(4)
+                  
+                   // Delete button
+                   Button(action: {
+                       // Just UI for now - no action
+                       print("Delete button tapped for: \(artwork.id)")
+                   }) {
+                       Image(systemName: "trash")
+                           .font(.system(size: 14))
+                           .foregroundColor(.red)
+                   }
+                   .frame(width: 30, height: 30)
+                   .background(Color(.systemBackground))
+                   .cornerRadius(4)
+               }
+           }
+       }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Artwork titled \(artwork.title ?? "Untitled"), saved \(Self.dateFormatter.string(from: artwork.timestamp))")
     }
