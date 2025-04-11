@@ -105,7 +105,8 @@ class FirebaseService: ObservableObject {
     @MainActor
     func saveArtworkWithFeedback(artworkData: String, title: String? = nil) async -> (success: Bool, message: String) {
         do {
-            try await saveArtwork(artworkData: artworkData, title: title)
+            // Assign result to _ to silence warning
+            _ = try await saveArtwork(artworkData: artworkData, title: title)
             return (true, "Artwork saved successfully!")
         } catch {
             print("Error saving artwork: \(error)")
