@@ -90,6 +90,55 @@ class ExportService {
            completion(false, NSError(domain: "com.phoneart.export", code: 403, userInfo: [NSLocalizedDescriptionKey: "Photo library access denied"]))
        }
    }
+    
+    /// Saves a pre-rendered UIImage to the photo library.
+    /// - Parameters:
+    ///   - image: The UIImage to save.
+    ///   - completion: Completion handler with success flag and optional error.
+      static func saveImageToPhotoLibrary(
+          image: UIImage,
+          completion: @escaping (Bool, Error?) -> Void
+      ) {
+          // Check photo library permission on main thread
+          DispatchQueue.main.async {
+              checkPhotoLibraryPermission { authorized, error in
+                  guard authorized else {
+                      completion(false, error ?? NSError(domain: "com.phoneart.export", code: 403, userInfo: [NSLocalizedDescriptionKey: "Photo library access denied."]))
+                      return
+                  }
+                 
+                  // Permission granted, perform the save (can be background)
+                  PHPhotoLibrary.shared().performChanges {
+                      PHAssetChangeRequest.creationRequestForAsset(from: image)
+                  } completionHandler: { success, error in
+                      DispatchQueue.main.async {
+                          completion(success, error)
+                      }
+                  }
+              }
+          }
+      }
+
+
+      /// Helper to check and request photo library permission.
+      private static func checkPhotoLibraryPermission(completion: @escaping (Bool, Error?) -> Void) {
+          let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+          switch status {
+          case .authorized, .limited:
+              completion(true, nil)
+          case .notDetermined:
+              PHPhotoLibrary.requestAuthorization(for: .addOnly) { newStatus in
+                  DispatchQueue.main.async {
+                      completion(newStatus == .authorized || newStatus == .limited, nil)
+                  }
+              }
+          case .denied, .restricted:
+              completion(false, NSError(domain: "com.phoneart.export", code: 403, userInfo: [NSLocalizedDescriptionKey: "Photo library access denied."]))
+          @unknown default:
+              completion(false, NSError(domain: "com.phoneart.export", code: 500, userInfo: [NSLocalizedDescriptionKey: "Unknown photo library authorization status."]))
+          }
+      }
+
   
    /// Performs the actual export
    private static func performExport(

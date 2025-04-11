@@ -574,7 +574,7 @@ class MockFirebaseService: FirebaseService {
    }
 
    // Mock implementation for getArtwork(byPieceId:)
-   override func getArtwork(byPieceId pieceId: String) async throws -> ArtworkData? {
+    override func getArtworkPiece(pieceId: String) async throws -> ArtworkData? {
        getArtworkByIdCalled = true
        if let error = mockError {
            throw error
