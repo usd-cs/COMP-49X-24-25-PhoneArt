@@ -172,8 +172,7 @@ struct ImportArtworkView: View {
         Task { // Use Task for async operation
             do {
                 // Call the Firebase service to fetch artwork by ID using injected service
-                let fetchedArtworkData = try await self.firebaseService.getArtwork(byPieceId: id)
-                
+                let fetchedArtworkData = try await self.firebaseService.getArtworkPiece(pieceId: id)
                 // Ensure data was found
                 guard let artworkData = fetchedArtworkData else {
                     // Handle case where artwork ID was not found in Firestore

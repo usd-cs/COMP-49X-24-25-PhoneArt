@@ -198,37 +198,67 @@ class FirebaseService: ObservableObject {
     }
     
     // Function to fetch a specific artwork piece by its ID using a collection group query
-    func getArtwork(byPieceId pieceId: String) async throws -> ArtworkData? {
-        print("Attempting to fetch artwork with piece ID: \(pieceId)")
-        
-        // Query the 'pieces' collection group using the 'pieceId' field
-        let query = db.collectionGroup("pieces")
-            .whereField("pieceId", isEqualTo: pieceId) // Query against the stored field
-            .limit(to: 1)
-        
-        let snapshot = try await query.getDocuments()
-        
-        guard let document = snapshot.documents.first else {
-            print("No artwork found with piece ID: \(pieceId)")
-            // Consider throwing a specific error like `ImportError.notFound`
-            return nil
-        }
-        
-        print("Found document: \(document.documentID) in path: \(document.reference.path)")
-        
-        do {
-            // Decode the document data into ArtworkData
-            let artworkData = try document.data(as: ArtworkData.self)
-            print("Successfully decoded artwork data.")
-            
-            // Optionally decode and print for verification during development
-            // decodeArtworkString(artworkData.artworkString)
-            
-            return artworkData
-        } catch {
-            print("Error decoding artwork data for piece ID \(pieceId): \(error)")
-            // Rethrow the decoding error so the caller can handle it
-            throw error
-        }
+       func getArtworkPiece(pieceId: String) async throws -> ArtworkData? {
+           let querySnapshot = try await db.collectionGroup("pieces")
+                                         .whereField("pieceId", isEqualTo: pieceId)
+                                         .limit(to: 1) // Should only be one match
+                                         .getDocuments()
+
+
+           guard let document = querySnapshot.documents.first else {
+               print("No document found with pieceId: \(pieceId)")
+               return nil
+           }
+
+
+           // Assuming the document structure includes deviceId to reconstruct the path
+           guard let deviceId = document.data()["deviceId"] as? String else {
+                print("Document \(pieceId) missing deviceId field.")
+                throw NSError(domain: "FirebaseService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Artwork data missing deviceId."])
+           }
+
+
+           // Optionally, you could directly decode here if needed, but often just confirming existence is enough
+           // Or, fetch the full document data if required
+           let pieceRef = db.collection("artwork").document(deviceId).collection("pieces").document(pieceId)
+           let fullDoc = try await pieceRef.getDocument()
+           return try? fullDoc.data(as: ArtworkData.self)
+       }
+
+
+       // Function to update the title of an existing artwork piece
+       func updateArtworkTitle(artwork: ArtworkData, newTitle: String) async throws {
+           guard let pieceId = artwork.pieceId else {
+               throw NSError(domain: "FirebaseService", code: 400, userInfo: [NSLocalizedDescriptionKey: "Missing pieceId for update"])
+           }
+          
+           let deviceId = artwork.deviceId
+           let pieceRef = db.collection("artwork").document(deviceId).collection("pieces").document(pieceId)
+          
+           try await pieceRef.updateData(["title": newTitle])
+           print("Successfully updated title for artwork piece with ID: \(pieceId) to '\(newTitle)'")
+       }
+
+
+       // Function to delete an artwork piece
+       func deleteArtwork(artwork: ArtworkData) async throws {
+           guard let pieceId = artwork.pieceId else {
+               throw NSError(domain: "FirebaseService", code: 400, userInfo: [NSLocalizedDescriptionKey: "Missing pieceId for deletion"])
+           }
+          
+           let deviceId = artwork.deviceId
+           let pieceRef = db.collection("artwork").document(deviceId).collection("pieces").document(pieceId)
+          
+           try await pieceRef.delete()
+           print("Successfully deleted artwork piece with ID: \(pieceId)")
+       }
     }
-} 
+
+
+    // Extension for safer dictionary access (optional but good practice)
+    extension Dictionary where Key == String, Value == Any {
+       func string(forKey key: String) -> String? {
+           return self[key] as? String
+       }
+    }
+

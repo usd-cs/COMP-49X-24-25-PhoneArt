@@ -80,7 +80,9 @@ struct CanvasView: View {
     @State private var showImportSheet = false
     /// State variable to track the currently loaded artwork (if any)
     @State private var loadedArtworkData: ArtworkData? = nil
-   
+    // Add state for tracking photo saving
+    @State private var isSavingPhoto = false
+    
     // Add initializer for dependency injection
     init(firebaseService: FirebaseService = FirebaseService()) {
         _firebaseService = StateObject(wrappedValue: firebaseService)
@@ -252,6 +254,7 @@ struct CanvasView: View {
                    )
                }
            }
+            
         }
         .ignoresSafeArea()
         // Alert for naming the artwork before saving
@@ -930,70 +933,60 @@ struct CanvasView: View {
         }
     }
   
-   /// Save artwork to Photos library
-   private func saveToPhotos() {
-       Task { @MainActor in
-           // Create a UIView-hosted version of our canvas for export - exactly matching canvas borders
-           // We'll create a slightly smaller frame to avoid the border
-           let hostingController = UIHostingController(rootView:
-               ZStack {
-                   colorPresetManager.backgroundColor
-                   Canvas { context, size in
-                       drawShapes(context: context, size: size)
-                   }
-               }
-               // Adjust the frame inward slightly to avoid borders
-               .frame(width: 1596, height: 1796)
-           )
-          
-           // Size the view to exactly match canvas interior (avoiding the border)
-           hostingController.view.frame = CGRect(x: 0, y: 0, width: 1596, height: 1796)
-           hostingController.view.backgroundColor = UIColor(colorPresetManager.backgroundColor)
-           hostingController.view.clipsToBounds = true // Ensure content is clipped to bounds
-          
-           // Important: Make the view non-interactive
-           hostingController.view.isUserInteractionEnabled = false
-          
-           // Place off-screen to avoid interfering with the UI
-           if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first {
-               window.addSubview(hostingController.view)
-           }
-          
-           // Layout the view
-           hostingController.view.setNeedsLayout()
-           hostingController.view.layoutIfNeeded()
-          
-           // Allow render cycle to complete
-           try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-          
-           // Show a loading indicator
-           alertTitle = "Saving..."
-           alertMessage = "Saving image to Photos"
-           showAlert = true
-          
-           // Export to Photos - capture exact bounds with no offset
-           ExportService.exportToPhotoLibrary(
-               from: hostingController.view,
-               exportRect: CGRect(x: 0, y: 0, width: 1596, height: 1796),
-               includeBorder: false // Don't include border
-           ) { [weak hostingController] success, error in
-               // Clean up the temporary view - MUST be done on main thread
-               DispatchQueue.main.async {
-                   hostingController?.view.removeFromSuperview()
-                  
-                   if success {
-                       self.alertTitle = "Success"
-                       self.alertMessage = "Artwork saved to Photos successfully!"
-                   } else {
-                       self.alertTitle = "Error"
-                       self.alertMessage = error?.localizedDescription ?? "Failed to save to Photos"
-                    }
-                    self.showAlert = true
-                }
-            }
-        }
-    }
+   /// Save artwork to Photos library using ImageRenderer
+    private func saveToPhotos() {
+          Task { @MainActor in
+              // 1. Define the content to render (Canvas + Background)
+              let contentToRender = ZStack {
+                  colorPresetManager.backgroundColor
+                  Canvas { context, size in
+                      // Use the exact same drawing logic as the main canvas
+                      drawShapes(context: context, size: size)
+                  }
+              }
+              // Use the desired export size (e.g., canvas size without border)
+              .frame(width: 1600, height: 1800)
+
+
+              // 2. Create the ImageRenderer
+              let renderer = ImageRenderer(content: contentToRender)
+
+
+              // Optional: Improve quality if needed by setting scale
+              renderer.scale = UIScreen.main.scale // Use screen scale for better quality
+
+
+              // 3. Render the image (this can take time, keep ProgressView)
+              isSavingPhoto = true
+
+
+              // Asynchronously render the image
+              if let uiImage = renderer.uiImage {
+                  // 4. Call the updated ExportService function
+                  ExportService.saveImageToPhotoLibrary(image: uiImage) { success, error in
+                      // Update UI on the main thread
+                      isSavingPhoto = false // Hide progress view
+
+
+                      if success {
+                          alertTitle = "Success"
+                          alertMessage = "Artwork saved to Photos successfully!"
+                      } else {
+                          alertTitle = "Error"
+                          alertMessage = error?.localizedDescription ?? "Failed to save to Photos"
+                      }
+                      showAlert = true // Show the result alert
+                  }
+              } else {
+                  // Handle rendering failure
+                  isSavingPhoto = false
+                  alertTitle = "Error"
+                  alertMessage = "Failed to render artwork image."
+                  showAlert = true
+              }
+          }
+      }
+
 
     // Function to apply imported artwork data to the canvas state
     private func applyImportedArtwork(_ artworkString: String) {
