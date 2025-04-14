@@ -441,9 +441,9 @@ struct PropertiesPanel: View {
                  // Combined tooltip with single background
                  ZStack(alignment: .topTrailing) {
                      TooltipView(text: tooltipText)
-                         .padding(.horizontal, 12)
-                         .padding(.vertical, 8)
-                         .padding(.trailing, 24) // Make room for the X button
+                         .padding(.horizontal, 16)
+                         .padding(.vertical, 12)
+                         .padding(.trailing, 30) // More room for the X button with larger text
                      
                      // X button - now directly in ZStack for better positioning
                      Button {
@@ -453,7 +453,7 @@ struct PropertiesPanel: View {
                          }
                      } label: {
                          Image(systemName: "xmark.circle.fill")
-                             .font(.system(size: 16))
+                             .font(.system(size: 20)) // Larger X button
                              .foregroundColor(.white)
                              .padding(4)
                      }
@@ -764,9 +764,10 @@ struct TooltipView: View {
 
     var body: some View {
         Text(text)
-            .font(.caption)
+            .font(.subheadline)
+            .fontWeight(.medium)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(8)
-            .foregroundColor(Color(UIColor.white)) // Use white text for contrast
+            .padding(12)
+            .foregroundColor(Color(UIColor.white))
     }
 }
