@@ -13,6 +13,7 @@
 
 
 import SwiftUI
+import UIKit
 
 
 
@@ -43,6 +44,13 @@ struct PropertiesPanel: View {
  @Binding var vertical: Double
  @Binding var primitive: Double
  @Binding var isShowing: Bool
+
+ // MARK: - Tooltip State
+ @State private var showingTooltip: Bool = false
+ @State private var tooltipText: String = ""
+ @State private var activeTooltipIdentifier: String? = nil // To identify which button triggered the tooltip
+ @State private var tooltipAnchor: CGPoint? = nil // Stores the desired anchor point for the tooltip
+
  var onSwitchToColorShapes: () -> Void  // Callback for switching to Color panel
  var onSwitchToShapes: () -> Void       // Callback for switching to Shapes panel
  var onSwitchToGallery: () -> Void     // Callback for switching to Gallery panel
@@ -64,7 +72,22 @@ struct PropertiesPanel: View {
      formatter.maximumFractionDigits = 1
      return formatter
  }()
-  var body: some View {
+ 
+ // MARK: - Tooltip Descriptions
+ // Dictionary mapping property title to its description for the tooltip
+ private let tooltipDescriptions: [String: String] = [
+     "Primitive": "Changes the base shape used for generating patterns.",
+     "Rotation": "Adjusts the angular orientation of the artwork elements.",
+     "Scale": "Changes the overall size of the artwork elements.",
+     "Layer": "Controls the quantity of shapes generated, increasing complexity.",
+     "Skew X": "Tilts or slants the artwork horizontally.",
+     "Skew Y": "Tilts or slants the artwork vertically.",
+     "Spread": "Adjusts the spacing or distribution of elements.",
+     "Horizontal": "Moves the entire artwork horizontally across the canvas.",
+     "Vertical": "Moves the entire artwork vertically across the canvas."
+ ]
+ 
+ var body: some View {
      VStack(spacing: 0) {
          // Panel header with evenly distributed buttons
          HStack(alignment: .center, spacing: 0) {
@@ -138,7 +161,17 @@ struct PropertiesPanel: View {
                  }
              }
          }
-         .background(Color(uiColor: .systemBackground))
+         .simultaneousGesture(
+             TapGesture()
+                 .onEnded { _ in
+                     if showingTooltip {
+                         withAnimation(.easeOut(duration: 0.2)) {
+                             showingTooltip = false
+                             activeTooltipIdentifier = nil
+                         }
+                     }
+                 }
+         )
      }
      .frame(maxWidth: .infinity)
      .frame(height: UIScreen.main.bounds.height / 3)
@@ -160,7 +193,7 @@ struct PropertiesPanel: View {
              TextField("", text: $primitiveText)
                  .frame(width: 50)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(.numberPad)
+                 .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
                  .onChange(of: primitiveText) { _, newValue in
                      if let value = Double(newValue), value >= 1, value <= 6 {
@@ -183,7 +216,7 @@ struct PropertiesPanel: View {
              TextField("", text: $rotationText)
                  .frame(width: 50)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(.numberPad)
+                 .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
                  .onChange(of: rotationText) { _, newValue in
                      if let value = Double(newValue), value >= 0, value <= 360 {
@@ -207,7 +240,7 @@ struct PropertiesPanel: View {
              TextField("", text: $scaleText)
                  .frame(width: 50)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(.decimalPad)
+                 .keyboardType(UIKeyboardType.decimalPad)
                  .multilineTextAlignment(.center)
                  .onChange(of: scaleText) { _, newValue in
                      if let value = Double(newValue), value >= 0.5, value <= 2.0 {
@@ -231,7 +264,7 @@ struct PropertiesPanel: View {
              TextField("", text: $layerText)
                  .frame(width: 50)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(.numberPad)
+                 .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
                  .onChange(of: layerText) { _, newValue in
                      if let value = Double(newValue), value >= 0, value <= 360 {
@@ -254,7 +287,7 @@ struct PropertiesPanel: View {
              TextField("", text: $skewXText)
                  .frame(width: 50)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(.numberPad)
+                 .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
                  .onChange(of: skewXText) { _, newValue in
                      if let value = Double(newValue), value >= 0, value <= 80 {
@@ -277,7 +310,7 @@ struct PropertiesPanel: View {
              TextField("", text: $skewYText)
                  .frame(width: 50)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(.numberPad)
+                 .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
                  .onChange(of: skewYText) { _, newValue in
                      if let value = Double(newValue), value >= 0, value <= 80 {
@@ -300,7 +333,7 @@ struct PropertiesPanel: View {
              TextField("", text: $spreadText)
                  .frame(width: 50)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(.numberPad)
+                 .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
                  .onChange(of: spreadText) { _, newValue in
                      if let value = Double(newValue), value >= 0, value <= 100 {
@@ -323,7 +356,7 @@ struct PropertiesPanel: View {
              TextField("", text: $horizontalText)
                  .frame(width: 50)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(.numberPad)
+                 .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
                  .onChange(of: horizontalText) { _, newValue in
                      if let value = Double(newValue), value >= -300, value <= 300 {
@@ -346,7 +379,7 @@ struct PropertiesPanel: View {
              TextField("", text: $verticalText)
                  .frame(width: 50)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(.numberPad)
+                 .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
                  .onChange(of: verticalText) { _, newValue in
                      if let value = Double(newValue), value >= -300, value <= 300 {
@@ -367,25 +400,85 @@ struct PropertiesPanel: View {
      icon: String,
      @ViewBuilder content: () -> Content
  ) -> some View {
-     VStack(alignment: .leading, spacing: 8) {
+     let tooltipIdentifier = title // Use title as a unique identifier for the tooltip
+
+     return ZStack(alignment: .topLeading) { // Use ZStack for tooltip overlay
+         // Main Row Content
          HStack {
              Image(systemName: icon)
-                 .font(.system(size: 24))
-                 .foregroundColor(Color(uiColor: .label))
-                 .frame(width: 40, height: 40)
-                 .background(Color(uiColor: .systemGray6))
-                 .cornerRadius(8)
-          
+                 .foregroundColor(.secondary)
+                 .frame(width: 20)
              Text(title)
                  .font(.headline)
-                 .foregroundColor(Color(uiColor: .label))
-             Spacer()
+                 .frame(width: 80, alignment: .leading)
+             
+             // Info Button for Tooltip
+             Button {
+                 // Set the text and identifier for the tooltip
+                 tooltipText = tooltipDescriptions[title] ?? "No description available."
+                 activeTooltipIdentifier = tooltipIdentifier
+                 withAnimation { // Animate showing
+                     showingTooltip = true // Show the overlay
+                 }
+             } label: {
+                 Image(systemName: "info.circle")
+                     .foregroundColor(.blue)
+             }
+             .accessibilityLabel("\(title) Info")
+             .accessibilityIdentifier("\(title)InfoButton")
+             
+             content()
+                 .frame(maxWidth: .infinity)
          }
-         content()
+         .padding()
+         .background(Color(UIColor.systemGray6))
+         .cornerRadius(8)
+         
+         // Tooltip overlay - only shown when this specific tooltip is active
+         if showingTooltip && activeTooltipIdentifier == tooltipIdentifier {
+             // Use GeometryReader to get container width for centering
+             GeometryReader { geometry in
+                 // Combined tooltip with single background
+                 ZStack(alignment: .topTrailing) {
+                     TooltipView(text: tooltipText)
+                         .padding(.horizontal, 12)
+                         .padding(.vertical, 8)
+                         .padding(.trailing, 24) // Make room for the X button
+                     
+                     // X button - now directly in ZStack for better positioning
+                     Button {
+                         withAnimation(.easeOut(duration: 0.2)) {
+                             showingTooltip = false
+                             activeTooltipIdentifier = nil
+                         }
+                     } label: {
+                         Image(systemName: "xmark.circle.fill")
+                             .font(.system(size: 16))
+                             .foregroundColor(.white)
+                             .padding(4)
+                     }
+                     .accessibility(label: Text("Close tooltip"))
+                 }
+                 .background(Color(UIColor.systemGray2))
+                 .cornerRadius(8)
+                 .shadow(radius: 2)
+                 // Explicitly prevent tap-through with a high-priority gesture
+                 .gesture(
+                     TapGesture()
+                         .onEnded { _ in
+                             // Do nothing, but consume the event
+                         }
+                     , including: .all) // Higher priority than the ScrollView's gesture
+                 // Center horizontally, position above the row
+                 .position(
+                     x: geometry.size.width / 2,
+                     y: 10 // Position tooltip near top of the row
+                 )
+                 .transition(.opacity.combined(with: .scale))
+                 .zIndex(1) // Ensure tooltip appears above other content
+             }
+         }
      }
-     .padding()
-     .background(Color(uiColor: .systemGray6))
-     .cornerRadius(8)
  }
   /// Creates the current (Properties) button
    private func makePropertiesButton() -> some View {
@@ -663,4 +756,17 @@ struct PropertiesPanel_Previews: PreviewProvider {
            onSwitchToGallery: {}
        )
    }
+}
+
+// MARK: - Tooltip View Definition
+struct TooltipView: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(8)
+            .foregroundColor(Color(UIColor.white)) // Use white text for contrast
+    }
 }
