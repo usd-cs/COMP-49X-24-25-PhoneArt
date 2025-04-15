@@ -82,7 +82,7 @@ struct CanvasView: View {
     @State private var loadedArtworkData: ArtworkData? = nil
     // Add state for tracking photo saving
     @State private var isSavingPhoto = false
-    
+   
     // Add initializer for dependency injection
     init(firebaseService: FirebaseService = FirebaseService()) {
         _firebaseService = StateObject(wrappedValue: firebaseService)
@@ -200,41 +200,41 @@ struct CanvasView: View {
             // Conditional Overlays for Panels
             if showProperties {
                panelOverlay {
-                   PropertiesPanel(
-                       rotation: $shapeRotation,
-                       scale: $shapeScale,
-                       layer: $shapeLayer,
-                       skewX: $shapeSkewX,
-                       skewY: $shapeSkewY,
-                       spread: $shapeSpread,
-                       horizontal: $shapeHorizontal,
-                       vertical: $shapeVertical,
-                       primitive: $shapePrimitive,
-                       isShowing: $showProperties,
+                    PropertiesPanel(
+                        rotation: $shapeRotation,
+                        scale: $shapeScale,
+                        layer: $shapeLayer,
+                        skewX: $shapeSkewX,
+                        skewY: $shapeSkewY,
+                        spread: $shapeSpread,
+                        horizontal: $shapeHorizontal,
+                        vertical: $shapeVertical,
+                        primitive: $shapePrimitive,
+                        isShowing: $showProperties,
                        onSwitchToColorShapes: switchToColorShapes,
                        onSwitchToShapes: switchToShapes,
                        onSwitchToGallery: switchToGallery
                    )
                }
-           }
+            }
     
             if showColorShapes {
                panelOverlay {
-                   ColorPropertiesPanel(
-                       isShowing: $showColorShapes,
-                       selectedColor: $shapeColor,
+                    ColorPropertiesPanel(
+                        isShowing: $showColorShapes,
+                        selectedColor: $shapeColor,
                        onSwitchToProperties: switchToProperties,
                        onSwitchToShapes: switchToShapes,
                        onSwitchToGallery: switchToGallery
                    )
                }
-           }
+            }
       
             if showShapesPanel {
                panelOverlay {
-                   ShapesPanel(
-                       selectedShape: $selectedShape,
-                       isShowing: $showShapesPanel,
+                    ShapesPanel(
+                        selectedShape: $selectedShape,
+                        isShowing: $showShapesPanel,
                        onSwitchToProperties: switchToProperties,
                        onSwitchToColorProperties: switchToColorShapes,
                        onSwitchToGallery: switchToGallery
@@ -313,7 +313,7 @@ struct CanvasView: View {
         .overlay {
             // Conditionally display the modal overlay here
             ZStack { // Wrap existing and new overlay content in a ZStack
-                if let confirmedId = confirmedArtworkId {
+            if let confirmedId = confirmedArtworkId {
                     // Dimming background for Save Confirmation
                     Color.black.opacity(0.4)
                         .ignoresSafeArea()
@@ -691,81 +691,81 @@ struct CanvasView: View {
         }
         .accessibilityIdentifier("Reset Position")
     }
-    /// Creates the properties panel toggle button
-   private func makePropertiesButton() -> some View {
-       Button(action: {
+     /// Creates the properties panel toggle button
+    private func makePropertiesButton() -> some View {
+        Button(action: {
            if showProperties {
                showProperties = false
            } else {
                switchToProperties()
-           }
-       }) {
-           Rectangle()
-               .foregroundColor(Color(uiColor: .systemBackground))
+            }
+        }) {
+            Rectangle()
+                .foregroundColor(Color(uiColor: .systemBackground))
                .frame(width: 50, height: 50)
-               .cornerRadius(8)
-               .overlay(
-                   Image(systemName: "slider.horizontal.3")
+                .cornerRadius(8)
+                .overlay(
+                    Image(systemName: "slider.horizontal.3")
                        .font(.system(size: 22))
-                       .foregroundColor(Color(uiColor: .systemBlue))
-               )
-               .overlay(
-                   RoundedRectangle(cornerRadius: 8)
-                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-               )
-       }
-       .accessibilityIdentifier("Properties Button")
-   }
-    /// Creates an alternate button to toggle the properties panel
-   private func makeColorShapesButton() -> some View {
-       Button(action: {
+                        .foregroundColor(Color(uiColor: .systemBlue))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                )
+        }
+        .accessibilityIdentifier("Properties Button")
+    }
+     /// Creates an alternate button to toggle the properties panel
+    private func makeColorShapesButton() -> some View {
+        Button(action: {
            if showColorShapes {
                showColorShapes = false
            } else {
                switchToColorShapes()
-           }
-       }) {
-           Rectangle()
-               .foregroundColor(Color(uiColor: .systemBackground))
+            }
+        }) {
+            Rectangle()
+                .foregroundColor(Color(uiColor: .systemBackground))
                .frame(width: 50, height: 50)
-               .cornerRadius(8)
-               .overlay(
-                   Image(systemName: "square.3.stack.3d")
+                .cornerRadius(8)
+                .overlay(
+                    Image(systemName: "square.3.stack.3d")
                        .font(.system(size: 22))
-                       .foregroundColor(Color(uiColor: .systemBlue))
-               )
-               .overlay(
-                   RoundedRectangle(cornerRadius: 8)
-                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-               )
-       }
-       .accessibilityIdentifier("Color Shapes Button")
-   }
-    /// Creates a button for the shapes panel
-   private func makeShapesButton() -> some View {
-       Button(action: {
+                        .foregroundColor(Color(uiColor: .systemBlue))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                )
+        }
+        .accessibilityIdentifier("Color Shapes Button")
+    }
+     /// Creates a button for the shapes panel
+    private func makeShapesButton() -> some View {
+        Button(action: {
            if showShapesPanel {
                showShapesPanel = false
            } else {
                switchToShapes()
-           }
-       }) {
-           Rectangle()
-               .foregroundColor(Color(uiColor: .systemBackground))
+            }
+        }) {
+            Rectangle()
+                .foregroundColor(Color(uiColor: .systemBackground))
                .frame(width: 50, height: 50)
-               .cornerRadius(8)
-               .overlay(
-                   Image(systemName: "square.on.square")
+                .cornerRadius(8)
+                .overlay(
+                    Image(systemName: "square.on.square")
                        .font(.system(size: 22))
-                       .foregroundColor(Color(uiColor: .systemBlue))
-               )
-               .overlay(
-                   RoundedRectangle(cornerRadius: 8)
-                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-               )
-       }
-       .accessibilityIdentifier("Shapes Button")
-   }
+                        .foregroundColor(Color(uiColor: .systemBlue))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                )
+        }
+        .accessibilityIdentifier("Shapes Button")
+    }
 
      /// Creates the zoom control slider with + and - indicators
     private func makeZoomSlider() -> some View {
@@ -801,32 +801,32 @@ struct CanvasView: View {
        )
     }
      /// Creates the close button that's always visible
-   private func makeCloseButton() -> some View {
-       Button(action: {
+    private func makeCloseButton() -> some View {
+        Button(action: {
            // Close all panels
-           showProperties = false
-           showColorShapes = false
-           showShapesPanel = false
+                showProperties = false
+                showColorShapes = false
+                showShapesPanel = false
            showGalleryPanel = false
-       }) {
-           Rectangle()
-               .foregroundColor(Color(uiColor: .systemBackground))
+        }) {
+            Rectangle()
+                .foregroundColor(Color(uiColor: .systemBackground))
                .frame(width: 50, height: 50)
-               .cornerRadius(8)
-               .overlay(
-                   Image(systemName: "xmark")
+                .cornerRadius(8)
+                .overlay(
+                    Image(systemName: "xmark")
                        .font(.system(size: 22))
-                       .foregroundColor(Color(uiColor: .systemBlue))
-               )
-               .overlay(
-                   RoundedRectangle(cornerRadius: 8)
-                       .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-               )
-       }
-       .accessibilityIdentifier("Close Button")
-   }
+                        .foregroundColor(Color(uiColor: .systemBlue))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                )
+        }
+        .accessibilityIdentifier("Close Button")
+    }
      /// Creates the share button group for the top navigation bar
-       private func makeShareButton() -> some View {
+    private func makeShareButton() -> some View {
            return VStack(spacing: 20) {
                // --- Top Button Menu (New / Import) ---
                Menu {
@@ -837,16 +837,16 @@ struct CanvasView: View {
 
                    Button(action: { showImportSheet = true }) {
                        Label("Import from ID...", systemImage: "square.and.arrow.down") // Icon indicates retrieving
-                   }
-                   .accessibilityIdentifier("Import Button")
-
+            }
+            .accessibilityIdentifier("Import Button")
+            
                } label: {
                    buttonIcon(systemName: "plus") // Keep the plus icon for the menu
                }
                .accessibilityIdentifier("New/Import Menu")
 
                // --- Bottom Button Menu (Share/Save) ---
-               Menu {
+            Menu {
                    // Conditional Save Button
                    if let artworkToUpdate = loadedArtworkData {
                        Button(action: { updateCurrentArtwork(artwork: artworkToUpdate) }) {
@@ -862,17 +862,17 @@ struct CanvasView: View {
                    .accessibilityIdentifier("Save as New Button")
 
                    // --- Save to Photos Button ---
-                   Button(action: saveToPhotos) {
-                       Label("Save to Photos", systemImage: "photo")
-                   }
-                   .accessibilityIdentifier("Save to Photos Button")
-
-                   // Add other share options here
-               } label: {
+                Button(action: saveToPhotos) {
+                    Label("Save to Photos", systemImage: "photo")
+                }
+                .accessibilityIdentifier("Save to Photos Button")
+                
+                // Add other share options here
+            } label: {
                    buttonIcon(systemName: "square.and.arrow.up")
-               }
-               .accessibilityIdentifier("Share Button")
-           }
+            }
+            .accessibilityIdentifier("Share Button")
+        }
        }
 
 
@@ -903,7 +903,7 @@ struct CanvasView: View {
      // private func saveArtwork() {
      internal func saveArtwork(title: String? = nil) {
         let artworkString = getCurrentArtworkString()
-
+     
         Task {
             do {
                 let pieceRef = try await firebaseService.saveArtwork(artworkData: artworkString, title: title)
@@ -919,7 +919,7 @@ struct CanvasView: View {
                 )
 
                 await firebaseService.listAllPieces()
-
+ 
                 await MainActor.run {
                     confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
                 }
@@ -934,16 +934,16 @@ struct CanvasView: View {
     }
   
    /// Save artwork to Photos library using ImageRenderer
-    private func saveToPhotos() {
-          Task { @MainActor in
+   private func saveToPhotos() {
+       Task { @MainActor in
               // 1. Define the content to render (Canvas + Background)
               let contentToRender = ZStack {
-                  colorPresetManager.backgroundColor
-                  Canvas { context, size in
+                   colorPresetManager.backgroundColor
+                   Canvas { context, size in
                       // Use the exact same drawing logic as the main canvas
-                      drawShapes(context: context, size: size)
-                  }
-              }
+                       drawShapes(context: context, size: size)
+                   }
+               }
               // Use the desired export size (e.g., canvas size without border)
               .frame(width: 1600, height: 1800)
 
@@ -967,11 +967,11 @@ struct CanvasView: View {
                       // Update UI on the main thread
                       isSavingPhoto = false // Hide progress view
 
-
-                      if success {
+                  
+                   if success {
                           alertTitle = "Success"
                           alertMessage = "Artwork saved to Photos successfully!"
-                      } else {
+                   } else {
                           alertTitle = "Error"
                           alertMessage = error?.localizedDescription ?? "Failed to save to Photos"
                       }
