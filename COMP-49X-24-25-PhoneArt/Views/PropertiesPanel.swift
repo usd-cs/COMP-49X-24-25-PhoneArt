@@ -140,6 +140,11 @@ struct PropertiesPanel: View {
          .background(Color(uiColor: .systemGray5))
          .cornerRadius(8, corners: [.topLeft, .topRight])
       
+         // Title for the panel
+         Text("Properties")
+             .font(.title2).bold()
+             .padding(.top, 10)
+      
          ScrollView {
              VStack(spacing: 12) {
                  primitivePropertyRow()
@@ -174,7 +179,7 @@ struct PropertiesPanel: View {
          )
      }
      .frame(maxWidth: .infinity)
-     .frame(height: UIScreen.main.bounds.height / 3)
+     .frame(height: UIScreen.main.bounds.height / 2)
      .background(Color(uiColor: .systemBackground))
      .cornerRadius(15, corners: [.topLeft, .topRight])
      .shadow(radius: 10)
@@ -410,7 +415,6 @@ struct PropertiesPanel: View {
                  .frame(width: 20)
              Text(title)
                  .font(.headline)
-                 .frame(width: 80, alignment: .leading)
              
              // Info Button for Tooltip
              Button {
@@ -440,7 +444,7 @@ struct PropertiesPanel: View {
              GeometryReader { geometry in
                  // Combined tooltip with single background
                  ZStack(alignment: .topTrailing) {
-                     TooltipView(text: tooltipText)
+                     SharedTooltipView(text: tooltipText)
                          .padding(.horizontal, 16)
                          .padding(.vertical, 12)
                          .padding(.trailing, 30) // More room for the X button with larger text
@@ -756,18 +760,4 @@ struct PropertiesPanel_Previews: PreviewProvider {
            onSwitchToGallery: {}
        )
    }
-}
-
-// MARK: - Tooltip View Definition
-struct TooltipView: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .font(.subheadline)
-            .fontWeight(.medium)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(12)
-            .foregroundColor(Color(UIColor.white))
-    }
 }
