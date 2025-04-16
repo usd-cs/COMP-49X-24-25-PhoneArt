@@ -43,6 +43,8 @@ struct CanvasView: View {
      @State private var layerCount: Double = 1 // Set default to 1
      /// Add zoom state property
     @State private var zoomLevel: Double = 1.0
+    /// Add state to track the starting zoom level during a pinch gesture
+    @State private var startingZoomLevel: Double = 1.0
      /// Add new state variable
     @State internal var showColorShapes = false
      /// Add new state variable for shapes panel
@@ -138,13 +140,26 @@ struct CanvasView: View {
                 // Update border color to be dynamic
                 .border(Color(uiColor: .label), width: 2)
                 .scaleEffect(zoomLevel)
-                .gesture(
-                    DragGesture()
-                        .onChanged(handleDragChange)
-                        .onEnded(handleDragEnd)
-                )
                 .offset(x: offset.width, y: offset.height +  canvasVerticalOffset)
                 .animation(.easeInOut(duration: 0.25), value: canvasVerticalOffset)
+            }
+            .gesture(
+                DragGesture()
+                    .onChanged(handleDragChange)
+                    .onEnded(handleDragEnd)
+            )
+            .gesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        let newZoom = startingZoomLevel * value
+                        zoomLevel = validateZoom(newZoom)
+                    }
+                    .onEnded { value in
+                        startingZoomLevel = zoomLevel
+                    }
+            )
+            .onAppear {
+                startingZoomLevel = zoomLevel
             }
       
             // Share button in upper left corner
