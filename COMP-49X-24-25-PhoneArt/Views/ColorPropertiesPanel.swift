@@ -76,6 +76,11 @@ struct ColorPropertiesPanel: View {
            // Header section with navigation buttons and close control
            panelHeader()
           
+           // Title for the panel
+           Text("Color & Stroke")
+               .font(.title2).bold()
+               .padding(.top, 10)
+          
            // Tab selector for switching between Shapes and Colors
            tabSelector()
           
@@ -86,7 +91,6 @@ struct ColorPropertiesPanel: View {
                    if selectedTab == 0 {
                        // Shapes tab content - without outer ScrollView since we're already in one
                        ShapesSectionContent()
-                           .padding(.horizontal, 16)
                    } else {
                        // Toggle for default colors - styled to match property rows
                        VStack(alignment: .leading, spacing: 0) {
@@ -142,7 +146,7 @@ struct ColorPropertiesPanel: View {
            Spacer()
        }
        .frame(maxWidth: .infinity)
-       .frame(height: UIScreen.main.bounds.height / 3) // Panel takes up one-third of screen height
+       .frame(height: UIScreen.main.bounds.height / 2) // Changed height to 1/2 screen
        .background(Color(.systemBackground))
        .cornerRadius(15, corners: [.topLeft, .topRight])
        .shadow(radius: 10)
@@ -318,6 +322,22 @@ struct ShapesSectionContent: View {
    @State private var saturationText: String = "80"
    @State private var alphaText: String = "100"
    @State private var strokeWidthText: String = "2.0"
+   
+   // MARK: - Tooltip State
+   @State private var showingTooltip: Bool = false
+   @State private var tooltipText: String = ""
+   @State private var activeTooltipIdentifier: String? = nil // To identify which button triggered the tooltip
+  
+   // MARK: - Tooltip Descriptions
+   // Dictionary mapping property title to its description for the tooltip
+   private let tooltipDescriptions: [String: String] = [
+       "Hue": "Adjusts the overall color tone of rainbow-generated patterns.",
+       "Saturation": "Controls the intensity or vividness of colors in the artwork.",
+       "Alpha": "Adjusts the transparency level of the shapes in your artwork.",
+       "Stroke Color": "Sets the color of the outline drawn around shapes.",
+       "Stroke Width": "Sets the thickness of the outline around shapes.",
+       "Background Color": "Changes the background color of the entire canvas."
+   ]
   
    init() {
        // Initialize the stroke width text field from the manager
@@ -413,9 +433,9 @@ struct ShapesSectionContent: View {
                // Stroke Color (just UI with a ColorPicker)
                propertyRow(title: "Stroke Color", icon: "pencil.circle") {
                    HStack {
+                       Spacer() // Moved Spacer before ColorPicker
                        ColorPicker("", selection: $colorManager.strokeColor)
                            .labelsHidden()
-                       Spacer()
                    }
                }
               
@@ -445,9 +465,9 @@ struct ShapesSectionContent: View {
                // Background Color (just UI with a ColorPicker)
                propertyRow(title: "Background Color", icon: "rectangle.fill") {
                    HStack {
+                       Spacer() // Moved Spacer before ColorPicker
                        ColorPicker("", selection: $colorManager.backgroundColor)
                            .labelsHidden()
-                       Spacer()
                    }
                }
            }
@@ -456,6 +476,17 @@ struct ShapesSectionContent: View {
        .background(Color(.systemBackground))
        .cornerRadius(12)
        .animation(.easeInOut(duration: 0.25), value: colorManager.useDefaultRainbowColors)
+       .simultaneousGesture(
+           TapGesture()
+               .onEnded { _ in
+                   if showingTooltip {
+                       withAnimation(.easeOut(duration: 0.2)) {
+                           showingTooltip = false
+                           activeTooltipIdentifier = nil
+                       }
+                   }
+               }
+       )
    }
   
    // MARK: - UI Components
@@ -470,25 +501,87 @@ struct ShapesSectionContent: View {
        icon: String,
        @ViewBuilder content: () -> Content
    ) -> some View {
-       VStack(alignment: .leading, spacing: 8) {
-           HStack {
+       let tooltipIdentifier = title // Use title as a unique identifier for the tooltip
+
+       return ZStack(alignment: .topLeading) { // Use ZStack for tooltip overlay
+           // Main Row Content - Changed to HStack
+           HStack { // Changed from VStack
                Image(systemName: icon)
-                   .font(.system(size: 24))
-                   .foregroundColor(Color(uiColor: .label))
-                   .frame(width: 40, height: 40)
-                   .background(Color(uiColor: .systemGray6))
-                   .cornerRadius(8)
-              
+                   .font(.system(size: 20))
+                   .foregroundColor(.secondary)
+                   .frame(width: 20)
+               
                Text(title)
                    .font(.headline)
-                   .foregroundColor(Color(uiColor: .label))
-               Spacer()
+               
+               // Info Button for Tooltip
+               Button {
+                   // Set the text and identifier for the tooltip
+                   tooltipText = tooltipDescriptions[title] ?? "No description available."
+                   activeTooltipIdentifier = tooltipIdentifier
+                   withAnimation { // Animate showing
+                       showingTooltip = true // Show the overlay
+                   }
+               } label: {
+                   Image(systemName: "info.circle")
+                       .foregroundColor(.blue)
+               }
+               .accessibilityLabel("\(title) Info")
+               .accessibilityIdentifier("\(title)InfoButton")
+               
+               // Content now directly in HStack
+               content()
+                   .frame(maxWidth: .infinity) // Allow content to expand
            }
-           content()
+           .padding()
+           .background(Color(uiColor: .systemGray6))
+           .cornerRadius(8)
+           
+           // Tooltip overlay - only shown when this specific tooltip is active
+           if showingTooltip && activeTooltipIdentifier == tooltipIdentifier {
+               // Use GeometryReader to get container width for centering
+               GeometryReader { geometry in
+                   // Combined tooltip with single background
+                   ZStack(alignment: .topTrailing) {
+                       SharedTooltipView(text: tooltipText)
+                           .padding(.horizontal, 16)
+                           .padding(.vertical, 12)
+                           .padding(.trailing, 30) // More room for the X button with larger text
+                       
+                       // X button - now directly in ZStack for better positioning
+                       Button {
+                           withAnimation(.easeOut(duration: 0.2)) {
+                               showingTooltip = false
+                               activeTooltipIdentifier = nil
+                           }
+                       } label: {
+                           Image(systemName: "xmark.circle.fill")
+                               .font(.system(size: 20)) // Larger X button
+                               .foregroundColor(.white)
+                               .padding(4)
+                       }
+                       .accessibility(label: Text("Close tooltip"))
+                   }
+                   .background(Color(UIColor.systemGray2))
+                   .cornerRadius(8)
+                   .shadow(radius: 2)
+                   // Explicitly prevent tap-through with a high-priority gesture
+                   .gesture(
+                       TapGesture()
+                           .onEnded { _ in
+                               // Do nothing, but consume the event
+                           }
+                       , including: .all) // Higher priority than the ScrollView's gesture
+                   // Center horizontally, position above the row
+                   .position(
+                       x: geometry.size.width / 2,
+                       y: 10 // Position tooltip near top of the row
+                   )
+                   .transition(.opacity.combined(with: .scale))
+                   .zIndex(1) // Ensure tooltip appears above other content
+               }
+           }
        }
-       .padding()
-       .background(Color(uiColor: .systemGray6))
-       .cornerRadius(8)
    }
 }
 

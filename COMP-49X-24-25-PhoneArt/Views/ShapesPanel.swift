@@ -70,12 +70,12 @@ struct ShapesPanel: View {
             panelHeader()
             
             // Main content area
-            VStack(spacing: 16) {
+            VStack(spacing: 0) {
                 Text("Choose a Shape")
-                    .font(.headline)
+                    .font(.title2).bold()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
-                    .padding(.top, 16)
+                    .padding(.vertical, 10)
                 
                 // Shape selection grid in scrollable area
                 ScrollView {
@@ -91,7 +91,7 @@ struct ShapesPanel: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: UIScreen.main.bounds.height / 3) // Panel takes up one-third of screen height
+        .frame(height: UIScreen.main.bounds.height / 2)
         .background(Color(.systemBackground))
         .cornerRadius(15, corners: [.topLeft, .topRight])
         .shadow(radius: 10)

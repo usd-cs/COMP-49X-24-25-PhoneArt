@@ -478,28 +478,34 @@ struct ColorSelectionPanel: View {
   
    /// Current hex color value displayed in the text field
    @State private var hexValue: String = "#000000"
+   
+   // MARK: - Tooltip State
+   @State private var showingTooltip: Bool = false
+   @State private var tooltipText: String = ""
+   @State private var activeTooltipIdentifier: String? = nil
+   @State private var presetCountText: String = "5"
+   
+   // MARK: - Tooltip Descriptions
+   private let tooltipDescriptions: [String: String] = [
+       "Preset Count": "Determines how many color preset slots are visible for selection.",
+       "Color Presets": "Quick access to saved colors you can apply to your artwork.",
+       "Edit Color": "Change the selected color using the color picker or hex code input."
+   ]
   
    /// Initializes the color selection panel with a binding to the selected color
    /// - Parameter selectedColor: Binding to the color that will be applied to shapes
    init(selectedColor: Binding<Color>) {
        self._selectedColor = selectedColor
        self._hexValue = State(initialValue: selectedColor.wrappedValue.toHex() ?? "#000000")
+       self._presetCountText = State(initialValue: "\(ColorPresetManager.shared.numberOfVisiblePresets)")
    }
   
    var body: some View {
        ScrollView {
            VStack(alignment: .leading, spacing: 12) {
-               // Slider for number of presets that matches property row slider style
-               VStack(alignment: .leading) {
+               // Slider for number of presets using propertyRow pattern
+               propertyRow(title: "Preset Count", icon: "circle.grid.2x2") {
                    HStack {
-                       Image(systemName: "circle.grid.2x2")
-                           .foregroundColor(.blue)
-                           .font(.system(size: 18))
-                       Text("Preset Count")
-                           .font(.headline)
-                   }
-                   
-                   HStack(spacing: 12) {
                        Slider(
                            value: Binding<Double>(
                                get: { Double(presetManager.numberOfVisiblePresets) },
@@ -508,6 +514,7 @@ struct ColorSelectionPanel: View {
                                    let newCount = max(1, min(10, Int(newValue)))
                                    if presetManager.numberOfVisiblePresets != newCount {
                                        presetManager.numberOfVisiblePresets = newCount
+                                       presetCountText = "\(newCount)"
                                       
                                        // Immediately notify about the change
                                        NotificationCenter.default.post(
@@ -525,9 +532,12 @@ struct ColorSelectionPanel: View {
                        )
                        .accessibilityIdentifier("Preset Count Slider")
                       
-                       TextField("", text: Binding<String>(
-                           get: { "\(presetManager.numberOfVisiblePresets)" },
-                           set: { newValue in
+                       TextField("", text: $presetCountText)
+                           .frame(width: 50)
+                           .textFieldStyle(RoundedBorderTextFieldStyle())
+                           .keyboardType(.numberPad)
+                           .multilineTextAlignment(.center)
+                           .onChange(of: presetCountText) { _, newValue in
                                if let value = Int(newValue), value >= 1, value <= 10 {
                                    presetManager.numberOfVisiblePresets = value
                                    // Notify about the change
@@ -537,29 +547,12 @@ struct ColorSelectionPanel: View {
                                    )
                                }
                            }
-                       ))
-                       .frame(width: 40)
-                       .textFieldStyle(RoundedBorderTextFieldStyle())
-                       .keyboardType(.numberPad)
-                       .multilineTextAlignment(.center)
                    }
                }
-               .padding()
-               .background(Color(uiColor: .systemGray6))
-               .cornerRadius(8)
-               .padding(.horizontal, 16)
                .padding(.bottom, 12)
               
                // Preset color slots - clean design without border
-               VStack(alignment: .leading) {
-                   HStack {
-                       Image(systemName: "paintbrush.pointed")
-                           .foregroundColor(.blue)
-                           .font(.system(size: 18))
-                       Text("Color Presets")
-                           .font(.headline)
-                   }
-                   
+               propertyRow(title: "Color Presets", icon: "paintbrush.pointed") {
                    ScrollView(.horizontal, showsIndicators: false) {
                        HStack(spacing: 12) {
                            // Show the actual visible colors
@@ -582,22 +575,10 @@ struct ColorSelectionPanel: View {
                    }
                    .frame(height: 70)
                }
-               .padding()
-               .background(Color(uiColor: .systemGray6))
-               .cornerRadius(8)
-               .padding(.horizontal, 16)
                .padding(.bottom, 12)
               
                // Color picker section with consistent styling
-               VStack(alignment: .leading) {
-                   HStack {
-                       Image(systemName: "eyedropper")
-                           .foregroundColor(.blue)
-                           .font(.system(size: 18))
-                       Text("Edit Color")
-                           .font(.headline)
-                   }
-                   
+               propertyRow(title: "Edit Color", icon: "eyedropper") {
                    HStack(spacing: 16) {
                        // Custom styled color picker
                        ColorPicker("", selection: Binding(
@@ -640,14 +621,112 @@ struct ColorSelectionPanel: View {
                            }
                    }
                }
-               .padding()
-               .background(Color(uiColor: .systemGray6))
-               .cornerRadius(8)
-               .padding(.horizontal, 16)
            }
            .padding(8)
            .background(Color(.systemBackground))
            .cornerRadius(12)
+           .simultaneousGesture(
+               TapGesture()
+                   .onEnded { _ in
+                       if showingTooltip {
+                           withAnimation(.easeOut(duration: 0.2)) {
+                               showingTooltip = false
+                               activeTooltipIdentifier = nil
+                           }
+                       }
+                   }
+           )
+       }
+   }
+   
+   // MARK: - UI Components
+   
+   /// Creates a custom property control row with consistent styling and tooltip support
+   private func propertyRow<Content: View>(
+       title: String,
+       icon: String,
+       @ViewBuilder content: () -> Content
+   ) -> some View {
+       let tooltipIdentifier = title // Use title as a unique identifier for the tooltip
+
+       return ZStack(alignment: .topLeading) { // Use ZStack for tooltip overlay
+           // Main Row Content - Changed to HStack
+           HStack { // Changed from VStack
+               Image(systemName: icon)
+                   .foregroundColor(.secondary)
+                   .frame(width: 20)
+               
+               Text(title)
+                   .font(.headline)
+                   .frame(width: 80, alignment: .leading) // Changed width from 100 to 80
+               
+               // Info Button for Tooltip
+               Button {
+                   // Set the text and identifier for the tooltip
+                   tooltipText = tooltipDescriptions[title] ?? "No description available."
+                   activeTooltipIdentifier = tooltipIdentifier
+                   withAnimation { // Animate showing
+                       showingTooltip = true // Show the overlay
+                   }
+               } label: {
+                   Image(systemName: "info.circle")
+                       .foregroundColor(.blue)
+               }
+               .accessibilityLabel("\(title) Info")
+               .accessibilityIdentifier("\(title)InfoButton")
+               
+               // Content (Slider, TextField, etc.) now directly in HStack
+               content()
+                   .frame(maxWidth: .infinity) // Allow content to expand
+           }
+           .padding()
+           .background(Color(uiColor: .systemGray6))
+           .cornerRadius(8)
+           
+           // Tooltip overlay - only shown when this specific tooltip is active
+           if showingTooltip && activeTooltipIdentifier == tooltipIdentifier {
+               // Use GeometryReader to get container width for centering
+               GeometryReader { geometry in
+                   // Combined tooltip with single background
+                   ZStack(alignment: .topTrailing) {
+                       SharedTooltipView(text: tooltipText)
+                           .padding(.horizontal, 16)
+                           .padding(.vertical, 12)
+                           .padding(.trailing, 30) // More room for the X button with larger text
+                       
+                       // X button - now directly in ZStack for better positioning
+                       Button {
+                           withAnimation(.easeOut(duration: 0.2)) {
+                               showingTooltip = false
+                               activeTooltipIdentifier = nil
+                           }
+                       } label: {
+                           Image(systemName: "xmark.circle.fill")
+                               .font(.system(size: 20)) // Larger X button
+                               .foregroundColor(.white)
+                               .padding(4)
+                       }
+                       .accessibility(label: Text("Close tooltip"))
+                   }
+                   .background(Color(UIColor.systemGray2))
+                   .cornerRadius(8)
+                   .shadow(radius: 2)
+                   // Explicitly prevent tap-through with a high-priority gesture
+                   .gesture(
+                       TapGesture()
+                           .onEnded { _ in
+                               // Do nothing, but consume the event
+                           }
+                       , including: .all) // Higher priority than the ScrollView's gesture
+                   // Center horizontally, position above the row
+                   .position(
+                       x: geometry.size.width / 2,
+                       y: 10 // Position tooltip near top of the row
+                   )
+                   .transition(.opacity.combined(with: .scale))
+                   .zIndex(1) // Ensure tooltip appears above other content
+               }
+           }
        }
    }
 }
