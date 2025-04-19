@@ -11,12 +11,14 @@ import SwiftUI
 /// This view embeds the CanvasView which provides the core drawing functionality.
 /// The CanvasView is automatically centered and fills the available space.
 struct ContentView: View {
+    var firebaseService : FirebaseService
+    
     var body: some View {
-        CanvasView()
+        CanvasView(firebaseService: firebaseService)
     }
 }
 
 /// Preview provider for ContentView
 #Preview {
-    ContentView()
+    ContentView(firebaseService: FirebaseService())
 }

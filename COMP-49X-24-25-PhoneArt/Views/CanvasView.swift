@@ -160,6 +160,8 @@ struct CanvasView: View {
             )
             .onAppear {
                 startingZoomLevel = zoomLevel
+                // Load initial artwork when app starts
+                loadInitialArtwork()
             }
       
             // Share button in upper left corner
@@ -1303,7 +1305,78 @@ struct CanvasView: View {
 
         print("[CanvasView] Canvas reset complete.")
     }
-}
+    
+    /// Loads initial artwork when the app starts
+    private func loadInitialArtwork() {
+        Task {
+            do {
+                // Attempt to get artwork from Firebase
+                let artworks = try await firebaseService.getArtwork()
+               
+                if let mostRecentArtwork = artworks.first {
+                    // Found artwork in gallery, load the most recent one
+                    print("[CanvasView] Loading most recent artwork: \(mostRecentArtwork.title ?? "Untitled")")
+                    await MainActor.run {
+                        loadArtwork(artwork: mostRecentArtwork)
+                    }
+                } else {
+                    // No artwork found, create randomized artwork
+                    print("[CanvasView] No artwork found, creating randomized artwork")
+                    await MainActor.run {
+                        createRandomizedArtwork()
+                    }
+                }
+            } catch {
+                // Error fetching artwork, create randomized artwork
+                print("[CanvasView] Error fetching artwork: \(error.localizedDescription)")
+                await MainActor.run {
+                    createRandomizedArtwork()
+                }
+            }
+        }
+    }
+   
+    /// Creates an artwork with randomized properties
+    private func createRandomizedArtwork() {
+        // Random shape type from available options
+        let shapeTypes: [ShapesPanel.ShapeType] = [.circle, .square, .triangle, .pentagon, .star]
+        selectedShape = shapeTypes.randomElement() ?? .circle
+       
+        // Random shape properties within reasonable ranges
+        shapeRotation = Double.random(in: 0...360)
+        shapeScale = Double.random(in: 0.8...1.5)
+        shapeLayer = Double.random(in: 5...30)
+        shapeSkewX = Double.random(in: 0...30)
+        shapeSkewY = Double.random(in: 0...30)
+        shapeSpread = Double.random(in: 5...40)
+        shapeHorizontal = Double.random(in: -50...50)
+        shapeVertical = Double.random(in: -50...50)
+        shapePrimitive = Double.random(in: 1...5).rounded()
+       
+        // Create random colors for the presets (using hue rotation for variety)
+        var randomColors: [Color] = []
+        for i in 0..<10 {
+            let hue = Double.random(in: 0...1)
+            let saturation = Double.random(in: 0.7...1.0)
+            let brightness = Double.random(in: 0.7...1.0)
+            randomColors.append(Color(hue: hue, saturation: saturation, brightness: brightness))
+        }
+       
+        // Apply colors to presets and background
+        colorPresetManager.colorPresets = randomColors
+        colorPresetManager.backgroundColor = Color(hue: Double.random(in: 0...1),
+                                                  saturation: Double.random(in: 0.1...0.3),
+                                                  brightness: Double.random(in: 0.9...1.0))
+                                                 
+        // Random stroke and alpha settings
+        colorPresetManager.strokeWidth = Double.random(in: 0...5)
+        colorPresetManager.strokeColor = randomColors.randomElement() ?? .black
+        colorPresetManager.shapeAlpha = Double.random(in: 0.7...1.0)
+       
+        print("[CanvasView] Created randomized artwork")
+    }
+ }
+
 
 /// Helper for share/import button appearance
 @ViewBuilder
