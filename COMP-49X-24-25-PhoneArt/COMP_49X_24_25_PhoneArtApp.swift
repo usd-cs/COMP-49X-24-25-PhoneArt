@@ -13,9 +13,12 @@ struct COMP_49X_24_25_PhoneArtApp: App {
     // Register app delegate for Firebase setup
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     
+    // Create a shared Firebase service instance
+    @StateObject var firebaseService = FirebaseService()
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(firebaseService: firebaseService)
         }
     }
 }
