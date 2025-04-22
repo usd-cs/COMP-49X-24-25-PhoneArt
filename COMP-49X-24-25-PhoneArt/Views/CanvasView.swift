@@ -90,6 +90,7 @@ struct CanvasView: View {
     @State private var showGalleryFullAlert = false
     @State private var pendingArtworkData: (String, String?) = ("", nil) // (artworkString, title)
     @State private var showArtworkReplaceSheet = false
+    @State private var galleryThumbnails: [String: UIImage] = [:] // Dictionary to store thumbnails [artworkId: UIImage]
    
     // Add initializer for dependency injection
     init(firebaseService: FirebaseService = FirebaseService()) {
@@ -336,6 +337,10 @@ struct CanvasView: View {
         // Add alert for gallery full notification
         .alert("Gallery Full", isPresented: $showGalleryFullAlert) {
             Button("Cancel", role: .cancel) { }
+            Button("Save to Photos") {
+                saveToPhotos()
+                showGalleryFullAlert = false
+            }
             Button("Select Artwork to Replace") {
                 showArtworkReplaceSheet = true
             }
@@ -346,6 +351,7 @@ struct CanvasView: View {
         .sheet(isPresented: $showArtworkReplaceSheet) {
             ArtworkReplaceSheet(
                 artworks: galleryFullArtworks,
+                thumbnails: galleryThumbnails,
                 onSelect: { selectedArtwork in
                     replaceArtwork(with: selectedArtwork)
                 },
@@ -960,6 +966,10 @@ struct CanvasView: View {
                     // Gallery is full, show alert
                     await MainActor.run {
                         galleryFullArtworks = existingArtworks
+                        
+                        // Generate thumbnails for the artworks
+                        generateThumbnails(for: existingArtworks)
+                        
                         showGalleryFullAlert = true
                     }
                 } else if let pieceRef = docRef {
@@ -1454,6 +1464,114 @@ struct CanvasView: View {
             }
         }
     }
+
+    // Add a function to generate thumbnails for artwork selection
+    private func generateThumbnails(for artworks: [ArtworkData]) {
+        Task(priority: .userInitiated) {
+            var generated: [String: UIImage] = [:]
+            let targetSize = CGSize(width: 50, height: 50) // Small preview size for the list
+            
+            for artwork in artworks {
+                // Skip if we already have a thumbnail
+                if let existingThumb = galleryThumbnails[artwork.id] {
+                    generated[artwork.id] = existingThumb
+                    continue
+                }
+                
+                // Decode artwork parameters for rendering
+                if let params = decodeArtworkParameters(from: artwork.artworkString) {
+                    // Create a renderer for the artwork
+                    let renderer = ImageRenderer(content: ArtworkRendererView(params: params))
+                    renderer.scale = UIScreen.main.scale
+                    
+                    if let uiImage = renderer.uiImage {
+                        // Resize the image to thumbnail size
+                        if let resizedImage = resizeImage(image: uiImage, targetSize: targetSize) {
+                            generated[artwork.id] = resizedImage
+                        }
+                    }
+                }
+            }
+            
+            // Update thumbnails on the main thread
+            await MainActor.run {
+                self.galleryThumbnails = generated
+            }
+        }
+    }
+    
+    // Helper for resizing images
+    private func resizeImage(image: UIImage, targetSize: CGSize) -> UIImage? {
+        let size = image.size
+        let widthRatio = targetSize.width / size.width
+        let heightRatio = targetSize.height / size.height
+        let ratio = min(widthRatio, heightRatio)
+        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        let rect = CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height)
+        
+        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+        image.draw(in: rect)
+        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return newImage
+    }
+    
+    // Helper to decode artwork parameters
+    private func decodeArtworkParameters(from artworkString: String) -> ArtworkParameters? {
+        let decodedParams = ArtworkData.decode(from: artworkString)
+        
+        // Helper for doubles
+        func doubleValue(from key: String, default defaultValue: Double) -> Double {
+            guard let stringValue = decodedParams[key], let value = Double(stringValue) else {
+                return defaultValue
+            }
+            return value
+        }
+        
+        guard let shapeString = decodedParams["shape"],
+              let shapeType = ShapesPanel.ShapeType(rawValue: shapeString) else {
+            return nil // Cannot render without shape type
+        }
+        
+        let colors = ArtworkData.reconstructColors(from: decodedParams["colors"] ?? "")
+        let background = ArtworkData.hexToColor(decodedParams["background"] ?? "") ?? .white
+        
+        // Decode color mode flag
+        let useRainbowFlag = (decodedParams["useRainbow"] ?? "false") == "true"
+        
+        // Decode rainbow settings
+        let rainbowStyle = Int(decodedParams["rainbowStyle"] ?? "") ?? 0
+        let hueAdjustment = Double(decodedParams["hueAdj"] ?? "") ?? 0.0
+        let saturationAdjustment = Double(decodedParams["satAdj"] ?? "") ?? 0.0
+        
+        // Decode stroke and alpha
+        let shapeAlpha = doubleValue(from: "alpha", default: 1.0)
+        let strokeWidth = doubleValue(from: "strokeWidth", default: 0.0)
+        let strokeColor = ArtworkData.hexToColor(decodedParams["strokeColor"] ?? "") ?? .black
+        
+        return ArtworkParameters(
+            shapeType: shapeType,
+            rotation: doubleValue(from: "rotation", default: 0),
+            scale: doubleValue(from: "scale", default: 1.0),
+            layer: doubleValue(from: "layer", default: 1.0),
+            skewX: doubleValue(from: "skewX", default: 0),
+            skewY: doubleValue(from: "skewY", default: 0),
+            spread: doubleValue(from: "spread", default: 0),
+            horizontal: doubleValue(from: "horizontal", default: 0),
+            vertical: doubleValue(from: "vertical", default: 0),
+            primitive: doubleValue(from: "primitive", default: 1.0),
+            colorPresets: colors,
+            backgroundColor: background,
+            useDefaultRainbowColors: useRainbowFlag,
+            rainbowStyle: rainbowStyle,
+            hueAdjustment: hueAdjustment,
+            saturationAdjustment: saturationAdjustment,
+            shapeAlpha: shapeAlpha,
+            strokeWidth: strokeWidth,
+            strokeColor: strokeColor
+        )
+    }
 }
 
 /// Helper for share/import button appearance
@@ -1478,6 +1596,7 @@ private func buttonIcon(systemName: String) -> some View {
 
 struct ArtworkReplaceSheet: View {
     let artworks: [ArtworkData]
+    let thumbnails: [String: UIImage]
     let onSelect: (ArtworkData) -> Void
     let onCancel: () -> Void
     
@@ -1499,7 +1618,7 @@ struct ArtworkReplaceSheet: View {
                         }) {
                             HStack {
                                 // Add a preview of the artwork
-                                ArtworkPreview(artwork: artwork)
+                                ArtworkPreview(artwork: artwork, thumbnail: thumbnails[artwork.id])
                                     .frame(width: 50, height: 50)
                                     .cornerRadius(8)
                                     .overlay(
@@ -1538,13 +1657,257 @@ struct ArtworkReplaceSheet: View {
 // New view to render artwork preview
 struct ArtworkPreview: View {
     let artwork: ArtworkData
+    let thumbnail: UIImage?
     
     var body: some View {
-        // Render a simple preview of the artwork
-        ZStack {
-            Color.white // Background color for the preview
-            // Add more rendering logic here if needed
-            // For example, you could decode the artwork string and render shapes
+        if let thumbnailImage = thumbnail {
+            // Use the pre-rendered thumbnail
+            Image(uiImage: thumbnailImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .background(Color(.systemBackground))
+        } else {
+            // Fallback if no thumbnail is available
+            ZStack {
+                Color.gray.opacity(0.3)
+                Image(systemName: "photo")
+                    .foregroundColor(.gray)
+            }
         }
+    }
+}
+
+// Add ArtworkParameters struct to support the ArtworkPreview view
+private struct ArtworkParameters {
+    let shapeType: ShapesPanel.ShapeType
+    let rotation: Double
+    let scale: Double
+    let layer: Double
+    let skewX: Double
+    let skewY: Double
+    let spread: Double
+    let horizontal: Double
+    let vertical: Double
+    let primitive: Double
+    let colorPresets: [Color]
+    let backgroundColor: Color
+    let useDefaultRainbowColors: Bool
+    let rainbowStyle: Int
+    let hueAdjustment: Double
+    let saturationAdjustment: Double
+    let shapeAlpha: Double
+    let strokeWidth: Double
+    let strokeColor: Color
+}
+
+// ArtworkRendererView for rendering thumbnails
+private struct ArtworkRendererView: View {
+    let params: ArtworkParameters
+    // Define the rendering size
+    private let renderSize = CGSize(width: 100, height: 100)
+    
+    var body: some View {
+        Canvas { context, size in
+            // Fill background
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(params.backgroundColor))
+            // Draw the shapes
+            drawShapes(context: context, size: size, params: params)
+        }
+        .frame(width: renderSize.width, height: renderSize.height)
+    }
+    
+    // MARK: - Drawing Logic
+    private func drawShapes(context: GraphicsContext, size: CGSize, params: ArtworkParameters) {
+        let circleRadius = 10.0 // Smaller radius for thumbnails
+        let centerX = size.width / 2
+        let centerY = size.height / 2
+        let center = CGPoint(x: centerX, y: centerY)
+        
+        let numberOfLayers = max(0, min(360, Int(params.layer)))
+        if numberOfLayers > 0 {
+            drawLayers(
+                context: context,
+                layers: numberOfLayers,
+                center: center,
+                radius: circleRadius,
+                params: params
+            )
+        }
+    }
+    
+    private func drawLayers(
+        context: GraphicsContext,
+        layers: Int,
+        center: CGPoint,
+        radius: Double,
+        params: ArtworkParameters
+    ) {
+        let primitiveCount = Int(max(1.0, min(6.0, params.primitive)))
+        
+        for layerIndex in 0..<layers {
+            for primitiveIndex in 0..<primitiveCount {
+                let primitiveAngleOffset = (360.0 / Double(primitiveCount)) * Double(primitiveIndex)
+                drawSingleShape(
+                    context: context,
+                    layerIndex: layerIndex,
+                    primitiveAngleOffset: primitiveAngleOffset,
+                    center: center,
+                    radius: radius,
+                    params: params
+                )
+            }
+        }
+    }
+    
+    private func drawSingleShape(
+        context: GraphicsContext,
+        layerIndex: Int,
+        primitiveAngleOffset: Double,
+        center: CGPoint,
+        radius: Double,
+        params: ArtworkParameters
+    ) {
+        let angleInDegrees = (params.rotation * Double(layerIndex)) + primitiveAngleOffset
+        let angleInRadians = angleInDegrees * (.pi / 180)
+        
+        let scaleFactor = 0.25
+        let layerScale = pow(1.0 + (params.scale - 1.0) * scaleFactor, Double(layerIndex + 1))
+        let scaledRadius = radius * layerScale
+        
+        let spreadDistance = max(params.spread * Double(layerIndex), Double(layerIndex))
+        let spreadX = spreadDistance * cos(angleInRadians)
+        let spreadY = spreadDistance * sin(angleInRadians)
+        
+        let finalX = center.x + scaledRadius * cos(angleInRadians) + spreadX + params.horizontal
+        let finalY = center.y + scaledRadius * sin(angleInRadians) + spreadY - params.vertical
+        
+        let baseRect = CGRect(
+            x: finalX - scaledRadius,
+            y: finalY - scaledRadius,
+            width: scaledRadius * 2,
+            height: scaledRadius * 2
+        )
+        
+        // Create shape path based on type
+        let shapePath: Path
+        switch params.shapeType {
+        case .circle:
+            shapePath = Path(ellipseIn: baseRect)
+        case .square:
+            shapePath = Path(baseRect)
+        case .triangle:
+            var path = Path()
+            path.move(to: CGPoint(x: finalX, y: finalY - scaledRadius))
+            path.addLine(to: CGPoint(x: finalX - scaledRadius, y: finalY + scaledRadius))
+            path.addLine(to: CGPoint(x: finalX + scaledRadius, y: finalY + scaledRadius))
+            path.closeSubpath()
+            shapePath = path
+        case .hexagon:
+            shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 6)
+        case .star:
+            shapePath = createStarPath(center: CGPoint(x: finalX, y: finalY), innerRadius: scaledRadius * 0.4, outerRadius: scaledRadius, points: 5)
+        case .pentagon:
+            shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 5)
+        case .octagon:
+            shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 8)
+        default:
+            // Default to circle for other shapes to keep it simple
+            shapePath = Path(ellipseIn: baseRect)
+        }
+        
+        // Apply transformations
+        var shapeTransform = CGAffineTransform.identity
+        
+        if abs(angleInRadians) > 0.001 {
+            shapeTransform = shapeTransform.rotated(by: CGFloat(angleInRadians))
+        }
+        
+        // Apply skew if needed
+        if abs(params.skewX) > 0.01 || abs(params.skewY) > 0.01 {
+            let skewXRad = (params.skewX / 100.0) * (.pi / 15)
+            let skewYRad = (params.skewY / 100.0) * (.pi / 15)
+            
+            if abs(params.skewX) > 0.01 {
+                let shearX = CGFloat(tan(skewXRad))
+                shapeTransform = shapeTransform.concatenating(CGAffineTransform(a: 1, b: 0, c: shearX, d: 1, tx: 0, ty: 0))
+            }
+            
+            if abs(params.skewY) > 0.01 {
+                let shearY = CGFloat(tan(skewYRad))
+                shapeTransform = shapeTransform.concatenating(CGAffineTransform(a: 1, b: shearY, c: 0, d: 1, tx: 0, ty: 0))
+            }
+        }
+        
+        // Apply the complete transform
+        let toOriginTransform = CGAffineTransform(translationX: -finalX, y: -finalY)
+        let backToPositionTransform = CGAffineTransform(translationX: finalX, y: finalY)
+        let finalTransform = toOriginTransform.concatenating(shapeTransform).concatenating(backToPositionTransform)
+        let transformedPath = shapePath.applying(finalTransform)
+        
+        // Determine color for this layer
+        let layerColor: Color
+        if params.useDefaultRainbowColors {
+            // Use rainbow colors based on style
+            switch params.rainbowStyle {
+            case 1: layerColor = ColorUtils.cyberpunkRainbowColor(for: layerIndex, hueAdjustment: params.hueAdjustment, saturationAdjustment: params.saturationAdjustment)
+            case 2: layerColor = ColorUtils.halfSpectrumRainbowColor(for: layerIndex, hueAdjustment: params.hueAdjustment, saturationAdjustment: params.saturationAdjustment)
+            default: layerColor = ColorUtils.rainbowColor(for: layerIndex, hueAdjustment: params.hueAdjustment, saturationAdjustment: params.saturationAdjustment)
+            }
+        } else {
+            // Use presets
+            if !params.colorPresets.isEmpty {
+                let colorIndex = layerIndex % params.colorPresets.count
+                layerColor = params.colorPresets[colorIndex]
+            } else {
+                layerColor = .gray // Fallback
+            }
+        }
+        
+        // Draw the shape
+        let baseOpacity = params.shapeAlpha
+        let layerOpacity = layerIndex == 0 ? baseOpacity : baseOpacity * 0.8
+        
+        context.fill(transformedPath, with: .color(layerColor.opacity(layerOpacity)))
+        
+        // Apply stroke if needed
+        if params.strokeWidth > 0 {
+            context.stroke(
+                transformedPath,
+                with: .color(params.strokeColor),
+                lineWidth: CGFloat(params.strokeWidth)
+            )
+        }
+    }
+    
+    // Helper to create polygon paths
+    private func createPolygonPath(center: CGPoint, radius: Double, sides: Int) -> Path {
+        var path = Path()
+        let angle = (2.0 * .pi) / Double(sides)
+        for i in 0..<sides {
+            let currentAngle = angle * Double(i) - (.pi / 2)
+            let x = center.x + CGFloat(radius * cos(currentAngle))
+            let y = center.y + CGFloat(radius * sin(currentAngle))
+            if i == 0 { path.move(to: CGPoint(x: x, y: y)) }
+            else { path.addLine(to: CGPoint(x: x, y: y)) }
+        }
+        path.closeSubpath()
+        return path
+    }
+    
+    // Helper to create star paths
+    private func createStarPath(center: CGPoint, innerRadius: Double, outerRadius: Double, points: Int) -> Path {
+        var path = Path()
+        let totalPoints = points * 2
+        let angle = (2.0 * .pi) / Double(totalPoints)
+        for i in 0..<totalPoints {
+            let radius = i % 2 == 0 ? outerRadius : innerRadius
+            let currentAngle = angle * Double(i) - (.pi / 2)
+            let x = center.x + CGFloat(radius * cos(currentAngle))
+            let y = center.y + CGFloat(radius * sin(currentAngle))
+            if i == 0 { path.move(to: CGPoint(x: x, y: y)) }
+            else { path.addLine(to: CGPoint(x: x, y: y)) }
+        }
+        path.closeSubpath()
+        return path
     }
 }
