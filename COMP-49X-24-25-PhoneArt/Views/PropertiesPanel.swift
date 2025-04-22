@@ -5,22 +5,8 @@
 //  Created by Zachary Letcher on 12/08/24.
 //
 
-
-
-
-
-
-
-
 import SwiftUI
 import UIKit
-
-
-
-
-
-
-
 
 /// A panel that provides controls for modifying shape properties on the canvas.
 /// This panel includes sliders and text inputs for precise control over:
@@ -194,9 +180,8 @@ struct PropertiesPanel: View {
                  .onChange(of: primitive) { _, newValue in
                      primitiveText = "\(Int(newValue))"
                  }
-          
              TextField("", text: $primitiveText)
-                 .frame(width: 50)
+                 .frame(width: 65)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
                  .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
@@ -217,9 +202,9 @@ struct PropertiesPanel: View {
                  .onChange(of: rotation) { _, newValue in
                      rotationText = "\(Int(newValue))"
                  }
-          
+             
              TextField("", text: $rotationText)
-                 .frame(width: 50)
+                 .frame(width: 65)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
                  .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
@@ -241,9 +226,9 @@ struct PropertiesPanel: View {
                  .onChange(of: scale) { _, newValue in
                      scaleText = String(format: "%.1f", newValue)
                  }
-          
+            
              TextField("", text: $scaleText)
-                 .frame(width: 50)
+                 .frame(width: 65)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
                  .keyboardType(UIKeyboardType.decimalPad)
                  .multilineTextAlignment(.center)
@@ -265,9 +250,9 @@ struct PropertiesPanel: View {
                  .onChange(of: layer) { _, newValue in
                      layerText = "\(Int(newValue))"
                  }
-          
+            
              TextField("", text: $layerText)
-                 .frame(width: 50)
+                 .frame(width: 65)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
                  .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
@@ -288,9 +273,9 @@ struct PropertiesPanel: View {
                  .onChange(of: skewX) { _, newValue in
                      skewXText = "\(Int(newValue))"
                  }
-          
+            
              TextField("", text: $skewXText)
-                 .frame(width: 50)
+                 .frame(width: 65)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
                  .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
@@ -311,9 +296,9 @@ struct PropertiesPanel: View {
                  .onChange(of: skewY) { _, newValue in
                      skewYText = "\(Int(newValue))"
                  }
-          
+            
              TextField("", text: $skewYText)
-                 .frame(width: 50)
+                 .frame(width: 65)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
                  .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
@@ -334,9 +319,9 @@ struct PropertiesPanel: View {
                  .onChange(of: spread) { _, newValue in
                      spreadText = "\(Int(newValue))"
                  }
-          
+            
              TextField("", text: $spreadText)
-                 .frame(width: 50)
+                 .frame(width: 65)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
                  .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
@@ -357,9 +342,9 @@ struct PropertiesPanel: View {
                  .onChange(of: horizontal) { _, newValue in
                      horizontalText = "\(Int(newValue))"
                  }
-          
+            
              TextField("", text: $horizontalText)
-                 .frame(width: 50)
+                 .frame(width: 65)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
                  .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
@@ -380,9 +365,9 @@ struct PropertiesPanel: View {
                  .onChange(of: vertical) { _, newValue in
                      verticalText = "\(Int(newValue))"
                  }
-          
+            
              TextField("", text: $verticalText)
-                 .frame(width: 50)
+                 .frame(width: 65)
                  .textFieldStyle(RoundedBorderTextFieldStyle())
                  .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
