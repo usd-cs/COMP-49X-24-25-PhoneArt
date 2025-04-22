@@ -27,7 +27,7 @@ class FirebaseService: ObservableObject {
     }
     
     // Save artwork data with proper collection/document structure
-    func saveArtwork(artworkData: String, title: String? = nil) async throws -> DocumentReference {
+    func saveArtwork(artworkData: String, title: String? = nil) async throws -> (DocumentReference?, Bool, [ArtworkData]) {
         let deviceId = getDeviceId()
         
         // First, ensure the device document exists
@@ -39,7 +39,23 @@ class FirebaseService: ObservableObject {
             "lastUpdated": Timestamp(date: Date())
         ], merge: true)
         
-        // Create a new document in the pieces subcollection
+        // Check if user already has 12 artworks
+        let artworkLimit = 12
+        let snapshot = try await deviceRef
+            .collection("pieces")
+            .order(by: "timestamp", descending: true) // Order by newest first for displaying
+            .getDocuments()
+        
+        let existingArtworks = snapshot.documents.compactMap { document in
+            try? document.data(as: ArtworkData.self)
+        }
+        
+        // If at the limit, return information so UI can ask user what to do
+        if existingArtworks.count >= artworkLimit {
+            return (nil, true, existingArtworks)
+        }
+        
+        // Not at limit, proceed with normal save
         let pieceRef = try await deviceRef
             .collection("pieces")
             .addDocument(data: [
@@ -59,7 +75,7 @@ class FirebaseService: ObservableObject {
         print("\nDecoding saved artwork:")
         decodeArtworkString(artworkData)
         
-        return pieceRef
+        return (pieceRef, false, [])
     }
     
     /// Updates an existing artwork document in Firestore.
@@ -103,14 +119,20 @@ class FirebaseService: ObservableObject {
     
     // Add error handling and user feedback
     @MainActor
-    func saveArtworkWithFeedback(artworkData: String, title: String? = nil) async -> (success: Bool, message: String) {
+    func saveArtworkWithFeedback(artworkData: String, title: String? = nil) async -> (success: Bool, message: String, isGalleryFull: Bool, existingArtworks: [ArtworkData]) {
         do {
-            // Assign result to _ to silence warning
-            _ = try await saveArtwork(artworkData: artworkData, title: title)
-            return (true, "Artwork saved successfully!")
+            // Try to save the artwork
+            let (documentRef, isGalleryFull, existingArtworks) = try await saveArtwork(artworkData: artworkData, title: title)
+            
+            // Check if gallery is full
+            if isGalleryFull {
+                return (false, "Gallery is full. You've reached the limit of 12 artworks. Please select an artwork to replace.", true, existingArtworks)
+            } else {
+                return (true, "Artwork saved successfully!", false, [])
+            }
         } catch {
             print("Error saving artwork: \(error)")
-            return (false, "Failed to save artwork: \(error.localizedDescription)")
+            return (false, "Failed to save artwork: \(error.localizedDescription)", false, [])
         }
     }
     
@@ -253,13 +275,68 @@ class FirebaseService: ObservableObject {
            try await pieceRef.delete()
            print("Successfully deleted artwork piece with ID: \(pieceId)")
        }
+
+    // Function to delete all artworks for the current device (for testing purposes)
+    func deleteAllArtworks() async throws {
+        let deviceId = getDeviceId()
+        let deviceRef = db.collection("artwork").document(deviceId)
+        
+        // Get all pieces
+        let snapshot = try await deviceRef
+            .collection("pieces")
+            .getDocuments()
+        
+        // Delete each piece
+        for document in snapshot.documents {
+            try await deviceRef.collection("pieces").document(document.documentID).delete()
+            print("Deleted artwork: \(document.documentID)")
+        }
+        
+        print("Successfully deleted all \(snapshot.count) artworks")
     }
+    
+    // Save artwork when gallery is full by replacing a specific artwork
+    func saveArtworkReplacing(artworkData: String, title: String?, replacingArtwork: ArtworkData) async throws -> DocumentReference {
+        guard let pieceIdToReplace = replacingArtwork.pieceId else {
+            throw NSError(domain: "FirebaseService", code: 400, userInfo: [NSLocalizedDescriptionKey: "Missing pieceId for artwork being replaced"])
+        }
+        
+        let deviceId = getDeviceId()
+        let deviceRef = db.collection("artwork").document(deviceId)
+        
+        // Delete the artwork being replaced
+        try await deviceRef.collection("pieces").document(pieceIdToReplace).delete()
+        print("Deleted artwork with ID: \(pieceIdToReplace) to make room for new artwork")
+        
+        // Create a new document in the pieces subcollection
+        let pieceRef = try await deviceRef
+            .collection("pieces")
+            .addDocument(data: [
+                "deviceId": deviceId,
+                "artworkString": artworkData,
+                "timestamp": Timestamp(date: Date()),
+                "title": title as Any,
+                "pieceId": "" // Placeholder, will be updated below
+            ])
+        
+        // Update the newly created document to include its own ID as a field
+        try await pieceRef.updateData(["pieceId": pieceRef.documentID])
+        
+        print("Successfully saved replacement artwork piece with ID: \(pieceRef.documentID) and added pieceId field.")
+        
+        // Decode and print the artwork string values
+        print("\nDecoding saved artwork:")
+        decodeArtworkString(artworkData)
+        
+        return pieceRef
+    }
+}
 
 
-    // Extension for safer dictionary access (optional but good practice)
-    extension Dictionary where Key == String, Value == Any {
-       func string(forKey key: String) -> String? {
-           return self[key] as? String
-       }
-    }
+// Extension for safer dictionary access (optional but good practice)
+extension Dictionary where Key == String, Value == Any {
+   func string(forKey key: String) -> String? {
+       return self[key] as? String
+   }
+}
 
