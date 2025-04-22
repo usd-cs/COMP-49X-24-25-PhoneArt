@@ -85,6 +85,12 @@ struct CanvasView: View {
     // Add state for tracking photo saving
     @State private var isSavingPhoto = false
    
+    // Add state variables to handle gallery full selection
+    @State private var galleryFullArtworks: [ArtworkData] = []
+    @State private var showGalleryFullAlert = false
+    @State private var pendingArtworkData: (String, String?) = ("", nil) // (artworkString, title)
+    @State private var showArtworkReplaceSheet = false
+   
     // Add initializer for dependency injection
     init(firebaseService: FirebaseService = FirebaseService()) {
         _firebaseService = StateObject(wrappedValue: firebaseService)
@@ -160,6 +166,7 @@ struct CanvasView: View {
             )
             .onAppear {
                 startingZoomLevel = zoomLevel
+                
                 // Load initial artwork when app starts
                 loadInitialArtwork()
             }
@@ -324,6 +331,27 @@ struct CanvasView: View {
                 title: Text(alertTitle),
                 message: Text(alertMessage),
                 dismissButton: .default(Text("OK"))
+            )
+        }
+        // Add alert for gallery full notification
+        .alert("Gallery Full", isPresented: $showGalleryFullAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Select Artwork to Replace") {
+                showArtworkReplaceSheet = true
+            }
+        } message: {
+            Text("Your gallery is full (12 artworks maximum). You need to replace an existing artwork to save a new one.")
+        }
+        // Add sheet for artwork replacement selection
+        .sheet(isPresented: $showArtworkReplaceSheet) {
+            ArtworkReplaceSheet(
+                artworks: galleryFullArtworks,
+                onSelect: { selectedArtwork in
+                    replaceArtwork(with: selectedArtwork)
+                },
+                onCancel: {
+                    showArtworkReplaceSheet = false
+                }
             )
         }
         // Apply the overlay modifier to the ZStack
@@ -920,25 +948,37 @@ struct CanvasView: View {
      // private func saveArtwork() {
      internal func saveArtwork(title: String? = nil) {
         let artworkString = getCurrentArtworkString()
-     
+        
+        // Save for potential later use if gallery is full
+        pendingArtworkData = (artworkString, title)
+        
         Task {
             do {
-                let pieceRef = try await firebaseService.saveArtwork(artworkData: artworkString, title: title)
-                let newPieceId = pieceRef.documentID
-
-                // Update the loadedArtworkData state to reflect the newly saved piece
-                self.loadedArtworkData = ArtworkData(
-                    deviceId: firebaseService.getDeviceId(), // Get current device ID
-                    artworkString: artworkString,
-                    timestamp: Date(), // Use current time
-                    title: title,
-                    pieceId: newPieceId
-                )
-
-                await firebaseService.listAllPieces()
- 
-                await MainActor.run {
-                    confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
+                let (docRef, isGalleryFull, existingArtworks) = try await firebaseService.saveArtwork(artworkData: artworkString, title: title)
+                
+                if isGalleryFull {
+                    // Gallery is full, show alert
+                    await MainActor.run {
+                        galleryFullArtworks = existingArtworks
+                        showGalleryFullAlert = true
+                    }
+                } else if let pieceRef = docRef {
+                    let newPieceId = pieceRef.documentID
+                    
+                    // Update the loadedArtworkData state to reflect the newly saved piece
+                    self.loadedArtworkData = ArtworkData(
+                        deviceId: firebaseService.getDeviceId(), // Get current device ID
+                        artworkString: artworkString,
+                        timestamp: Date(), // Use current time
+                        title: title,
+                        pieceId: newPieceId
+                    )
+                    
+                    await firebaseService.listAllPieces()
+                    
+                    await MainActor.run {
+                        confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -1305,14 +1345,14 @@ struct CanvasView: View {
 
         print("[CanvasView] Canvas reset complete.")
     }
-    
+
     /// Loads initial artwork when the app starts
     private func loadInitialArtwork() {
         Task {
             do {
                 // Attempt to get artwork from Firebase
                 let artworks = try await firebaseService.getArtwork()
-               
+                
                 if let mostRecentArtwork = artworks.first {
                     // Found artwork in gallery, load the most recent one
                     print("[CanvasView] Loading most recent artwork: \(mostRecentArtwork.title ?? "Untitled")")
@@ -1335,24 +1375,24 @@ struct CanvasView: View {
             }
         }
     }
-   
+    
     /// Creates an artwork with randomized properties
     private func createRandomizedArtwork() {
         // Random shape type from available options
         let shapeTypes: [ShapesPanel.ShapeType] = [.circle, .square, .triangle, .pentagon, .star]
         selectedShape = shapeTypes.randomElement() ?? .circle
-       
+        
         // Random shape properties within reasonable ranges
         shapeRotation = Double.random(in: 0...360)
         shapeScale = Double.random(in: 0.8...1.5)
-        shapeLayer = Double.random(in: 5...30)
+        shapeLayer = Double.random(in: 0...5)
         shapeSkewX = Double.random(in: 0...30)
         shapeSkewY = Double.random(in: 0...30)
         shapeSpread = Double.random(in: 5...40)
         shapeHorizontal = Double.random(in: -50...50)
         shapeVertical = Double.random(in: -50...50)
         shapePrimitive = Double.random(in: 1...5).rounded()
-       
+        
         // Create random colors for the presets (using hue rotation for variety)
         var randomColors: [Color] = []
         for i in 0..<10 {
@@ -1361,22 +1401,60 @@ struct CanvasView: View {
             let brightness = Double.random(in: 0.7...1.0)
             randomColors.append(Color(hue: hue, saturation: saturation, brightness: brightness))
         }
-       
+        
         // Apply colors to presets and background
         colorPresetManager.colorPresets = randomColors
-        colorPresetManager.backgroundColor = Color(hue: Double.random(in: 0...1),
-                                                  saturation: Double.random(in: 0.1...0.3),
+        colorPresetManager.backgroundColor = Color(hue: Double.random(in: 0...1), 
+                                                  saturation: Double.random(in: 0.1...0.3), 
                                                   brightness: Double.random(in: 0.9...1.0))
-                                                 
+                                                  
         // Random stroke and alpha settings
         colorPresetManager.strokeWidth = Double.random(in: 0...5)
         colorPresetManager.strokeColor = randomColors.randomElement() ?? .black
         colorPresetManager.shapeAlpha = Double.random(in: 0.7...1.0)
-       
+        
         print("[CanvasView] Created randomized artwork")
     }
- }
 
+    // Add a function to handle replacing an existing artwork
+    private func replaceArtwork(with selectedArtwork: ArtworkData) {
+        let (artworkString, title) = pendingArtworkData
+        
+        Task {
+            do {
+                let pieceRef = try await firebaseService.saveArtworkReplacing(
+                    artworkData: artworkString,
+                    title: title,
+                    replacingArtwork: selectedArtwork
+                )
+                
+                let newPieceId = pieceRef.documentID
+                
+                // Update the loadedArtworkData state to reflect the newly saved piece
+                self.loadedArtworkData = ArtworkData(
+                    deviceId: firebaseService.getDeviceId(),
+                    artworkString: artworkString,
+                    timestamp: Date(),
+                    title: title,
+                    pieceId: newPieceId
+                )
+                
+                await firebaseService.listAllPieces()
+                
+                await MainActor.run {
+                    confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
+                    showArtworkReplaceSheet = false // Close the selection sheet
+                }
+            } catch {
+                await MainActor.run {
+                    alertTitle = "Error Replacing Artwork"
+                    alertMessage = error.localizedDescription
+                    showAlert = true
+                }
+            }
+        }
+    }
+}
 
 /// Helper for share/import button appearance
 @ViewBuilder
@@ -1394,4 +1472,79 @@ private func buttonIcon(systemName: String) -> some View {
         RoundedRectangle(cornerRadius: 8)
             .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
     )
+}
+
+// MARK: - Artwork Replace Sheet
+
+struct ArtworkReplaceSheet: View {
+    let artworks: [ArtworkData]
+    let onSelect: (ArtworkData) -> Void
+    let onCancel: () -> Void
+    
+    // Formatter for timestamp
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter
+    }()
+    
+    var body: some View {
+        NavigationView {
+            List {
+                Section(header: Text("Select an artwork to replace:")) {
+                    ForEach(artworks) { artwork in
+                        Button(action: {
+                            onSelect(artwork)
+                        }) {
+                            HStack {
+                                // Add a preview of the artwork
+                                ArtworkPreview(artwork: artwork)
+                                    .frame(width: 50, height: 50)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                                    )
+                                
+                                VStack(alignment: .leading) {
+                                    Text(artwork.title ?? "Untitled")
+                                        .font(.headline)
+                                    Text("Last modified: \(Self.dateFormatter.string(from: artwork.timestamp))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "arrow.forward.circle")
+                                    .foregroundColor(.blue)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+            }
+            .listStyle(InsetGroupedListStyle())
+            .navigationTitle("Gallery Full")
+            .navigationBarItems(
+                trailing: Button("Cancel") {
+                    onCancel()
+                }
+            )
+        }
+    }
+}
+
+// New view to render artwork preview
+struct ArtworkPreview: View {
+    let artwork: ArtworkData
+    
+    var body: some View {
+        // Render a simple preview of the artwork
+        ZStack {
+            Color.white // Background color for the preview
+            // Add more rendering logic here if needed
+            // For example, you could decode the artwork string and render shapes
+        }
+    }
 }
