@@ -171,18 +171,18 @@ final class TransformationTests: XCTestCase {
       let testCases = [
           (layerCount: 1, expectedLayers: 1),
           (layerCount: 3, expectedLayers: 3),
-          (layerCount: 360, expectedLayers: 360)
+          (layerCount: 72, expectedLayers: 72)
       ]
     
       for testCase in testCases {
-          let numberOfLayers = max(0, min(360, testCase.layerCount))
+          let numberOfLayers = max(0, min(72, testCase.layerCount))
           XCTAssertEqual(numberOfLayers, testCase.expectedLayers,
                         "Layer count calculation failed")
         
           // Test that each layer index is valid
           if numberOfLayers > 0 {
               for layerIndex in 0..<numberOfLayers {
-                  XCTAssertTrue((0..<360).contains(layerIndex),
+                  XCTAssertTrue((0..<72).contains(layerIndex),
                               "Layer index \(layerIndex) out of bounds")
               }
           }

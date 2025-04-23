@@ -65,7 +65,7 @@ final class CanvasViewTests: XCTestCase {
    func testValidationBoundaries() {
        // Test layer count validation
        XCTAssertEqual(sut.testValidateLayerCount(-1), 0, "Negative layer count should be clamped to 0")
-       XCTAssertEqual(sut.testValidateLayerCount(500), 360, "Excessive layer count should be clamped to 360")
+       XCTAssertEqual(sut.testValidateLayerCount(500), 72, "Excessive layer count should be clamped to 72")
        XCTAssertEqual(sut.testValidateLayerCount(50), 50, "Valid layer count should remain unchanged")
       
        // Test scale validation
@@ -150,7 +150,7 @@ final class CanvasViewTests: XCTestCase {
    /// Tests the validation methods using their expected implementations
    func testValidationImplementation() {
        // Verify the implementation matches expected behavior (uses max/min functions)
-       XCTAssertEqual(sut.testValidateLayerCount(-5), max(0, min(360, -5)), "Layer count validation should use max/min")
+       XCTAssertEqual(sut.testValidateLayerCount(-5), max(0, min(72, -5)), "Layer count validation should use max/min")
        XCTAssertEqual(sut.testValidateScale(2.5), max(0.5, min(2.0, 2.5)), "Scale validation should use max/min")
        XCTAssertEqual(sut.testValidateRotation(400), max(0.0, min(360.0, 400)), "Rotation validation should use max/min")
        XCTAssertEqual(sut.testValidateSkewX(120), max(0.0, min(100.0, 120)), "SkewX validation should use max/min")
@@ -591,7 +591,7 @@ extension CanvasView {
    // Extension methods below are for TESTING ONLY and do not affect code coverage
    // For validation methods
    func testValidateLayerCount(_ count: Int) -> Int {
-       max(0, min(360, count))
+       max(0, min(72, count))
    }
  
    func testValidateScale(_ scale: Double) -> Double {

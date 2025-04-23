@@ -12,7 +12,7 @@ import UIKit
 /// This panel includes sliders and text inputs for precise control over:
 /// - Rotation (0-360 degrees)
 /// - Scale (0.5x-2.0x)
-/// - Layer count (0-360)
+/// - Layer count (0-72)
 /// - SkewX and SkewY (0-100)
 /// - Spread (0-100)
 /// - Horizontal position (0-300)
@@ -245,7 +245,7 @@ struct PropertiesPanel: View {
  private func layerPropertyRow() -> some View {
      propertyRow(title: "Layer", icon: "square.3.stack.3d") {
          HStack {
-             Slider(value: $layer, in: 0...360)
+             Slider(value: $layer, in: 0...72)
                  .accessibilityIdentifier("Layer Slider")
                  .onChange(of: layer) { _, newValue in
                      layerText = "\(Int(newValue))"
@@ -257,7 +257,7 @@ struct PropertiesPanel: View {
                  .keyboardType(UIKeyboardType.numberPad)
                  .multilineTextAlignment(.center)
                  .onChange(of: layerText) { _, newValue in
-                     if let value = Double(newValue), value >= 0, value <= 360 {
+                     if let value = Double(newValue), value >= 0, value <= 72 {
                          layer = value
                      }
                  }

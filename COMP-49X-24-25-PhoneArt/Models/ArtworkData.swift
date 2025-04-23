@@ -25,7 +25,7 @@ struct ArtworkData: Codable, Identifiable, Equatable {
   private struct ValidationRanges {
       static let rotation = 0.0...360.0    // Rotation angle in degrees
       static let scale = 0.5...2.0         // Scale factor
-      static let layer = 0.0...360.0       // Layer ordering
+      static let layer = 0.0...72.0       // Layer ordering
       static let skew = 0.0...100.0        // Skew percentage
       static let spread = 0.0...100.0      // Element spread percentage
       static let horizontal = -300.0...300.0 // Horizontal position

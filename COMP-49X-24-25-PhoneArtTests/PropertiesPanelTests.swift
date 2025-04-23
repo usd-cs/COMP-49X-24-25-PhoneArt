@@ -129,7 +129,7 @@ final class PropertiesPanelTests: XCTestCase {
  /// Verifies the following ranges:
  /// - Rotation: 0° to 360°
  /// - Scale: 0.5x to 2.0x
- /// - Layer count: 0 to 360 layers
+ /// - Layer count: 0 to 72 layers
  /// - Skew X/Y: 0% to 80%
  /// - Spread: 0% to 100%
  /// - Horizontal/Vertical: -500 to 500
@@ -140,8 +140,8 @@ final class PropertiesPanelTests: XCTestCase {
      // Test scale range (0.5x to 2.0x magnification)
      XCTAssertTrue((0.5...2.0).contains(scale))
   
-     // Test layer range (0-360 layers)
-     XCTAssertTrue((0...360).contains(layer))
+     // Test layer range (0-72 layers)
+     XCTAssertTrue((0...72).contains(layer))
   
      // Test skew ranges (0-80%)
      XCTAssertTrue((0...80).contains(skewX))
@@ -169,7 +169,7 @@ final class PropertiesPanelTests: XCTestCase {
      XCTAssertEqual(invalidScale, 2.0)
   
      // Test layer bounds - should clamp -5 to 0
-     let invalidLayer = max(0, min(-5, 360))
+     let invalidLayer = max(0, min(-5, 72))
      XCTAssertEqual(invalidLayer, 0)
   
      // Test skew X bounds - should clamp 90% to 80%
@@ -191,7 +191,7 @@ final class PropertiesPanelTests: XCTestCase {
  /// Tests validation for:
  /// - Rotation (0-360°)
  /// - Scale (0.5x-2.0x)
- /// - Layer count (0-360)
+ /// - Layer count (0-72)
  /// - Skew X/Y (0-80%)
  /// - Spread (0-100%)
  /// - Horizontal/Vertical position (-500 to 500)
@@ -207,10 +207,10 @@ final class PropertiesPanelTests: XCTestCase {
          ("scale", 1.5, 1.5),
          ("scale", 2.5, 2.0),
       
-         // Layer tests - validates clamping at 0 and 360 layers
+         // Layer tests - validates clamping at 0 and 72 layers
          ("layer", -10.0, 0.0),
          ("layer", 50.0, 50.0),
-         ("layer", 500.0, 360.0),
+         ("layer", 500.0, 72.0),
       
          // Skew tests - validates 0-80% range for both X and Y
          ("skewX", -30.0, 0.0),

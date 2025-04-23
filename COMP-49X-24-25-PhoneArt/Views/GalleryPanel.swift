@@ -702,7 +702,7 @@ private func drawShapes(context: GraphicsContext, size: CGSize, params: ArtworkP
    let center = CGPoint(x: centerX, y: centerY)
 
 
-   let numberOfLayers = max(0, min(360, Int(params.layer)))
+   let numberOfLayers = max(0, min(72, Int(params.layer)))
    if numberOfLayers > 0 {
        drawLayers(
            context: context,
@@ -759,7 +759,7 @@ private func drawSingleShape(
    let angleInRadians = angleInDegrees * (.pi / 180)
 
 
-   let scaleFactor = 0.25 // Keep scale effect subtle for thumbnails
+   let scaleFactor = 0.125 // Reduced from 0.25 to 0.125 to halve the scale effect strength
    let layerScale = pow(1.0 + (params.scale - 1.0) * scaleFactor, Double(layerIndex + 1))
    let scaledRadius = radius * layerScale
 
@@ -792,9 +792,9 @@ private func drawSingleShape(
        shapeTransform = shapeTransform.rotated(by: CGFloat(angleInRadians))
    }
    if abs(params.skewX) > 0.01 || abs(params.skewY) > 0.01 {
-       // Use original skew values
-       let skewXRad = (params.skewX / 100.0) * (.pi / 15)
-       let skewYRad = (params.skewY / 100.0) * (.pi / 15)
+       // Update skew calculation to match CanvasView implementation
+       let skewXRad = params.skewX * (.pi / 180)
+       let skewYRad = params.skewY * (.pi / 180)
        if abs(params.skewX) > 0.01 {
            let shearX = CGFloat(tan(skewXRad))
            shapeTransform = shapeTransform.concatenating(CGAffineTransform(a: 1, b: 0, c: shearX, d: 1, tx: 0, ty: 0))
@@ -836,7 +836,15 @@ private func drawSingleShape(
 
    // Draw the shape with opacity from decoded parameters
    let baseOpacity = params.shapeAlpha // Use decoded alpha
-   let layerOpacity = layerIndex == 0 ? baseOpacity : baseOpacity * 0.8 // Keep layer dimming logic
+   
+   // Updated opacity calculation to match CanvasView
+   let layerOpacity: Double
+   if baseOpacity >= 0.99 { // Using 0.99 instead of 1.0 to account for floating point imprecision
+       layerOpacity = 1.0 // Keep all layers fully opaque when alpha is 100%
+   } else {
+       // For alpha < 100%, maintain the existing behavior with reduced opacity for deeper layers
+       layerOpacity = layerIndex == 0 ? baseOpacity : baseOpacity * 0.8
+   }
 
 
    layerContext.fill(transformedPath, with: .color(layerColor.opacity(layerOpacity)))

@@ -426,7 +426,7 @@ struct CanvasView: View {
         // Draw center point of the canvas
         drawCenterDot(context: context, at: center, color: .black)
  
-        let numberOfLayers = max(0, min(360, Int(shapeLayer)))
+        let numberOfLayers = max(0, min(72, Int(shapeLayer)))
         if numberOfLayers > 0 {
             drawLayers(
                 context: context,
@@ -504,7 +504,7 @@ struct CanvasView: View {
         let angleInRadians = angleInDegrees * (.pi / 180)
   
         // Scale compounds with each layer, but significantly reduced
-        let scaleFactor = 0.25
+        let scaleFactor = 0.06125  // Reduced from 0.25 to 0.125 to halve the scale effect strength
         let layerScale = pow(1.0 + (shapeScale - 1.0) * scaleFactor, Double(layerIndex + 1))
         let scaledRadius = radius * layerScale
   
@@ -627,8 +627,9 @@ struct CanvasView: View {
         // 2. Apply skew (relative to origin)
         if abs(shapeSkewX) > 0.01 || abs(shapeSkewY) > 0.01 {
             // Use smaller range to prevent extreme distortion
-            let skewXRad = (shapeSkewX / 100.0) * (.pi / 15) // Max ±12 degrees
-            let skewYRad = (shapeSkewY / 100.0) * (.pi / 15) // Max ±12 degrees
+            // Convert degrees directly to radians for 1:1 mapping
+            let skewXRad = shapeSkewX * (.pi / 180) 
+            let skewYRad = shapeSkewY * (.pi / 180)
    
             // Build skew transform (this creates a skew centered at 0,0)
             if abs(shapeSkewX) > 0.01 {
@@ -666,11 +667,27 @@ struct CanvasView: View {
         // Determine color for this layer - cycle through presets based on visible presets
         let layerColor = colorPresetManager.colorForPosition(position: layerIndex)
     
-        // Draw the shape with appropriate opacity
+        // Determine the final opacity for this layer
         let baseOpacity = colorPresetManager.shapeAlpha  // Get the global alpha setting
-        let layerOpacity = layerIndex == 0 ? baseOpacity : baseOpacity * 0.8  // Apply layer-specific opacity
-        layerContext.fill(transformedPath, with: .color(layerColor.opacity(layerOpacity)))
-    
+        
+        // Modified opacity calculation:
+        // When baseOpacity is 1.0 (100%), don't reduce opacity for layers
+        // When baseOpacity is less than 1.0, use the existing falloff logic
+        let layerOpacity: Double
+        if baseOpacity >= 0.99 {  // Using 0.99 instead of 1.0 to account for floating point imprecision
+            layerOpacity = 1.0  // Keep all layers fully opaque when alpha is 100%
+        } else {
+            // For alpha < 100%, maintain the existing behavior with reduced opacity for deeper layers
+            layerOpacity = layerIndex == 0 ? baseOpacity : baseOpacity * 0.8
+        }
+
+        // Explicitly construct the final color with the calculated layerOpacity,
+        // ignoring any potential alpha component in the original layerColor.
+        let finalColor = layerColor.opacity(layerOpacity)
+
+        // Fill the shape with the explicitly constructed final color
+        layerContext.fill(transformedPath, with: .color(finalColor))
+        
         // Apply stroke if width is greater than 0
         if colorPresetManager.strokeWidth > 0 {
             layerContext.stroke(
@@ -1723,7 +1740,7 @@ private struct ArtworkRendererView: View {
         let centerY = size.height / 2
         let center = CGPoint(x: centerX, y: centerY)
         
-        let numberOfLayers = max(0, min(360, Int(params.layer)))
+        let numberOfLayers = max(0, min(72, Int(params.layer)))
         if numberOfLayers > 0 {
             drawLayers(
                 context: context,
