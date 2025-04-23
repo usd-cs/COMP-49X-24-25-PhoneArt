@@ -97,7 +97,7 @@ final class ArtworkDataTests: XCTestCase {
         // Verify all values are clamped to their valid ranges
         XCTAssertEqual(decoded["rotation"], "360.0") // Max rotation
         XCTAssertEqual(decoded["scale"], "2.0") // Max scale
-        XCTAssertEqual(decoded["layer"], "360.0") // Max layer
+        XCTAssertEqual(decoded["layer"], "72.0") // Max layer
         XCTAssertEqual(decoded["skewX"], "100.0") // Max skew
         XCTAssertEqual(decoded["skewY"], "100.0") // Max skew
         XCTAssertEqual(decoded["spread"], "100.0") // Max spread

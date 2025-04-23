@@ -30,7 +30,9 @@ struct ColorUtils {
             // Adjust saturation (scale by 0-1) always
             let newSaturation = min(1.0, max(0.0, saturation * CGFloat(saturationScale)))
 
-            return Color(hue: Double(newHue), saturation: Double(newSaturation), brightness: Double(brightness), opacity: Double(alpha))
+            // Always return a fully opaque color from adjustColor.
+            // Final opacity is handled later in the drawing code based on shapeAlpha.
+            return Color(hue: Double(newHue), saturation: Double(newSaturation), brightness: Double(brightness), opacity: 1.0)
         }
 
         // Return original color if conversion fails
