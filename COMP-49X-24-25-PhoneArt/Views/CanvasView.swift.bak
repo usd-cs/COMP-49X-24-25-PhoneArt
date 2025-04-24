@@ -96,6 +96,17 @@ struct CanvasView: View {
     @State private var hasUnsavedChanges = false
     @State private var lastCheckedArtworkString: String? = nil
    
+    // Add these state variables after existing @State declarations
+    @State private var pendingAction: PendingAction? = nil
+    @State private var showUnsavedChangesAlert = false
+   
+    // Add this enum to handle different types of actions that might discard changes
+    private enum PendingAction {
+        case newCanvas
+        case importArtwork
+        case loadGalleryArtwork(ArtworkData)
+    }
+   
     // Add initializer for dependency injection
     init(firebaseService: FirebaseService = FirebaseService()) {
         _firebaseService = StateObject(wrappedValue: firebaseService)
@@ -133,55 +144,78 @@ struct CanvasView: View {
     }
      // MARK: - Body
     var body: some View {
+        mainContentView
+            .ignoresSafeArea()
+            .alert("Save Artwork", isPresented: $showingSavePrompt) {
+                TextField("Enter Artwork Title (Optional)", text: $artworkTitleInput)
+                    .autocapitalization(.words)
+                    .accessibilityIdentifier("Artwork Title TextField")
+                Button("Cancel", role: .cancel) { }
+                Button("Save") {
+                    let titleToSave = artworkTitleInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                    saveArtwork(title: titleToSave.isEmpty ? nil : titleToSave)
+                }
+                .accessibilityIdentifier("Save Artwork Button")
+            } message: {
+                Text("Enter an optional title for your artwork.")
+            }
+            .applyAnimationChanges(showProperties: showProperties, 
+                                  showColorShapes: showColorShapes, 
+                                  showShapesPanel: showShapesPanel, 
+                                  isSwitchingPanels: isSwitchingPanels)
+            .applyNotificationListeners(colorUpdateTrigger: $colorUpdateTrigger,
+                                       backgroundColorTrigger: $backgroundColorTrigger,
+                                       strokeSettingsTrigger: $strokeSettingsTrigger,
+                                       checkForUnsavedChanges: checkForUnsavedChanges)
+            .applyAlerts(showAlert: $showAlert, 
+                        alertTitle: alertTitle, 
+                        alertMessage: alertMessage,
+                        showGalleryFullAlert: $showGalleryFullAlert,
+                        saveToPhotos: saveToPhotos,
+                        showArtworkReplaceSheet: $showArtworkReplaceSheet)
+            .sheet(isPresented: $showArtworkReplaceSheet) {
+                ArtworkReplaceSheet(
+                    artworks: galleryFullArtworks,
+                    thumbnails: galleryThumbnails,
+                    onSelect: { selectedArtwork in
+                        replaceArtwork(with: selectedArtwork)
+                    },
+                    onCancel: {
+                        showArtworkReplaceSheet = false
+                    }
+                )
+            }
+            .applyOverlays(confirmedArtworkId: confirmedArtworkId,
+                          showImportSheet: showImportSheet,
+                          onImportSuccess: applyImportedArtwork)
+            .alert("Unsaved Changes", isPresented: $showUnsavedChangesAlert) {
+                Button("Cancel", role: .cancel) {
+                    pendingAction = nil
+                }
+                Button("Discard Changes", role: .destructive) {
+                    executePendingAction()
+                }
+                Button("Save First") {
+                    if let artwork = loadedArtworkData, artwork.pieceId != nil {
+                        updateCurrentArtwork(artwork: artwork)
+                    } else {
+                        artworkTitleInput = loadedArtworkData?.title ?? ""
+                        showingSavePrompt = true
+                    }
+                }
+            } message: {
+                Text(getAlertMessage())
+            }
+            .applyShapeChangeListeners(checkForUnsavedChanges: checkForUnsavedChanges)
+    }
+
+    // MARK: - View Components
+    // Main content view
+    private var mainContentView: some View {
         ZStack {
-            GeometryReader { geometry in
-                // Update canvas background to use the background color from ColorPresetManager
-                colorPresetManager.backgroundColor
-                    .frame(
-                        width: 2400,
-                        height: 2600
-                    )
-                    .contentShape(Rectangle())
-                
-                Canvas { context, size in
-                    drawShapes(context: context, size: size)
-                }
-                .accessibilityIdentifier("Canvas")
-                .frame(width: 1600, height: 1800)
-                // Update border color to be dynamic
-                .border(Color(uiColor: .label), width: 2)
-                .scaleEffect(zoomLevel)
-                .offset(x: offset.width, y: offset.height +  canvasVerticalOffset)
-                .animation(.easeInOut(duration: 0.25), value: canvasVerticalOffset)
-            }
-            .gesture(
-                DragGesture()
-                    .onChanged(handleDragChange)
-                    .onEnded(handleDragEnd)
-            )
-            .gesture(
-                MagnificationGesture()
-                    .onChanged { value in
-                        let newZoom = startingZoomLevel * value
-                        zoomLevel = validateZoom(newZoom)
-                    }
-                    .onEnded { value in
-                        startingZoomLevel = zoomLevel
-                    }
-            )
-            .onAppear {
-                startingZoomLevel = zoomLevel
-                
-                // Load initial artwork when app starts
-                loadInitialArtwork()
-                
-                // Check for unsaved changes after loading
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    checkForUnsavedChanges()
-                }
-            }
-      
-            // Share button in upper left corner
+            canvasArea
+            
+            // Share button in upper left
             VStack(spacing: 10) {
                 makeShareButton()
                     .padding(.bottom, 30)
@@ -189,8 +223,8 @@ struct CanvasView: View {
             .padding(.top, 50)
             .padding(.leading, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    
-            // Existing reset button and zoom slider in upper right
+            
+            // Reset button and zoom slider in upper right
             VStack(spacing: 10) {
                 makeResetButton()
                     .padding(.bottom, 30)
@@ -199,47 +233,88 @@ struct CanvasView: View {
             .padding(.top, 50)
             .padding(.trailing, -30)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-      
-            VStack(spacing: 8) {
-                Spacer()
-                
-                // Artwork info banner
-                makeArtworkInfoBanner()
-                    .padding(.bottom, 4)
-                    .zIndex(2) // Ensure it appears above the canvas
-                    
-                // Bottom button bar with evenly distributed buttons
-                // Using Spacers before, between, and after buttons ensures equal spacing
-                HStack(alignment: .center, spacing: 0) {
-                    Spacer() // Left margin spacer for equal distribution
-                 
-                    makePropertiesButton()
+            
+            // Bottom controls
+            bottomControlsView
+            
+            // Panels
+            panelsOverlayView
+        }
+    }
 
-                    Spacer() // Spacer between buttons for equal distribution
-                 
-                    makeColorShapesButton()
-                 
-                    Spacer() // Spacer between buttons for equal distribution
-                 
-                    makeShapesButton()
-
-                    Spacer() // Spacer between buttons for equal distribution
-               
-                    makeGalleryButton()
-                 
-                    Spacer() // Spacer between buttons for equal distribution
-                 
-                    makeCloseButton()
-                 
-                    Spacer() // Right margin spacer for equal distribution
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 20)
+    // Canvas area with gestures
+    private var canvasArea: some View {
+        GeometryReader { geometry in
+            colorPresetManager.backgroundColor
+                .frame(width: 2400, height: 2600)
+                .contentShape(Rectangle())
+            
+            Canvas { context, size in
+                drawShapes(context: context, size: size)
             }
-      
-            // Conditional Overlays for Panels
+            .accessibilityIdentifier("Canvas")
+            .frame(width: 1600, height: 1800)
+            .border(Color(uiColor: .label), width: 2)
+            .scaleEffect(zoomLevel)
+            .offset(x: offset.width, y: offset.height + canvasVerticalOffset)
+            .animation(.easeInOut(duration: 0.25), value: canvasVerticalOffset)
+        }
+        .gesture(
+            DragGesture()
+                .onChanged(handleDragChange)
+                .onEnded(handleDragEnd)
+        )
+        .gesture(
+            MagnificationGesture()
+                .onChanged { value in
+                    let newZoom = startingZoomLevel * value
+                    zoomLevel = validateZoom(newZoom)
+                }
+                .onEnded { value in
+                    startingZoomLevel = zoomLevel
+                }
+        )
+        .onAppear {
+            startingZoomLevel = zoomLevel
+            loadInitialArtwork()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                checkForUnsavedChanges()
+            }
+        }
+    }
+
+    // Bottom controls with artwork info and buttons
+    private var bottomControlsView: some View {
+        VStack(spacing: 8) {
+            Spacer()
+            makeArtworkInfoBanner()
+                .padding(.bottom, 4)
+                .zIndex(2)
+            
+            // Bottom button bar
+            HStack(alignment: .center, spacing: 0) {
+                Spacer()
+                makePropertiesButton()
+                Spacer()
+                makeColorShapesButton()
+                Spacer()
+                makeShapesButton()
+                Spacer()
+                makeGalleryButton()
+                Spacer()
+                makeCloseButton()
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 20)
+        }
+    }
+
+    // Panels overlay view
+    private var panelsOverlayView: some View {
+        Group {
             if showProperties {
-               panelOverlay {
+                panelOverlay {
                     PropertiesPanel(
                         rotation: $shapeRotation,
                         scale: $shapeScale,
@@ -251,202 +326,164 @@ struct CanvasView: View {
                         vertical: $shapeVertical,
                         primitive: $shapePrimitive,
                         isShowing: $showProperties,
-                       onSwitchToColorShapes: switchToColorShapes,
-                       onSwitchToShapes: switchToShapes,
-                       onSwitchToGallery: switchToGallery
-                   )
-               }
+                        onSwitchToColorShapes: switchToColorShapes,
+                        onSwitchToShapes: switchToShapes,
+                        onSwitchToGallery: switchToGallery
+                    )
+                }
             }
-    
+            
             if showColorShapes {
-               panelOverlay {
+                panelOverlay {
                     ColorPropertiesPanel(
                         isShowing: $showColorShapes,
                         selectedColor: $shapeColor,
-                       onSwitchToProperties: switchToProperties,
-                       onSwitchToShapes: switchToShapes,
-                       onSwitchToGallery: switchToGallery
-                   )
-               }
+                        onSwitchToProperties: switchToProperties,
+                        onSwitchToShapes: switchToShapes,
+                        onSwitchToGallery: switchToGallery
+                    )
+                }
             }
-      
+            
             if showShapesPanel {
-               panelOverlay {
+                panelOverlay {
                     ShapesPanel(
                         selectedShape: $selectedShape,
                         isShowing: $showShapesPanel,
-                       onSwitchToProperties: switchToProperties,
-                       onSwitchToColorProperties: switchToColorShapes,
-                       onSwitchToGallery: switchToGallery
-                   )
-               }
-           }
-
-            // Add overlay for the new Gallery Panel
-            if showGalleryPanel {
-               panelOverlay {
-                   GalleryPanel(
-                       isShowing: $showGalleryPanel,
-                       onSwitchToProperties: switchToProperties,
-                       onSwitchToColorShapes: switchToColorShapes,
-                       onSwitchToShapes: switchToShapes,
-                       onLoadArtwork: loadArtwork
-                   )
-               }
-           }
-            
-        }
-        .ignoresSafeArea()
-        // Alert for naming the artwork before saving
-        .alert("Save Artwork", isPresented: $showingSavePrompt) {
-            TextField("Enter Artwork Title (Optional)", text: $artworkTitleInput)
-                .autocapitalization(.words)
-                .accessibilityIdentifier("Artwork Title TextField")
-            Button("Cancel", role: .cancel) { }
-            Button("Save") {
-                // Call saveArtwork with the entered title (or nil if empty)
-                let titleToSave = artworkTitleInput.trimmingCharacters(in: .whitespacesAndNewlines)
-                saveArtwork(title: titleToSave.isEmpty ? nil : titleToSave)
-            }
-            .accessibilityIdentifier("Save Artwork Button")
-        } message: {
-            Text("Enter an optional title for your artwork.")
-        }
-        .onChange(of: showProperties) { _, newValue in
-            if !isSwitchingPanels && newValue {
-                withAnimation(.easeInOut(duration: 0.25)) {}
-            }
-        }
-        .onChange(of: showColorShapes) { _, newValue in
-            if !isSwitchingPanels && newValue {
-                withAnimation(.easeInOut(duration: 0.25)) {}
-            }
-        }
-        .onChange(of: showShapesPanel) { _, newValue in
-            if !isSwitchingPanels && newValue {
-                withAnimation(.easeInOut(duration: 0.25)) {}
-            }
-        }
-        // Add an onReceive modifier to handle color preset changes
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ColorPresetsChanged"))) { _ in
-            // Update the trigger to force a refresh
-            colorUpdateTrigger = UUID()
-            // Check for unsaved changes
-            checkForUnsavedChanges()
-        }
-        // Add an onReceive modifier to handle background color changes
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackgroundColorChanged"))) { _ in
-            // Update the trigger to force a refresh
-            backgroundColorTrigger = UUID()
-            // Check for unsaved changes
-            checkForUnsavedChanges()
-        }
-        // Add an onReceive modifier to handle stroke setting changes
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("StrokeSettingsChanged"))) { _ in
-            // Update the trigger to force a refresh
-            strokeSettingsTrigger = UUID()
-            // Check for unsaved changes
-            checkForUnsavedChanges()
-        }
-        .alert(isPresented: $showAlert) {
-            Alert(
-                title: Text(alertTitle),
-                message: Text(alertMessage),
-                dismissButton: .default(Text("OK"))
-            )
-        }
-        // Add alert for gallery full notification
-        .alert("Gallery Full", isPresented: $showGalleryFullAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Save to Photos") {
-                saveToPhotos()
-                showGalleryFullAlert = false
-            }
-            Button("Select Artwork to Replace") {
-                showArtworkReplaceSheet = true
-            }
-        } message: {
-            Text("Your gallery is full (12 artworks maximum). You need to replace an existing artwork to save a new one.")
-        }
-        // Add sheet for artwork replacement selection
-        .sheet(isPresented: $showArtworkReplaceSheet) {
-            ArtworkReplaceSheet(
-                artworks: galleryFullArtworks,
-                thumbnails: galleryThumbnails,
-                onSelect: { selectedArtwork in
-                    replaceArtwork(with: selectedArtwork)
-                },
-                onCancel: {
-                    showArtworkReplaceSheet = false
-                }
-            )
-        }
-        // Apply the overlay modifier to the ZStack
-        .overlay {
-            // Conditionally display the modal overlay here
-            ZStack { // Wrap existing and new overlay content in a ZStack
-            if let confirmedId = confirmedArtworkId {
-                    // Dimming background for Save Confirmation
-                    Color.black.opacity(0.4)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            // confirmedArtworkId = nil // Optional dismiss
-                        }
-                    
-                    // Confirmation View
-                    SaveConfirmationView(artworkId: confirmedId.id) {
-                        // Action to dismiss the modal
-                        confirmedArtworkId = nil
-                    }
-                    .transition(.opacity.animation(.easeInOut)) // Apply transition here
-                }
-                
-                // Conditionally display Import View
-                if showImportSheet {
-                    // Dimming background for Import View
-                    Color.black.opacity(0.4)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            showImportSheet = false // Dismiss on background tap
-                        }
-                    
-                    // Import View
-                    ImportArtworkView(
-                        onImportSuccess: { artworkString in // Pass the callback
-                            // Decode and apply the imported artwork string
-                            self.applyImportedArtwork(artworkString)
-                            // Dismiss the import sheet
-                            self.showImportSheet = false
-                        },
-                        onClose: { // Add the onClose callback
-                            self.showImportSheet = false
-                        }
+                        onSwitchToProperties: switchToProperties,
+                        onSwitchToColorProperties: switchToColorShapes,
+                        onSwitchToGallery: switchToGallery
                     )
-                    .onChange(of: showImportSheet) { _, newValue in
-                        // If the parent state changes to false, ensure dismissal logic runs if needed
-                        if !newValue {
-                            // Potentially call dismiss() if ImportArtworkView manages its own presentation state
-                            // Environment dismiss should handle this implicitly when presented this way.
-                        }
-                    }
-                    .transition(.opacity.animation(.easeInOut)) // Apply transition here
+                }
+            }
+            
+            if showGalleryPanel {
+                panelOverlay {
+                    GalleryPanel(
+                        isShowing: $showGalleryPanel,
+                        onSwitchToProperties: switchToProperties,
+                        onSwitchToColorShapes: switchToColorShapes,
+                        onSwitchToShapes: switchToShapes,
+                        onLoadArtwork: loadArtwork
+                    )
                 }
             }
         }
-        // Add these .onChange modifiers after the existing .onChange modifiers in the body
-        // These should be added around line 400-ish, with the other .onChange modifiers
-        .onChange(of: shapeRotation) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeScale) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeLayer) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeSkewX) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeSkewY) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeSpread) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeHorizontal) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeVertical) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapePrimitive) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: selectedShape) { _, _ in checkForUnsavedChanges() }
     }
-     /// Draws shapes on the canvas above the origin point
+
+    // MARK: - View Modifiers
+    // Add view modifier extensions to clean up the body
+    extension View {
+        func applyAnimationChanges(showProperties: Bool, showColorShapes: Bool, showShapesPanel: Bool, isSwitchingPanels: Bool) -> some View {
+            self
+                .onChange(of: showProperties) { _, newValue in
+                    if !isSwitchingPanels && newValue {
+                        withAnimation(.easeInOut(duration: 0.25)) {}
+                    }
+                }
+                .onChange(of: showColorShapes) { _, newValue in
+                    if !isSwitchingPanels && newValue {
+                        withAnimation(.easeInOut(duration: 0.25)) {}
+                    }
+                }
+                .onChange(of: showShapesPanel) { _, newValue in
+                    if !isSwitchingPanels && newValue {
+                        withAnimation(.easeInOut(duration: 0.25)) {}
+                    }
+                }
+        }
+        
+        func applyNotificationListeners(colorUpdateTrigger: Binding<UUID>, backgroundColorTrigger: Binding<UUID>, strokeSettingsTrigger: Binding<UUID>, checkForUnsavedChanges: @escaping () -> Void) -> some View {
+            self
+                .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ColorPresetsChanged"))) { _ in
+                    colorUpdateTrigger.wrappedValue = UUID()
+                    checkForUnsavedChanges()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackgroundColorChanged"))) { _ in
+                    backgroundColorTrigger.wrappedValue = UUID()
+                    checkForUnsavedChanges()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: Notification.Name("StrokeSettingsChanged"))) { _ in
+                    strokeSettingsTrigger.wrappedValue = UUID()
+                    checkForUnsavedChanges()
+                }
+        }
+        
+        func applyAlerts(showAlert: Binding<Bool>, alertTitle: String, alertMessage: String, showGalleryFullAlert: Binding<Bool>, saveToPhotos: @escaping () -> Void, showArtworkReplaceSheet: Binding<Bool>) -> some View {
+            self
+                .alert(isPresented: showAlert) {
+                    Alert(
+                        title: Text(alertTitle),
+                        message: Text(alertMessage),
+                        dismissButton: .default(Text("OK"))
+                    )
+                }
+                .alert("Gallery Full", isPresented: showGalleryFullAlert) {
+                    Button("Cancel", role: .cancel) { }
+                    Button("Save to Photos") {
+                        saveToPhotos()
+                        showGalleryFullAlert.wrappedValue = false
+                    }
+                    Button("Select Artwork to Replace") {
+                        showArtworkReplaceSheet.wrappedValue = true
+                    }
+                } message: {
+                    Text("Your gallery is full (12 artworks maximum). You need to replace an existing artwork to save a new one.")
+                }
+        }
+        
+        func applyOverlays(confirmedArtworkId: IdentifiableArtworkID?, showImportSheet: Bool, onImportSuccess: @escaping (String) -> Void) -> some View {
+            self.overlay {
+                ZStack {
+                    if let confirmedId = confirmedArtworkId {
+                        Color.black.opacity(0.4)
+                            .ignoresSafeArea()
+                            .onTapGesture {}
+                        
+                        SaveConfirmationView(artworkId: confirmedId.id) {
+                            // Action to dismiss the modal handled in parent view
+                        }
+                        .transition(.opacity.animation(.easeInOut))
+                    }
+                    
+                    if showImportSheet {
+                        Color.black.opacity(0.4)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                // Dismiss on background tap handled in parent view
+                            }
+                        
+                        ImportArtworkView(
+                            onImportSuccess: { artworkString in
+                                onImportSuccess(artworkString)
+                                // Dismissal handled in parent view
+                            },
+                            onClose: {
+                                // Close handled in parent view
+                            }
+                        )
+                        .transition(.opacity.animation(.easeInOut))
+                    }
+                }
+            }
+        }
+        
+        func applyShapeChangeListeners(checkForUnsavedChanges: @escaping () -> Void) -> some View {
+            self
+                .onChange(of: \CanvasView.shapeRotation) { _, _ in checkForUnsavedChanges() }
+                .onChange(of: \CanvasView.shapeScale) { _, _ in checkForUnsavedChanges() }
+                .onChange(of: \CanvasView.shapeLayer) { _, _ in checkForUnsavedChanges() }
+                .onChange(of: \CanvasView.shapeSkewX) { _, _ in checkForUnsavedChanges() }
+                .onChange(of: \CanvasView.shapeSkewY) { _, _ in checkForUnsavedChanges() }
+                .onChange(of: \CanvasView.shapeSpread) { _, _ in checkForUnsavedChanges() }
+                .onChange(of: \CanvasView.shapeHorizontal) { _, _ in checkForUnsavedChanges() }
+                .onChange(of: \CanvasView.shapeVertical) { _, _ in checkForUnsavedChanges() }
+                .onChange(of: \CanvasView.shapePrimitive) { _, _ in checkForUnsavedChanges() }
+                .onChange(of: \CanvasView.selectedShape) { _, _ in checkForUnsavedChanges() }
+        }
+    }
+
+    /// Draws shapes on the canvas above the origin point
     /// - Parameters:
     ///   - context: The graphics context to draw in
     ///   - size: The size of the canvas
@@ -928,41 +965,41 @@ struct CanvasView: View {
     }
      /// Creates the share button group for the top navigation bar
     private func makeShareButton() -> some View {
-           return VStack(spacing: 20) {
-               // --- Top Button Menu (New / Import) ---
-               Menu {
-                   Button(action: resetCanvasToDefault) {
-                       Label("New Canvas", systemImage: "doc.badge.plus")
-                   }
-                   .accessibilityIdentifier("New Canvas Button")
-
-                   Button(action: { showImportSheet = true }) {
-                       Label("Import from ID...", systemImage: "square.and.arrow.down") // Icon indicates retrieving
-            }
-            .accessibilityIdentifier("Import Button")
-            
-               } label: {
-                   buttonIcon(systemName: "plus") // Keep the plus icon for the menu
-               }
-               .accessibilityIdentifier("New/Import Menu")
-
-               // --- Bottom Button Menu (Share/Save) ---
+        return VStack(spacing: 20) {
+            // --- Top Button Menu (New / Import) ---
             Menu {
-                   // Conditional Save Button
-                   if let artworkToUpdate = loadedArtworkData {
-                       Button(action: { updateCurrentArtwork(artwork: artworkToUpdate) }) {
-                           Label("Save", systemImage: "square.and.arrow.down")
-                       }
-                       .accessibilityIdentifier("Save Update Button")
-                   } // Else (no loaded artwork), this button doesn't appear
+                Button(action: resetCanvasToDefault) {
+                    Label("New Canvas", systemImage: "doc.badge.plus")
+                }
+                .accessibilityIdentifier("New Canvas Button")
 
-                   // --- Save as New Button ---
-                   Button(action: { showSaveAsNewPrompt() }) {
-                       Label("Save as New...", systemImage: "square.and.arrow.down.on.square")
-                   }
-                   .accessibilityIdentifier("Save as New Button")
+                Button(action: showImportMenu) {
+                    Label("Import from ID...", systemImage: "square.and.arrow.down")
+                }
+                .accessibilityIdentifier("Import Button")
+                
+            } label: {
+                buttonIcon(systemName: "plus") // Keep the plus icon for the menu
+            }
+            .accessibilityIdentifier("New/Import Menu")
 
-                   // --- Save to Photos Button ---
+            // --- Bottom Button Menu (Share/Save) ---
+            Menu {
+                // Conditional Save Button
+                if let artworkToUpdate = loadedArtworkData {
+                    Button(action: { updateCurrentArtwork(artwork: artworkToUpdate) }) {
+                        Label("Save", systemImage: "square.and.arrow.down")
+                    }
+                    .accessibilityIdentifier("Save Update Button")
+                } // Else (no loaded artwork), this button doesn't appear
+
+                // --- Save as New Button ---
+                Button(action: { showSaveAsNewPrompt() }) {
+                    Label("Save as New...", systemImage: "square.and.arrow.down.on.square")
+                }
+                .accessibilityIdentifier("Save as New Button")
+
+                // --- Save to Photos Button ---
                 Button(action: saveToPhotos) {
                     Label("Save to Photos", systemImage: "photo")
                 }
@@ -970,11 +1007,11 @@ struct CanvasView: View {
                 
                 // Add other share options here
             } label: {
-                   buttonIcon(systemName: "square.and.arrow.up")
+                buttonIcon(systemName: "square.and.arrow.up")
             }
             .accessibilityIdentifier("Share Button")
         }
-       }
+    }
 
 
        /// Creates a button for the Gallery.
@@ -1021,6 +1058,9 @@ struct CanvasView: View {
                         generateThumbnails(for: existingArtworks)
                         
                         showGalleryFullAlert = true
+                        
+                        // Clear pending action if gallery is full
+                        pendingAction = nil
                     }
                 } else if let pieceRef = docRef {
                     let newPieceId = pieceRef.documentID
@@ -1042,6 +1082,13 @@ struct CanvasView: View {
                     
                     await MainActor.run {
                         confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
+                        
+                        // Execute any pending action that was waiting for the save
+                        if pendingAction != nil {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                self.executePendingAction()
+                            }
+                        }
                     }
                 }
             } catch {
@@ -1050,6 +1097,9 @@ struct CanvasView: View {
                     alertTitle = "Error Saving"
                     alertMessage = error.localizedDescription
                     showAlert = true
+                    
+                    // Clear pending action on error
+                    pendingAction = nil
                 }
             }
         }
@@ -1262,7 +1312,20 @@ struct CanvasView: View {
 
     /// Loads the parameters from a saved ArtworkData object into the current canvas state.
     private func loadArtwork(artwork: ArtworkData) {
+        // Check for unsaved changes first
+        if hasUnsavedChanges {
+            setShowUnsavedChangesAlert(action: .loadGalleryArtwork(artwork))
+            return
+        }
+        
+        // Otherwise proceed with loading
+        performLoadArtwork(artwork: artwork)
+    }
+
+    // Create a new method for the actual load functionality
+    private func performLoadArtwork(artwork: ArtworkData) {
         print("[CanvasView] Loading artwork: \(artwork.title ?? "Untitled") (ID: \(artwork.id))")
+        
         // Store the loaded artwork data, including its pieceId
         self.loadedArtworkData = artwork
 
@@ -1365,12 +1428,22 @@ struct CanvasView: View {
                     alertTitle = "Success"
                     alertMessage = "Artwork '\(artwork.title ?? "Untitled")' updated successfully!"
                     showAlert = true
+                    
+                    // Execute any pending action that was waiting for the save
+                    if pendingAction != nil {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            self.executePendingAction()
+                        }
+                    }
                 }
             } catch {
                 await MainActor.run {
                     alertTitle = "Error Updating"
                     alertMessage = error.localizedDescription
                     showAlert = true
+                    
+                    // Clear pending action on error
+                    pendingAction = nil
                 }
             }
         }
@@ -1414,6 +1487,18 @@ struct CanvasView: View {
 
     /// Resets the canvas state and color settings to their default values.
     private func resetCanvasToDefault() {
+        // Check for unsaved changes first
+        if hasUnsavedChanges {
+            setShowUnsavedChangesAlert(action: .newCanvas)
+            return
+        }
+        
+        // Otherwise proceed with reset
+        performResetCanvasToDefault()
+    }
+
+    // Create a new method for the actual reset functionality
+    private func performResetCanvasToDefault() {
         print("[CanvasView] Resetting canvas to default state.")
 
         // Reset shape parameters
@@ -1957,6 +2042,54 @@ struct CanvasView: View {
         }
         
         return equivalent
+    }
+
+    // Add this method to execute the pending action
+    private func executePendingAction() {
+        guard let action = pendingAction else { return }
+        
+        switch action {
+        case .newCanvas:
+            performResetCanvasToDefault()
+        case .importArtwork:
+            showImportSheet = true
+        case .loadGalleryArtwork(let artwork):
+            performLoadArtwork(artwork: artwork)
+        }
+        
+        // Clear the pending action and hide the alert
+        pendingAction = nil
+        showUnsavedChangesAlert = false
+    }
+
+    // Add this method to handle import menu click with unsaved changes check
+    private func showImportMenu() {
+        if hasUnsavedChanges {
+            setShowUnsavedChangesAlert(action: .importArtwork)
+        } else {
+            showImportSheet = true
+        }
+    }
+
+    private func getAlertMessage() -> String {
+        guard let pendingAction = pendingAction else {
+            return "You have unsaved changes that will be lost."
+        }
+        
+        switch pendingAction {
+        case .newCanvas:
+            return "You have unsaved changes that will be lost if you create a new canvas."
+        case .importArtwork:
+            return "You have unsaved changes that will be lost if you import new artwork."
+        case .loadGalleryArtwork:
+            return "You have unsaved changes that will be lost if you load artwork from the gallery."
+        }
+    }
+
+    // Add method to update the pendingAction and show the alert
+    private func setShowUnsavedChangesAlert(action: PendingAction) {
+        pendingAction = action
+        showUnsavedChangesAlert = true
     }
 }
 

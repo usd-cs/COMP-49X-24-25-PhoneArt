@@ -116,31 +116,37 @@ struct ArtworkData: Codable, Identifiable, Equatable {
       strokeWidth: Double,
       shapeAlpha: Double
   ) -> String {
-      // Validate all numeric inputs
-      let validatedData = [
-          "shape": shapeType.rawValue,
-          "rotation": String(validate(rotation, in: ValidationRanges.rotation)),
-          "scale": String(validate(scale, in: ValidationRanges.scale)),
-          "layer": String(validate(layer, in: ValidationRanges.layer)),
-          "skewX": String(validate(skewX, in: ValidationRanges.skew)),
-          "skewY": String(validate(skewY, in: ValidationRanges.skew)),
-          "spread": String(validate(spread, in: ValidationRanges.spread)),
-          "horizontal": String(validate(horizontal, in: ValidationRanges.horizontal)),
-          "vertical": String(validate(vertical, in: ValidationRanges.vertical)),
-          "primitive": String(validate(primitive, in: ValidationRanges.primitive)),
-          "colors": colorPresets.map { colorToHex($0) }.joined(separator: ","),
-          "background": colorToHex(backgroundColor),
-          "useRainbow": String(useDefaultRainbowColors),
-          "rainbowStyle": String(rainbowStyle),
-          "hueAdj": String(hueAdjustment),
-          "satAdj": String(saturationAdjustment),
-          "presetCount": String(numberOfVisiblePresets),
-          "strokeColor": colorToHex(strokeColor),
-          "strokeWidth": String(strokeWidth),
-          "alpha": String(shapeAlpha)
-      ]
+      // Get the validated data dictionary
+      let validatedData = createValidatedDataMap(
+          shapeType: shapeType,
+          rotation: rotation,
+          scale: scale,
+          layer: layer,
+          skewX: skewX,
+          skewY: skewY,
+          spread: spread,
+          horizontal: horizontal,
+          vertical: vertical,
+          primitive: primitive,
+          colorPresets: colorPresets,
+          backgroundColor: backgroundColor,
+          useDefaultRainbowColors: useDefaultRainbowColors,
+          rainbowStyle: rainbowStyle,
+          hueAdjustment: hueAdjustment,
+          saturationAdjustment: saturationAdjustment,
+          numberOfVisiblePresets: numberOfVisiblePresets,
+          strokeColor: strokeColor,
+          strokeWidth: strokeWidth,
+          shapeAlpha: shapeAlpha
+      )
     
-      return validatedData.map { "\($0.key):\($0.value)" }.joined(separator: ";")
+      // Sort the keys for consistent ordering
+      let sortedKeys = validatedData.keys.sorted()
+      
+      // Create the string with sorted keys
+      return sortedKeys.map { key in
+          "\(key):\(validatedData[key]!)"
+      }.joined(separator: ";")
   }
    /// Decodes an artwork string back into a dictionary of parameters with validation
   /// - Parameter string: The artwork string to decode
@@ -186,6 +192,56 @@ struct ArtworkData: Codable, Identifiable, Equatable {
   static func reconstructColors(from hexString: String) -> [Color] {
       return hexString.components(separatedBy: ",")
           .compactMap { hexToColor($0) }
+  }
+   /// Creates a dictionary of validated artwork parameters without converting to a string
+  /// Useful when we need to manipulate the parameters before creating the final string
+  /// - Parameters same as createArtworkString
+  /// - Returns: A dictionary containing the validated artwork parameters
+  static func createValidatedDataMap(
+      shapeType: ShapesPanel.ShapeType,
+      rotation: Double,
+      scale: Double,
+      layer: Double,
+      skewX: Double,
+      skewY: Double,
+      spread: Double,
+      horizontal: Double,
+      vertical: Double,
+      primitive: Double,
+      colorPresets: [Color],
+      backgroundColor: Color,
+      useDefaultRainbowColors: Bool,
+      rainbowStyle: Int,
+      hueAdjustment: Double,
+      saturationAdjustment: Double,
+      numberOfVisiblePresets: Int,
+      strokeColor: Color,
+      strokeWidth: Double,
+      shapeAlpha: Double
+  ) -> [String: String] {
+      // Validate all numeric inputs
+      return [
+          "shape": shapeType.rawValue,
+          "rotation": String(validate(rotation, in: ValidationRanges.rotation)),
+          "scale": String(validate(scale, in: ValidationRanges.scale)),
+          "layer": String(validate(layer, in: ValidationRanges.layer)),
+          "skewX": String(validate(skewX, in: ValidationRanges.skew)),
+          "skewY": String(validate(skewY, in: ValidationRanges.skew)),
+          "spread": String(validate(spread, in: ValidationRanges.spread)),
+          "horizontal": String(validate(horizontal, in: ValidationRanges.horizontal)),
+          "vertical": String(validate(vertical, in: ValidationRanges.vertical)),
+          "primitive": String(validate(primitive, in: ValidationRanges.primitive)),
+          "colors": colorPresets.map { colorToHex($0) }.joined(separator: ","),
+          "background": colorToHex(backgroundColor),
+          "useRainbow": String(useDefaultRainbowColors),
+          "rainbowStyle": String(rainbowStyle),
+          "hueAdj": String(hueAdjustment),
+          "satAdj": String(saturationAdjustment),
+          "presetCount": String(numberOfVisiblePresets),
+          "strokeColor": colorToHex(strokeColor),
+          "strokeWidth": String(strokeWidth),
+          "alpha": String(shapeAlpha)
+      ]
   }
 }
 
