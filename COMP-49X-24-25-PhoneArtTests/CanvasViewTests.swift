@@ -241,10 +241,17 @@ final class CanvasViewTests: XCTestCase {
            dismissCalled = true
        }
        
-       let view = SaveConfirmationView(artworkId: testID, dismissAction: dismissAction)
+       let view = SaveConfirmationView(
+           artworkId: testID, 
+           title: "Test Title",
+           message: "Test Message",
+           dismissAction: dismissAction
+       )
        
        // Verify properties
        XCTAssertEqual(view.artworkId, testID, "Artwork ID should be set correctly")
+       XCTAssertEqual(view.title, "Test Title", "Title should be set correctly")
+       XCTAssertEqual(view.message, "Test Message", "Message should be set correctly")
        
        // Simulate tapping the "Done" button
        view.dismissAction()

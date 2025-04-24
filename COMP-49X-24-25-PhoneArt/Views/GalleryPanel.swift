@@ -36,6 +36,7 @@ struct GalleryPanel: View {
   @State private var feedbackAlertTitle = ""
   @State private var feedbackAlertMessage = ""
    @Binding var isShowing: Bool
+   @Binding var confirmedArtworkId: IdentifiableArtworkID? // << Add binding for share popup
    // Callbacks for switching panels
   var onSwitchToProperties: () -> Void
   var onSwitchToColorShapes: () -> Void
@@ -43,12 +44,14 @@ struct GalleryPanel: View {
   var onLoadArtwork: (ArtworkData) -> Void // << New callback for loading artwork
    // MARK: - Initialization
   init(isShowing: Binding<Bool>,
+       confirmedArtworkId: Binding<IdentifiableArtworkID?>, // << Add binding to init
        onSwitchToProperties: @escaping () -> Void,
        onSwitchToColorShapes: @escaping () -> Void,
        onSwitchToShapes: @escaping () -> Void,
        onLoadArtwork: @escaping (ArtworkData) -> Void, // << Add callback to initializer
        firebaseService: FirebaseService = FirebaseService.shared) {
       self._isShowing = isShowing
+      self._confirmedArtworkId = confirmedArtworkId // << Initialize binding
       self.onSwitchToProperties = onSwitchToProperties
       self.onSwitchToColorShapes = onSwitchToColorShapes
       self.onSwitchToShapes = onSwitchToShapes
@@ -328,6 +331,9 @@ struct GalleryPanel: View {
                           self.artworkToDelete = item
                           self.showingDeleteConfirmation = true
                           print("Delete requested for: \(item.id)")
+                      },
+                      onShare: { // << Add share action
+                          handleShare(artwork: item)
                       }
                   )
               }
@@ -481,6 +487,22 @@ struct GalleryPanel: View {
       feedbackAlertMessage = message
       showingFeedbackAlert = true
   }
+
+  // << Add handler function for sharing
+  private func handleShare(artwork: ArtworkData) {
+      // Use the pieceId (document ID) for sharing if available, otherwise use the artworkString as a fallback ID
+      guard let shareId = artwork.pieceId else {
+          print("Error: Artwork pieceId is missing, cannot share.")
+          // Optionally show an alert to the user
+          showFeedback(title: "Cannot Share", message: "This artwork seems to be missing its ID.")
+          return
+      }
+      print("Share requested for artwork ID: \(shareId)")
+      // Set the binding to trigger the share popup in CanvasView
+      self.confirmedArtworkId = IdentifiableArtworkID(id: shareId)
+      // Optionally close the gallery panel after sharing
+      // self.isShowing = false
+  }
 }
 
 
@@ -495,6 +517,7 @@ struct ArtworkGridItem: View {
    var onTap: () -> Void
    var onRename: () -> Void
    var onDelete: () -> Void
+   var onShare: () -> Void // << Add share callback
   
    // Placeholder image (lazy generation)
    private let placeholder: UIImage = {
@@ -552,7 +575,18 @@ struct ArtworkGridItem: View {
               Spacer()
             
               // Action buttons on the right
-              HStack(spacing: 8) {
+              HStack(spacing: 8) { // Adjust spacing if needed
+                  // Share button
+                  Button(action: onShare) {
+                      Image(systemName: "square.and.arrow.up")
+                          .font(.system(size: 14))
+                          .foregroundColor(.blue) // Or another appropriate color
+                  }
+                  .frame(width: 30, height: 30)
+                  .background(Color(.systemBackground).opacity(0.001))
+                  .cornerRadius(4)
+                  .accessibilityLabel("Share Artwork")
+
                   // Edit/Rename button
                   Button(action: onRename) { // Use the callback
                       Image(systemName: "pencil")
@@ -563,7 +597,7 @@ struct ArtworkGridItem: View {
                   .background(Color(.systemBackground).opacity(0.001)) // Ensure hittable area
                   .cornerRadius(4)
                   .accessibilityLabel("Rename Artwork")
-                
+
                   // Delete button
                   Button(action: onDelete) { // Use the callback
                       Image(systemName: "trash")
@@ -991,6 +1025,7 @@ private struct ArtworkRendererView: View {
 #Preview {
   GalleryPanel(
       isShowing: .constant(true),
+      confirmedArtworkId: .constant(nil),
       onSwitchToProperties: { print("Switch to Properties") },
       onSwitchToColorShapes: { print("Switch to Color/Shapes") },
       onSwitchToShapes: { print("Switch to Shapes") },
@@ -1003,7 +1038,8 @@ private struct ArtworkRendererView: View {
           thumbnail: nil,
           onTap: { print("Preview: Tap") },
           onRename: { print("Preview: Rename") },
-          onDelete: { print("Preview: Delete") }
+          onDelete: { print("Preview: Delete") },
+          onShare: { print("Preview: Share") }
       )
       .padding()
       .background(Color.gray.opacity(0.2))

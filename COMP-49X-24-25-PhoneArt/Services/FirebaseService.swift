@@ -122,7 +122,7 @@ class FirebaseService: ObservableObject {
     func saveArtworkWithFeedback(artworkData: String, title: String? = nil) async -> (success: Bool, message: String, isGalleryFull: Bool, existingArtworks: [ArtworkData]) {
         do {
             // Try to save the artwork
-            let (documentRef, isGalleryFull, existingArtworks) = try await saveArtwork(artworkData: artworkData, title: title)
+            let (_, isGalleryFull, existingArtworks) = try await saveArtwork(artworkData: artworkData, title: title)
             
             // Check if gallery is full
             if isGalleryFull {
