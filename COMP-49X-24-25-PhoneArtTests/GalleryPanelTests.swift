@@ -216,25 +216,3 @@ final class GalleryPanelTests: XCTestCase {
     }
 
 }
-
-// REMOVE redundant mock and comments
-/*
-// MARK: - Mock FirebaseService Update (if needed)
-// Ensure your MockFirebaseService supports getArtwork() list retrieval
-
-class MockFirebaseService: FirebaseService {
-   // ... existing properties ...
-   var getArtworkListCalled = false
-   var mockArtworkList: [ArtworkData] = [] // For getArtwork()
-
-   override func getArtwork() async throws -> [ArtworkData] {
-       getArtworkListCalled = true
-       if let error = mockError {
-           throw error
-       }
-       return mockArtworkList
-   }
-
-   // ... existing methods ...
-}
-*/ 

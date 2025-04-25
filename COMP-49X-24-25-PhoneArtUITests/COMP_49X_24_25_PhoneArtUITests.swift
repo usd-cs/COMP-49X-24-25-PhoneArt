@@ -1247,7 +1247,88 @@ final class EndToEndUITests: XCTestCase {
         print("Draw, Color, Save, and Verify Panels scenario completed.")
         XCTAssertTrue(true, "Draw, Color, Save, and Verify Panels scenario completed.")
     }
+
+       /**
+    Tests a workflow involving the Color and Shapes panels:
+    1. Opens the Color Shapes panel.
+    2. Taps on a couple of color presets (simulated by coordinate taps).
+    3. Closes the Color Shapes panel.
+    4. Opens the Shapes panel.
+    5. Selects a different shape (e.g., Square, simulated by coordinate tap).
+    6. Closes the Shapes panel.
+    7. Verifies the canvas is still present and the app is responsive.
+    */
+   @MainActor func testColorAndShapePanelWorkflow() throws {
+       // Use accessibility identifiers or coordinates as needed
+       let propertiesButton = app.buttons["Properties Button"] // Need this for final check
+       let colorShapesButton = app.buttons["Color Shapes Button"]
+       let shapesButton = app.buttons["Shapes Button"]
+       let closeButton = app.buttons["Close Button"]
+       let canvas = app.otherElements["Canvas"]
+
+
+       // Ensure starting state
+       XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Canvas should exist")
+
+
+       // --- 1. Interact with Color Shapes Panel ---
+       XCTAssertTrue(colorShapesButton.waitForExistence(timeout: 5), "Color Shapes button should exist")
+       colorShapesButton.tap()
+       sleep(2) // Wait for panel animation
+
+
+       // Simulate tapping on a couple of color presets/options within the panel
+       // Precise tapping requires knowing the layout or using specific identifiers
+       // Using coordinate taps for simulation:
+       app.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.8)).tap() // Tap near first preset
+       sleep(1)
+       app.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.8)).tap() // Tap near second preset
+       sleep(1)
+
+
+       // Close the panel
+       // Ensure close button exists before tapping
+       guard closeButton.waitForExistence(timeout: 5) else {
+             XCTFail("Close button did not appear when expected.")
+             return
+         }
+       closeButton.tap()
+       sleep(1)
+
+
+       // --- 2. Interact with Shapes Panel ---
+       XCTAssertTrue(shapesButton.waitForExistence(timeout: 5), "Shapes button should exist")
+       shapesButton.tap()
+       sleep(2) // Wait for panel animation
+
+
+       // Simulate selecting the 'Square' shape
+       // Again, precise tapping needs layout info or identifiers
+       // Using coordinate tap for simulation:
+       app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.8)).tap() // Tap near where 'Square' might be
+       sleep(1)
+
+
+       // Close the panel
+       // Ensure close button exists before tapping
+       guard closeButton.waitForExistence(timeout: 5) else {
+             XCTFail("Close button did not appear when expected.")
+             return
+         }
+       closeButton.tap()
+       sleep(1)
+
+
+       // --- 3. Verify Final State ---
+       // Ensure the canvas is still present and the app hasn't crashed
+       XCTAssertTrue(canvas.exists, "Canvas should still exist after panel interactions")
+       // Check if a main button is still hittable for responsiveness
+       XCTAssertTrue(propertiesButton.isHittable, "App should remain responsive")
+      
+       print("Color and Shape Panel workflow test completed successfully.")
+   }
 }
+
 
 // MARK: - ShapeUtils UI Tests
 final class ShapeUtilsUITests: XCTestCase {
