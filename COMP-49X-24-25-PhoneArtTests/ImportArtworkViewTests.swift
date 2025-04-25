@@ -5,6 +5,110 @@ import FirebaseFirestore
 import FirebaseCore
 @testable import COMP_49X_24_25_PhoneArt
 
+
+// Mock FirebaseService for testing
+// THIS should be the ONLY definition in your test target.
+class MockFirebaseService: FirebaseService {
+  
+   // Properties for mocking getArtworkPiece
+   var getArtworkByIdCalled = false
+   var mockArtworkDataResult: ArtworkData? // Use this to return specific data
+   var mockError: Error? // Use this to simulate errors
+
+
+   // Properties for mocking saveArtwork
+   var saveArtworkCalled = false
+   var mockSaveDocumentID: String = "default-mock-save-id"
+   var mockSaveError: Error? = nil
+  
+   // Properties for listAllPieces - needed by CanvasViewTests
+   var listAllPiecesCalled = false
+  
+   // Properties for mocking getArtwork (for Gallery Panel)
+   var getArtworkListCalled = false
+   var mockArtworkList: [ArtworkData] = []
+   var mockGetArtworkListError: Error? = nil
+  
+   // Use a different method name to avoid ambiguity if needed
+   // This method needs to be present if used by tests (like CanvasViewTests potentially)
+   func mockSaveArtwork(artworkData: String, title: String? = nil) async throws -> MockDocumentReference {
+       saveArtworkCalled = true
+       if let error = mockSaveError {
+           throw error
+       }
+       // Return mock reference on success - use TestArtwork in ID for clarity
+       print("MockFirebaseService: mockSaveArtwork creating MockDocumentReference with ID: \(mockSaveDocumentID) in TestArtwork collection")
+       // Ensure MockDocumentReference is available or defined
+       // Assuming MockDocumentReference is defined elsewhere (e.g., CanvasViewTests or globally)
+       return MockDocumentReference(documentID: "TestArtwork/\(mockSaveDocumentID)")
+   }
+  
+   // CORRECTLY override methods according to FirebaseService
+   override func getArtworkPiece(pieceId: String) async throws -> ArtworkData? {
+       getArtworkByIdCalled = true
+       print("MockFirebaseService: getArtworkPiece called with ID: \(pieceId) (using TestArtwork collection)")
+       if let error = mockError {
+           print("MockFirebaseService: Throwing error: \(error.localizedDescription)")
+           throw error
+       }
+       print("MockFirebaseService: Returning mock data: \(mockArtworkDataResult == nil ? "nil" : "ArtworkData object")")
+       // Return the specific mock data or nil if simulating not found
+       return mockArtworkDataResult
+   }
+  
+   // Mock for saveArtwork that matches the tuple return type of the original
+   override func saveArtwork(artworkData: String, title: String? = nil) async throws -> (DocumentReference?, Bool, [ArtworkData]) {
+       saveArtworkCalled = true
+       print("MockFirebaseService: saveArtwork called.")
+       if let error = mockSaveError {
+           print("MockFirebaseService: Throwing save error: \(error.localizedDescription)")
+           throw error
+       }
+       // Return a DocumentReference - use TestArtwork collection to avoid touching production data
+       let db = Firestore.firestore()
+       let docRef = db.collection("TestArtwork").document(mockSaveDocumentID)
+       print("MockFirebaseService: Returning mock document reference: \(docRef.path) and default tuple values")
+       // Return the correct tuple type: (DocumentReference?, isGalleryFull, existingArtworks)
+       return (docRef, false, [])
+   }
+  
+   // Mock for listAllPieces
+   override func listAllPieces() async {
+       listAllPiecesCalled = true
+       print("MockFirebaseService: listAllPieces called.")
+   }
+  
+   // Mock for getArtwork
+   override func getArtwork() async throws -> [ArtworkData] {
+       getArtworkListCalled = true
+       print("MockFirebaseService: getArtwork (list) called.")
+       if let error = mockGetArtworkListError {
+            print("MockFirebaseService: Throwing get list error: \(error.localizedDescription)")
+           throw error
+       }
+       print("MockFirebaseService: Returning mock list with \(mockArtworkList.count) items.")
+       return mockArtworkList
+   }
+  
+   // Add methods for other FirebaseService overrides
+   override func updateArtwork(artwork: ArtworkData, newArtworkString: String) async throws {
+       print("MockFirebaseService: updateArtwork called (no-op)")
+       // Can add tracking flags if needed
+   }
+
+
+   override func updateArtworkTitle(artwork: ArtworkData, newTitle: String) async throws {
+       print("MockFirebaseService: updateArtworkTitle called (no-op)")
+       // Can add tracking flags if needed
+   }
+
+
+   override func deleteArtwork(artwork: ArtworkData) async throws {
+       print("MockFirebaseService: deleteArtwork called (no-op)")
+       // Can add tracking flags if needed
+   }
+}
+
 // Assuming an ImportArtworkViewModel exists like this:
 // Define the actual ViewModel class here:
 @MainActor class ImportArtworkViewModel: ObservableObject {
@@ -320,112 +424,3 @@ final class ImportArtworkViewTests: XCTestCase {
          // let badCast = ArtworkData(...) as! NSObject // Removed
     }
 }
-
-// REMOVE the duplicate MockFirebaseService definition below if it exists:
-/*
- class MockFirebaseService: FirebaseService {
-     var fetchResult: Result<ArtworkData, Error>?
-     // ... other properties/methods ...
- }
- */
-
-// Mock FirebaseService for testing ImportArtworkViewModel
-// THIS should be the ONLY definition in your test target.
-class MockFirebaseService: FirebaseService {
-    
-    // Properties for mocking getArtworkPiece
-    var getArtworkByIdCalled = false
-    var mockArtworkDataResult: ArtworkData? // Use this to return specific data
-    var mockError: Error? // Use this to simulate errors
-
-    // Properties for mocking saveArtwork
-    var saveArtworkCalled = false
-    var mockSaveDocumentID: String = "default-mock-save-id"
-    var mockSaveError: Error? = nil
-    
-    // Properties for listAllPieces - needed by CanvasViewTests
-    var listAllPiecesCalled = false
-    
-    // Properties for mocking getArtwork (for Gallery Panel)
-    var getArtworkListCalled = false
-    var mockArtworkList: [ArtworkData] = []
-    var mockGetArtworkListError: Error? = nil
-    
-    // Use a different method name to avoid ambiguity
-    func mockSaveArtwork(artworkData: String, title: String? = nil) async throws -> MockDocumentReference {
-        saveArtworkCalled = true
-        if let error = mockSaveError {
-            throw error
-        }
-        // Return mock reference on success - use TestArtwork in ID for clarity
-        print("MockFirebaseService: mockSaveArtwork creating MockDocumentReference with ID: \(mockSaveDocumentID) in TestArtwork collection")
-        return MockDocumentReference(documentID: "TestArtwork/\(mockSaveDocumentID)")
-    }
-    
-    // CORRECTLY override methods according to FirebaseService
-    override func getArtworkPiece(pieceId: String) async throws -> ArtworkData? {
-        getArtworkByIdCalled = true
-        print("MockFirebaseService: getArtworkPiece called with ID: \(pieceId) (using TestArtwork collection)")
-        if let error = mockError {
-            print("MockFirebaseService: Throwing error: \(error.localizedDescription)")
-            throw error
-        }
-        print("MockFirebaseService: Returning mock data: \(mockArtworkDataResult == nil ? "nil" : "ArtworkData object")")
-        // Return the specific mock data or nil if simulating not found
-        return mockArtworkDataResult
-    }
-    
-    // Mock for saveArtwork that matches the tuple return type of the original
-    override func saveArtwork(artworkData: String, title: String? = nil) async throws -> (DocumentReference?, Bool, [ArtworkData]) {
-        saveArtworkCalled = true
-        print("MockFirebaseService: saveArtwork called.")
-        if let error = mockSaveError {
-            print("MockFirebaseService: Throwing save error: \(error.localizedDescription)")
-            throw error
-        }
-        // Return a DocumentReference - use TestArtwork collection to avoid touching production data
-        let db = Firestore.firestore()
-        let docRef = db.collection("TestArtwork").document(mockSaveDocumentID)
-        print("MockFirebaseService: Returning mock document reference: \(docRef.path) and default tuple values")
-        // Return the correct tuple type: (DocumentReference?, isGalleryFull, existingArtworks)
-        return (docRef, false, []) 
-    }
-    
-    // Mock for listAllPieces
-    override func listAllPieces() async {
-        listAllPiecesCalled = true
-        print("MockFirebaseService: listAllPieces called.")
-    }
-    
-    // Mock for getArtwork
-    override func getArtwork() async throws -> [ArtworkData] {
-        getArtworkListCalled = true
-        print("MockFirebaseService: getArtwork (list) called.")
-        if let error = mockGetArtworkListError {
-             print("MockFirebaseService: Throwing get list error: \(error.localizedDescription)")
-            throw error
-        }
-        print("MockFirebaseService: Returning mock list with \(mockArtworkList.count) items.")
-        return mockArtworkList
-    }
-    
-    // Add methods for other FirebaseService overrides
-    override func updateArtwork(artwork: ArtworkData, newArtworkString: String) async throws {
-        print("MockFirebaseService: updateArtwork called (no-op)")
-        // Can add tracking flags if needed
-    }
-
-    override func updateArtworkTitle(artwork: ArtworkData, newTitle: String) async throws {
-        print("MockFirebaseService: updateArtworkTitle called (no-op)")
-        // Can add tracking flags if needed
-    }
-
-    override func deleteArtwork(artwork: ArtworkData) async throws {
-        print("MockFirebaseService: deleteArtwork called (no-op)")
-        // Can add tracking flags if needed
-    }
-}
-
-// Remove the MARK and comment below if it exists
-// MARK: - Mock FirebaseService Update (if needed)
-// ... 

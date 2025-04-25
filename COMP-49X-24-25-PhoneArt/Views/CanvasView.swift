@@ -31,9 +31,9 @@ struct CanvasView: View {
      /// Properties panel visibility state
     @State internal var showProperties = false
      /// Shape transformation properties
-    @State private var shapeRotation: Double = 0
-    @State private var shapeScale: Double = 1.0
-    @State private var shapeLayer: Double = 0
+    @State internal var shapeRotation: Double = 0
+    @State internal var shapeScale: Double = 1.0
+    @State internal var shapeLayer: Double = 0
     @State private var shapeSkewX: Double = 0
     @State private var shapeSkewY: Double = 0
     @State private var shapeSpread: Double = 0
@@ -57,7 +57,7 @@ struct CanvasView: View {
     /// This color can be changed through the ColorSelectionPanel
     @State private var shapeColor: Color = .red  // Default to red
     /// The currently selected shape type
-    @State private var selectedShape: ShapesPanel.ShapeType = .circle  // Default to circle
+    @State internal var selectedShape: ShapesPanel.ShapeType = .circle  // Default to circle
     /// Use the shared color preset manager for real-time updates
     @ObservedObject private var colorPresetManager = ColorPresetManager.shared
      /// State variable to force view updates when color presets change
@@ -81,7 +81,7 @@ struct CanvasView: View {
     /// State variable for showing the import artwork sheet
     @State private var showImportSheet = false
     /// State variable to track the currently loaded artwork (if any)
-    @State private var loadedArtworkData: ArtworkData? = nil
+    @State internal var loadedArtworkData: ArtworkData? = nil
     // Add state for tracking photo saving
     @State private var isSavingPhoto = false
    
@@ -93,7 +93,7 @@ struct CanvasView: View {
     @State private var galleryThumbnails: [String: UIImage] = [:] // Dictionary to store thumbnails [artworkId: UIImage]
    
     // Add these state variables after the other @State declarations around line 80-90
-    @State private var hasUnsavedChanges = false
+    @State internal var hasUnsavedChanges = false
     @State private var lastCheckedArtworkString: String? = nil
     
     // Track initial state for new artworks
@@ -341,11 +341,27 @@ struct CanvasView: View {
                     .onTapGesture { showImportSheet = false }
 
                 ImportArtworkView(
-                    onImportSuccess: { artworkString in
-                        self.handleImportedArtwork(artworkString)
-                        self.showImportSheet = false
-                    },
-                    onClose: { self.showImportSheet = false }
+                    // Create and configure the ViewModel here
+                    viewModel: {
+                        let vm = ImportArtworkViewModel(firebaseService: FirebaseService.shared)
+                        vm.onImportSuccess = { artworkString in
+                           self.handleImportedArtwork(artworkString)
+                           self.showImportSheet = false // Close sheet on success
+                        }
+                        vm.onCancel = {
+                           self.showImportSheet = false // Close sheet on cancel
+                       }
+                       vm.onError = { errorMessage in
+                           // Optionally handle errors here, e.g., show an alert
+                           print("Import Error: \(errorMessage)")
+                           // Maybe show the alert already handled by the VM, or a different one
+                           // self.alertTitle = "Import Failed"
+                           // self.alertMessage = errorMessage
+                           // self.showAlert = true
+                           self.showImportSheet = false // Close sheet on error too
+                       }
+                       return vm
+                   }() // Immediately invoke the closure to get the configured ViewModel
                 )
                 .transition(.opacity.animation(.easeInOut))
             }
@@ -1456,7 +1472,7 @@ struct CanvasView: View {
    }
 
     /// Loads the parameters from a saved ArtworkData object into the current canvas state.
-    private func loadArtwork(artwork: ArtworkData) {
+    internal func loadArtwork(artwork: ArtworkData) {
         // Check for unsaved changes before loading the artwork
         if !UnsavedChangesHandler.checkUnsavedChanges(
             hasUnsavedChanges: hasUnsavedChanges,
