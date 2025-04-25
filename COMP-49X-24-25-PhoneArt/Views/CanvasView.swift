@@ -95,6 +95,22 @@ struct CanvasView: View {
     // Add these state variables after the other @State declarations around line 80-90
     @State private var hasUnsavedChanges = false
     @State private var lastCheckedArtworkString: String? = nil
+    
+    // Track initial state for new artworks
+    @State private var hasRecordedInitialState = false
+    @State private var initialArtworkString: String? = nil
+   
+    // Add scene phase environment property for monitoring app lifecycle
+    @Environment(\.scenePhase) private var scenePhase
+    // Add alert for restoration dialog
+    @State private var showRestorationAlert = false
+   
+    // State for zoom slider visibility and timer
+    @State private var showZoomSlider = false
+    @State private var lastZoomInteractionTime = Date.distantPast
+    
+    // Timer publisher fires every second
+    private let zoomSliderTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
    
     // Add initializer for dependency injection
     init(firebaseService: FirebaseService = FirebaseService()) {
@@ -111,13 +127,12 @@ struct CanvasView: View {
     }
      /// Computed vertical offset for the canvas when properties panel or color shapes panel is shown
     internal var canvasVerticalOffset: CGFloat {
-        // Estimate heights: Standard ~350, Gallery ~550
-        let standardPanelOffset: CGFloat = -150 // Shift up less for shorter panels
-        let galleryPanelOffset: CGFloat = -220  // Shift up more for the taller gallery
+        // Change the standard offset to -50
+        let standardPanelOffset: CGFloat = -50 
+        // let galleryPanelOffset: CGFloat = -220  // Shift up more for the taller gallery - No longer needed
 
-        if showGalleryPanel {
-            return galleryPanelOffset
-        } else if showProperties || showColorShapes || showShapesPanel {
+        // Use the same offset for all panels
+        if showGalleryPanel || showProperties || showColorShapes || showShapesPanel {
             return standardPanelOffset
         } else {
             return 0 // No panel, no offset
@@ -133,319 +148,321 @@ struct CanvasView: View {
     }
      // MARK: - Body
     var body: some View {
-        ZStack {
-            GeometryReader { geometry in
-                // Update canvas background to use the background color from ColorPresetManager
-                colorPresetManager.backgroundColor
-                    .frame(
-                        width: 2400,
-                        height: 2600
-                    )
-                    .contentShape(Rectangle())
-                
-                Canvas { context, size in
-                    drawShapes(context: context, size: size)
-                }
-                .accessibilityIdentifier("Canvas")
-                .frame(width: 1600, height: 1800)
-                // Update border color to be dynamic
-                .border(Color(uiColor: .label), width: 2)
-                .scaleEffect(zoomLevel)
-                .offset(x: offset.width, y: offset.height +  canvasVerticalOffset)
-                .animation(.easeInOut(duration: 0.25), value: canvasVerticalOffset)
-            }
-            .gesture(
-                DragGesture()
-                    .onChanged(handleDragChange)
-                    .onEnded(handleDragEnd)
-            )
-            .gesture(
-                MagnificationGesture()
-                    .onChanged { value in
-                        let newZoom = startingZoomLevel * value
-                        zoomLevel = validateZoom(newZoom)
-                    }
-                    .onEnded { value in
-                        startingZoomLevel = zoomLevel
-                    }
-            )
-            .onAppear {
-                startingZoomLevel = zoomLevel
-                
-                // Load initial artwork when app starts
-                loadInitialArtwork()
-                
-                // Check for unsaved changes after loading
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    checkForUnsavedChanges()
-                }
-            }
-      
-            // Share button in upper left corner
-            VStack(spacing: 10) {
-                makeShareButton()
-                    .padding(.bottom, 30)
-            }
-            .padding(.top, 50)
-            .padding(.leading, 20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    
-            // Existing reset button and zoom slider in upper right
-            VStack(spacing: 10) {
-                makeResetButton()
-                    .padding(.bottom, 30)
-                makeZoomSlider()
-            }
-            .padding(.top, 50)
-            .padding(.trailing, -30)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-      
-            VStack(spacing: 8) {
-                Spacer()
-                
-                // Artwork info banner
-                makeArtworkInfoBanner()
-                    .padding(.bottom, 4)
-                    .zIndex(2) // Ensure it appears above the canvas
-                    
-                // Bottom button bar with evenly distributed buttons
-                // Using Spacers before, between, and after buttons ensures equal spacing
-                HStack(alignment: .center, spacing: 0) {
-                    Spacer() // Left margin spacer for equal distribution
-                 
-                    makePropertiesButton()
+        // Wrap the entire content in a GeometryReader to get screen dimensions
+        GeometryReader { geometry in
+            ZStack {
+                // Pass geometry down to canvasArea
+                canvasArea(geometry: geometry)
 
-                    Spacer() // Spacer between buttons for equal distribution
-                 
-                    makeColorShapesButton()
-                 
-                    Spacer() // Spacer between buttons for equal distribution
-                 
-                    makeShapesButton()
-
-                    Spacer() // Spacer between buttons for equal distribution
-               
-                    makeGalleryButton()
-                 
-                    Spacer() // Spacer between buttons for equal distribution
-                 
-                    makeCloseButton()
-                 
-                    Spacer() // Right margin spacer for equal distribution
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 20)
+                topControls()
+                bottomControls()
+                panelOverlays()
             }
-      
-            // Conditional Overlays for Panels
-            if showProperties {
-               panelOverlay {
-                    PropertiesPanel(
-                        rotation: $shapeRotation,
-                        scale: $shapeScale,
-                        layer: $shapeLayer,
-                        skewX: $shapeSkewX,
-                        skewY: $shapeSkewY,
-                        spread: $shapeSpread,
-                        horizontal: $shapeHorizontal,
-                        vertical: $shapeVertical,
-                        primitive: $shapePrimitive,
-                        isShowing: $showProperties,
-                       onSwitchToColorShapes: switchToColorShapes,
-                       onSwitchToShapes: switchToShapes,
-                       onSwitchToGallery: switchToGallery
-                   )
-               }
-            }
-    
-            if showColorShapes {
-               panelOverlay {
-                    ColorPropertiesPanel(
-                        isShowing: $showColorShapes,
-                        selectedColor: $shapeColor,
-                       onSwitchToProperties: switchToProperties,
-                       onSwitchToShapes: switchToShapes,
-                       onSwitchToGallery: switchToGallery
-                   )
-               }
-            }
-      
-            if showShapesPanel {
-               panelOverlay {
-                    ShapesPanel(
-                        selectedShape: $selectedShape,
-                        isShowing: $showShapesPanel,
-                       onSwitchToProperties: switchToProperties,
-                       onSwitchToColorProperties: switchToColorShapes,
-                       onSwitchToGallery: switchToGallery
-                   )
-               }
-           }
-
-            // Add overlay for the new Gallery Panel
-            if showGalleryPanel {
-               panelOverlay {
-                   GalleryPanel(
-                       isShowing: $showGalleryPanel,
-                       onSwitchToProperties: switchToProperties,
-                       onSwitchToColorShapes: switchToColorShapes,
-                       onSwitchToShapes: switchToShapes,
-                       onLoadArtwork: loadArtwork
-                   )
-               }
-           }
-            
+            .ignoresSafeArea()
+            // Keep modifiers attached to the main ZStack
+            .alert("Save Artwork", isPresented: $showingSavePrompt) { saveArtworkAlertContent() }
+            .alert(alertTitle, isPresented: $showAlert) { unsavedChangesAlertButtons() } message: { Text(alertMessage) }
+            .alert("Gallery Full", isPresented: $showGalleryFullAlert) { galleryFullAlertButtons() } message: { galleryFullAlertMessage() }
+            .alert("Restore Previous Work", isPresented: $showRestorationAlert) { restorationAlertButtons() } message: { restorationAlertMessage() }
+            .onChange(of: scenePhase) { oldPhase, newPhase in handleScenePhaseChange(newPhase: newPhase) }
+            .onReceive(zoomSliderTimer) { _ in handleZoomTimerTick() }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ColorPresetsChanged"))) { _ in handleColorPresetsChanged() }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackgroundColorChanged"))) { _ in handleBackgroundColorChanged() }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("StrokeSettingsChanged"))) { _ in handleStrokeSettingsChanged() }
+            .sheet(isPresented: $showArtworkReplaceSheet) { artworkReplaceSheetContent() }
+            .overlay { modalOverlays() } // Extracted modal overlays (Share ID, Import)
+            .onChange(of: shapeRotation) { _, _ in checkForUnsavedChanges() }
+            .onChange(of: shapeScale) { _, _ in checkForUnsavedChanges() }
+            .onChange(of: shapeLayer) { _, _ in checkForUnsavedChanges() }
+            .onChange(of: shapeSkewX) { _, _ in checkForUnsavedChanges() }
+            .onChange(of: shapeSkewY) { _, _ in checkForUnsavedChanges() }
+            .onChange(of: shapeSpread) { _, _ in checkForUnsavedChanges() }
+            .onChange(of: shapeHorizontal) { _, _ in checkForUnsavedChanges() }
+            .onChange(of: shapeVertical) { _, _ in checkForUnsavedChanges() }
+            .onChange(of: shapePrimitive) { _, _ in checkForUnsavedChanges() }
+            .onChange(of: selectedShape) { _, _ in checkForUnsavedChanges() }
+            // Note: .onChange for panel visibility (showProperties, etc.) removed as they only contained empty animations
         }
-        .ignoresSafeArea()
-        // Alert for naming the artwork before saving
-        .alert("Save Artwork", isPresented: $showingSavePrompt) {
-            TextField("Enter Artwork Title (Optional)", text: $artworkTitleInput)
-                .autocapitalization(.words)
-                .accessibilityIdentifier("Artwork Title TextField")
-            Button("Cancel", role: .cancel) { }
-            Button("Save") {
-                // Call saveArtwork with the entered title (or nil if empty)
-                let titleToSave = artworkTitleInput.trimmingCharacters(in: .whitespacesAndNewlines)
-                saveArtwork(title: titleToSave.isEmpty ? nil : titleToSave)
-            }
-            .accessibilityIdentifier("Save Artwork Button")
-        } message: {
-            Text("Enter an optional title for your artwork.")
-        }
-        .onChange(of: showProperties) { _, newValue in
-            if !isSwitchingPanels && newValue {
-                withAnimation(.easeInOut(duration: 0.25)) {}
-            }
-        }
-        .onChange(of: showColorShapes) { _, newValue in
-            if !isSwitchingPanels && newValue {
-                withAnimation(.easeInOut(duration: 0.25)) {}
-            }
-        }
-        .onChange(of: showShapesPanel) { _, newValue in
-            if !isSwitchingPanels && newValue {
-                withAnimation(.easeInOut(duration: 0.25)) {}
-            }
-        }
-        // Add an onReceive modifier to handle color preset changes
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ColorPresetsChanged"))) { _ in
-            // Update the trigger to force a refresh
-            colorUpdateTrigger = UUID()
-            // Check for unsaved changes
-            checkForUnsavedChanges()
-        }
-        // Add an onReceive modifier to handle background color changes
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackgroundColorChanged"))) { _ in
-            // Update the trigger to force a refresh
-            backgroundColorTrigger = UUID()
-            // Check for unsaved changes
-            checkForUnsavedChanges()
-        }
-        // Add an onReceive modifier to handle stroke setting changes
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("StrokeSettingsChanged"))) { _ in
-            // Update the trigger to force a refresh
-            strokeSettingsTrigger = UUID()
-            // Check for unsaved changes
-            checkForUnsavedChanges()
-        }
-        .alert(isPresented: $showAlert) {
-            Alert(
-                title: Text(alertTitle),
-                message: Text(alertMessage),
-                dismissButton: .default(Text("OK"))
-            )
-        }
-        // Add alert for gallery full notification
-        .alert("Gallery Full", isPresented: $showGalleryFullAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Save to Photos") {
-                saveToPhotos()
-                showGalleryFullAlert = false
-            }
-            Button("Select Artwork to Replace") {
-                showArtworkReplaceSheet = true
-            }
-        } message: {
-            Text("Your gallery is full (12 artworks maximum). You need to replace an existing artwork to save a new one.")
-        }
-        // Add sheet for artwork replacement selection
-        .sheet(isPresented: $showArtworkReplaceSheet) {
-            ArtworkReplaceSheet(
-                artworks: galleryFullArtworks,
-                thumbnails: galleryThumbnails,
-                onSelect: { selectedArtwork in
-                    replaceArtwork(with: selectedArtwork)
-                },
-                onCancel: {
-                    showArtworkReplaceSheet = false
-                }
-            )
-        }
-        // Apply the overlay modifier to the ZStack
-        .overlay {
-            // Conditionally display the modal overlay here
-            ZStack { // Wrap existing and new overlay content in a ZStack
-            if let confirmedId = confirmedArtworkId {
-                    // Dimming background for Save Confirmation
-                    Color.black.opacity(0.4)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            // confirmedArtworkId = nil // Optional dismiss
-                        }
-                    
-                    // Confirmation View
-                    SaveConfirmationView(artworkId: confirmedId.id) {
-                        // Action to dismiss the modal
-                        confirmedArtworkId = nil
-                    }
-                    .transition(.opacity.animation(.easeInOut)) // Apply transition here
-                }
-                
-                // Conditionally display Import View
-                if showImportSheet {
-                    // Dimming background for Import View
-                    Color.black.opacity(0.4)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            showImportSheet = false // Dismiss on background tap
-                        }
-                    
-                    // Import View
-                    ImportArtworkView(
-                        onImportSuccess: { artworkString in // Pass the callback
-                            // Decode and apply the imported artwork string
-                            self.applyImportedArtwork(artworkString)
-                            // Dismiss the import sheet
-                            self.showImportSheet = false
-                        },
-                        onClose: { // Add the onClose callback
-                            self.showImportSheet = false
-                        }
-                    )
-                    .onChange(of: showImportSheet) { _, newValue in
-                        // If the parent state changes to false, ensure dismissal logic runs if needed
-                        if !newValue {
-                            // Potentially call dismiss() if ImportArtworkView manages its own presentation state
-                            // Environment dismiss should handle this implicitly when presented this way.
-                        }
-                    }
-                    .transition(.opacity.animation(.easeInOut)) // Apply transition here
-                }
-            }
-        }
-        // Add these .onChange modifiers after the existing .onChange modifiers in the body
-        // These should be added around line 400-ish, with the other .onChange modifiers
-        .onChange(of: shapeRotation) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeScale) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeLayer) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeSkewX) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeSkewY) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeSpread) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeHorizontal) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapeVertical) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: shapePrimitive) { _, _ in checkForUnsavedChanges() }
-        .onChange(of: selectedShape) { _, _ in checkForUnsavedChanges() }
     }
+
+    // MARK: - Extracted View Builders
+
+    @ViewBuilder
+    private func canvasArea(geometry: GeometryProxy) -> some View { // Receive geometry
+        // Use local GeometryReader for canvas size if needed, but use outer geometry for offset calculation
+        GeometryReader { canvasGeometry in // This inner reader is for the canvas element itself
+            colorPresetManager.backgroundColor
+                .frame(
+                    width: 2400,
+                    height: 2600
+                )
+                .contentShape(Rectangle())
+
+            Canvas { context, size in
+                drawShapes(context: context, size: size)
+            }
+            .accessibilityIdentifier("Canvas")
+            .frame(width: 1600, height: 1800)
+            .border(Color(uiColor: .label), width: 2)
+            .scaleEffect(zoomLevel)
+            // Calculate and apply offset using the new function and outer geometry
+            .offset(x: offset.width, y: offset.height + calculateCanvasVerticalOffset(geometry: geometry))
+            .animation(.easeInOut(duration: 0.25), value: showProperties || showColorShapes || showShapesPanel || showGalleryPanel) // Animate based on panel visibility
+        }
+        .gesture(
+            DragGesture()
+                .onChanged(handleDragChange)
+                .onEnded(handleDragEnd)
+        )
+        .gesture(
+            MagnificationGesture()
+                .onChanged { value in handleZoomChange(value: value) }
+                .onEnded { value in handleZoomEnd(value: value) }
+        )
+        .onAppear { handleOnAppear() }
+    }
+
+    @ViewBuilder
+    private func topControls() -> some View {
+        // Share button in upper left corner
+        VStack(spacing: 10) {
+            makeShareButton()
+                .padding(.bottom, 30)
+        }
+        .padding(.top, 50)
+        .padding(.leading, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+        // Reset button and zoom slider in upper right
+        VStack(spacing: 10) {
+            makeResetButton()
+                .padding(.bottom, 30)
+            if showZoomSlider {
+                makeZoomSlider()
+                    .transition(.opacity.animation(.easeInOut))
+            }
+        }
+        .frame(width: 50) 
+        .padding(.top, 50)
+        // Reduce trailing padding slightly
+        .padding(.trailing, 15) 
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+    }
+
+    @ViewBuilder
+    private func bottomControls() -> some View {
+        VStack(spacing: 8) {
+            Spacer()
+
+            makeArtworkInfoBanner()
+                .padding(.bottom, 4)
+                .zIndex(2)
+
+            HStack(alignment: .center, spacing: 0) {
+                Spacer()
+                makePropertiesButton()
+                Spacer()
+                makeColorShapesButton()
+                Spacer()
+                makeShapesButton()
+                Spacer()
+                makeGalleryButton()
+                Spacer()
+                makeCloseButton()
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 20)
+        }
+    }
+
+    @ViewBuilder
+    private func panelOverlays() -> some View {
+        if showProperties {
+            panelOverlay {
+                PropertiesPanel(
+                    rotation: $shapeRotation, scale: $shapeScale, layer: $shapeLayer,
+                    skewX: $shapeSkewX, skewY: $shapeSkewY, spread: $shapeSpread,
+                    horizontal: $shapeHorizontal, vertical: $shapeVertical, primitive: $shapePrimitive,
+                    isShowing: $showProperties,
+                    onSwitchToColorShapes: switchToColorShapes, onSwitchToShapes: switchToShapes, onSwitchToGallery: switchToGallery
+                )
+            }
+        }
+
+        if showColorShapes {
+            panelOverlay {
+                ColorPropertiesPanel(
+                    isShowing: $showColorShapes, selectedColor: $shapeColor,
+                    onSwitchToProperties: switchToProperties, onSwitchToShapes: switchToShapes, onSwitchToGallery: switchToGallery
+                )
+            }
+        }
+
+        if showShapesPanel {
+            panelOverlay {
+                ShapesPanel(
+                    selectedShape: $selectedShape, isShowing: $showShapesPanel,
+                    onSwitchToProperties: switchToProperties, onSwitchToColorProperties: switchToColorShapes, onSwitchToGallery: switchToGallery
+                )
+            }
+        }
+
+        if showGalleryPanel {
+            panelOverlay {
+                GalleryPanel(
+                    isShowing: $showGalleryPanel, confirmedArtworkId: $confirmedArtworkId,
+                    onSwitchToProperties: switchToProperties, onSwitchToColorShapes: switchToColorShapes,
+                    onSwitchToShapes: switchToShapes, onLoadArtwork: loadArtwork
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func modalOverlays() -> some View {
+        ZStack {
+            if let confirmedId = confirmedArtworkId {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .onTapGesture { confirmedArtworkId = nil }
+
+                SaveConfirmationView(
+                    artworkId: confirmedId.id,
+                    title: "Share Your Artwork",
+                    message: "Copy this ID and share it with friends so they can view and import your artwork!"
+                ) { confirmedArtworkId = nil }
+                .transition(.opacity.animation(.easeInOut))
+            }
+
+            if showImportSheet {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .onTapGesture { showImportSheet = false }
+
+                ImportArtworkView(
+                    onImportSuccess: { artworkString in
+                        self.handleImportedArtwork(artworkString)
+                        self.showImportSheet = false
+                    },
+                    onClose: { self.showImportSheet = false }
+                )
+                .transition(.opacity.animation(.easeInOut))
+            }
+        }
+    }
+    
+    // MARK: - Alert Content Builders (Helper functions for alert modifiers)
+
+    @ViewBuilder
+    private func saveArtworkAlertContent() -> some View {
+        TextField("Enter Artwork Title (Optional)", text: $artworkTitleInput)
+            .autocapitalization(.words)
+            .accessibilityIdentifier("Artwork Title TextField")
+        Button("Cancel", role: .cancel) { }
+        Button("Save") {
+            let titleToSave = artworkTitleInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            saveArtwork(title: titleToSave.isEmpty ? nil : titleToSave, forceSaveAsNew: true)
+        }
+        .accessibilityIdentifier("Save Artwork Button")
+    }
+
+    @ViewBuilder
+    private func unsavedChangesAlertButtons() -> some View {
+        if alertTitle.contains("Unsaved Changes") ||
+           alertTitle == "Import Artwork" ||
+           alertTitle == "Create New Artwork" ||
+           alertTitle == "Share Artwork" ||
+           alertTitle == "Share Modified Artwork" {
+            UnsavedChangesHandler.alertButtons()
+        } else {
+            Button("OK", role: .cancel) {}
+        }
+    }
+
+    @ViewBuilder
+    private func galleryFullAlertButtons() -> some View {
+        Button("Cancel", role: .cancel) {}
+        Button("View Gallery & Replace") {
+            showArtworkReplaceSheet = true
+        }
+    }
+
+    @ViewBuilder
+    private func galleryFullAlertMessage() -> some View {
+         Text("You've reached the limit of 12 saved artworks. Please select an artwork to replace or cancel.")
+    }
+    
+    @ViewBuilder
+    private func restorationAlertButtons() -> some View {
+        UnsavedChangesHandler.restorationAlertButtons()
+    }
+
+    @ViewBuilder
+    private func restorationAlertMessage() -> some View {
+        Text("We found unsaved work from your previous session. Would you like to restore it?")
+    }
+
+    @ViewBuilder
+    private func artworkReplaceSheetContent() -> some View {
+        ArtworkReplaceSheet(
+            artworks: galleryFullArtworks,
+            thumbnails: galleryThumbnails,
+            onSelect: { selectedArtwork in replaceArtwork(with: selectedArtwork) },
+            onCancel: { showArtworkReplaceSheet = false }
+        )
+    }
+    
+    // MARK: - Event Handlers (for extracted logic)
+
+    private func handleZoomChange(value: MagnificationGesture.Value) {
+        let newZoom = startingZoomLevel * value
+        zoomLevel = validateZoom(newZoom)
+        showZoomSlider = true
+        lastZoomInteractionTime = Date()
+    }
+
+    private func handleZoomEnd(value: MagnificationGesture.Value) {
+        startingZoomLevel = zoomLevel
+        lastZoomInteractionTime = Date()
+    }
+
+    private func handleOnAppear() {
+        startingZoomLevel = zoomLevel
+        loadInitialArtwork()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            checkForUnsavedChanges()
+        }
+        checkForPreviouslySavedWork()
+    }
+
+    private func handleScenePhaseChange(newPhase: ScenePhase) {
+        if newPhase == .background || newPhase == .inactive {
+            saveCurrentStateForRestoration()
+        }
+    }
+
+    private func handleZoomTimerTick() {
+        if showZoomSlider && Date().timeIntervalSince(lastZoomInteractionTime) > 15 {
+            showZoomSlider = false
+        }
+    }
+    
+    private func handleColorPresetsChanged() {
+        colorUpdateTrigger = UUID()
+        checkForUnsavedChanges()
+    }
+
+    private func handleBackgroundColorChanged() {
+        backgroundColorTrigger = UUID()
+        checkForUnsavedChanges()
+    }
+
+    private func handleStrokeSettingsChanged() {
+        strokeSettingsTrigger = UUID()
+        checkForUnsavedChanges()
+    }
+
      /// Draws shapes on the canvas above the origin point
     /// - Parameters:
     ///   - context: The graphics context to draw in
@@ -928,54 +945,143 @@ struct CanvasView: View {
     }
      /// Creates the share button group for the top navigation bar
     private func makeShareButton() -> some View {
-           return VStack(spacing: 20) {
-               // --- Top Button Menu (New / Import) ---
-               Menu {
-                   Button(action: resetCanvasToDefault) {
-                       Label("New Canvas", systemImage: "doc.badge.plus")
-                   }
-                   .accessibilityIdentifier("New Canvas Button")
+        return VStack(spacing: 20) {
+            // --- Top Button Menu (New / Import) ---
+            Menu {
+                Button(action: resetCanvasToDefault) {
+                    Label("New Canvas", systemImage: "doc.badge.plus")
+                }
+                .accessibilityIdentifier("New Canvas Button")
 
-                   Button(action: { showImportSheet = true }) {
-                       Label("Import from ID...", systemImage: "square.and.arrow.down") // Icon indicates retrieving
+                Button(action: { showImportSheet = true }) {
+                    Label("Import from ID...", systemImage: "square.and.arrow.down") // Icon indicates retrieving
             }
             .accessibilityIdentifier("Import Button")
             
-               } label: {
-                   buttonIcon(systemName: "plus") // Keep the plus icon for the menu
-               }
-               .accessibilityIdentifier("New/Import Menu")
+            } label: {
+                buttonIcon(systemName: "plus") // Keep the plus icon for the menu
+            }
+            .accessibilityIdentifier("New/Import Menu")
 
-               // --- Bottom Button Menu (Share/Save) ---
+            // --- Share Button (for showing artwork ID) ---
+            Button(action: showShareArtworkID) {
+                buttonIcon(systemName: "square.and.arrow.up")
+            }
+            .accessibilityIdentifier("Share Button")
+            
+            // --- Save Button Menu ---
             Menu {
-                   // Conditional Save Button
-                   if let artworkToUpdate = loadedArtworkData {
-                       Button(action: { updateCurrentArtwork(artwork: artworkToUpdate) }) {
-                           Label("Save", systemImage: "square.and.arrow.down")
-                       }
-                       .accessibilityIdentifier("Save Update Button")
-                   } // Else (no loaded artwork), this button doesn't appear
+                // Conditional Save Button
+                if let artworkToUpdate = loadedArtworkData {
+                    Button(action: { updateCurrentArtwork(artwork: artworkToUpdate) }) {
+                        Label("Save", systemImage: "square.and.arrow.down")
+                    }
+                    .accessibilityIdentifier("Save Update Button")
+                } // Else (no loaded artwork), this button doesn't appear
 
-                   // --- Save as New Button ---
-                   Button(action: { showSaveAsNewPrompt() }) {
-                       Label("Save as New...", systemImage: "square.and.arrow.down.on.square")
-                   }
-                   .accessibilityIdentifier("Save as New Button")
+                // --- Save as New Button ---
+                Button(action: { showSaveAsNewPrompt() }) {
+                    Label("Save as New...", systemImage: "square.and.arrow.down.on.square")
+                }
+                .accessibilityIdentifier("Save as New Button")
 
-                   // --- Save to Photos Button ---
+                // --- Save to Photos Button ---
                 Button(action: saveToPhotos) {
                     Label("Save to Photos", systemImage: "photo")
                 }
                 .accessibilityIdentifier("Save to Photos Button")
                 
-                // Add other share options here
             } label: {
-                   buttonIcon(systemName: "square.and.arrow.up")
+                buttonIcon(systemName: "arrow.down.to.line")
             }
-            .accessibilityIdentifier("Share Button")
+            .accessibilityIdentifier("Save Menu Button")
         }
-       }
+    }
 
+    /// Shows the artwork ID for sharing
+    private func showShareArtworkID() {
+        // If we have an existing artwork
+        if let existingArtwork = loadedArtworkData, let pieceId = existingArtwork.pieceId {
+            // Check if there are unsaved changes before sharing
+            if hasUnsavedChanges {
+                // If there are unsaved changes, prompt the user to save or share the previous version
+                _ = UnsavedChangesHandler.alertButtons()
+            } else {
+                // No unsaved changes, show the ID directly
+                confirmedArtworkId = IdentifiableArtworkID(id: pieceId)
+                return
+            }
+        }
+        
+        // If there's no existing artwork with an ID, we need to save it first
+        // Check if there are unsaved changes
+        _ = UnsavedChangesHandler.checkUnsavedChanges(
+            hasUnsavedChanges: true, // Always consider this a potential data operation
+            action: .shareArtwork, // Use the specific share artwork action type
+            showAlert: $showAlert,
+            alertTitle: $alertTitle,
+            alertMessage: $alertMessage,
+            onProceed: {
+                // We still need to save, but the user chose to proceed without saving
+                alertTitle = "Cannot Share"
+                alertMessage = "To share artwork, you need to save it first. Tap the save button (↓) below and select Save as New."
+                showAlert = true
+            },
+            onSaveFirst: {
+                // Save directly as new artwork without prompting for title
+                let artworkString = getCurrentArtworkString()
+                Task {
+                    do {
+                        let (docRef, isGalleryFull, existingArtworks) = try await firebaseService.saveArtwork(artworkData: artworkString, title: "Untitled Artwork")
+                        
+                        if isGalleryFull {
+                            // Gallery is full, show alert
+                            await MainActor.run {
+                                galleryFullArtworks = existingArtworks
+                                generateThumbnails(for: existingArtworks)
+                                showGalleryFullAlert = true
+                            }
+                        } else if let pieceRef = docRef {
+                            let newPieceId = pieceRef.documentID
+                            
+                            // Update state on the main thread
+                            await MainActor.run {
+                                // Update the loadedArtworkData state
+                                self.loadedArtworkData = ArtworkData(
+                                    deviceId: firebaseService.getDeviceId(),
+                                    artworkString: artworkString,
+                                    timestamp: Date(),
+                                    title: "Untitled Artwork",
+                                    pieceId: newPieceId
+                                )
+                                
+                                // Reset unsaved changes flag
+                                self.hasUnsavedChanges = false
+                                self.lastCheckedArtworkString = artworkString
+                                
+                                // Show the share ID confirmation
+                                self.confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
+                            }
+                        }
+                    } catch {
+                        // Display error alert
+                        await MainActor.run {
+                            alertTitle = "Error Saving"
+                            alertMessage = error.localizedDescription
+                            showAlert = true
+                        }
+                    }
+                }
+            }
+        ) // Removed the trailing closure here as it's not needed after assigning to _
+        // { // Trailing closure `onNoActionNeeded` - This part is now handled inside the check
+        //     // If we get here, there were no unsaved changes and no artwork ID
+        //     // This is an edge case - there are no unsaved changes but also no ID
+        //     alertTitle = "Cannot Share"
+        //     alertMessage = "To share artwork, you need to save it first. Tap the save button (↓) below and select Save as New."
+        //     showAlert = true
+        // }
+    }
 
        /// Creates a button for the Gallery.
        private func makeGalleryButton() -> some View {
@@ -1002,9 +1108,61 @@ struct CanvasView: View {
 
      // Modify access level
      // private func saveArtwork() {
-     internal func saveArtwork(title: String? = nil) {
+    internal func saveArtwork(title: String? = nil, forceSaveAsNew: Bool = false) {
         let artworkString = getCurrentArtworkString()
         
+        // Check if we're working with an existing artwork that should be updated
+        if !forceSaveAsNew, let existingArtwork = loadedArtworkData, let pieceId = existingArtwork.pieceId {
+            // Use existing artwork's title if no new title provided
+            let titleToUse = title ?? existingArtwork.title
+            
+            // Update the existing artwork instead of creating a new one
+            Task {
+                do {
+                    try await firebaseService.updateArtwork(artwork: existingArtwork, newArtworkString: artworkString)
+                    
+                    // Wrap state updates in MainActor.run to ensure UI refreshes
+                    await MainActor.run {
+                        // Update the loadedArtworkData state to reflect the updated piece
+                        self.loadedArtworkData = ArtworkData(
+                            deviceId: existingArtwork.deviceId,
+                            artworkString: artworkString,
+                            timestamp: Date(), // Use current time for the update
+                            title: titleToUse,
+                            pieceId: pieceId
+                        )
+                        
+                        // Reset unsaved changes flag since we just updated the artwork
+                        self.hasUnsavedChanges = false
+                        self.lastCheckedArtworkString = artworkString
+                        
+                        // Execute any pending action after saving
+                        if let pendingAction = UnsavedChangesHandler.proceedAction {
+                            // Call the pending action (e.g., load imported artwork)
+                            pendingAction()
+                            // Clear the pending action to prevent duplicate execution
+                            UnsavedChangesHandler.proceedAction = nil
+                            UnsavedChangesHandler.saveFirstAction = nil
+                            UnsavedChangesHandler.saveExistingArtworkAction = nil // Clear this too
+                        } else {
+                            // If no pending action, show success feedback
+                            alertTitle = "Success"
+                            alertMessage = "Artwork '\(titleToUse ?? "Untitled")' updated successfully!"
+                            showAlert = true
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        alertTitle = "Error Updating"
+                        alertMessage = error.localizedDescription
+                        showAlert = true
+                    }
+                }
+            }
+            return // Exit early, we've handled the update
+        }
+        
+        // If we're here, this is a new artwork (or one without a pieceId)
         // Save for potential later use if gallery is full
         pendingArtworkData = (artworkString, title)
         
@@ -1025,24 +1183,37 @@ struct CanvasView: View {
                 } else if let pieceRef = docRef {
                     let newPieceId = pieceRef.documentID
                     
-                    // Update the loadedArtworkData state to reflect the newly saved piece
-                    self.loadedArtworkData = ArtworkData(
-                        deviceId: firebaseService.getDeviceId(), // Get current device ID
-                        artworkString: artworkString,
-                        timestamp: Date(), // Use current time
-                        title: title,
-                        pieceId: newPieceId
-                    )
-                    
-                    // Reset unsaved changes flag since we just saved the artwork
-                    hasUnsavedChanges = false
-                    lastCheckedArtworkString = artworkString
-                    
-                    await firebaseService.listAllPieces()
-                    
+                    // Explicitly update state on the main thread to ensure UI updates
                     await MainActor.run {
-                        confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
+                        // Update the loadedArtworkData state to reflect the newly saved piece
+                        self.loadedArtworkData = ArtworkData(
+                            deviceId: firebaseService.getDeviceId(), // Get current device ID
+                            artworkString: artworkString,
+                            timestamp: Date(), // Use current time
+                            title: title,
+                            pieceId: newPieceId
+                        )
+                        
+                        // Reset unsaved changes flag since we just saved the artwork
+                        self.hasUnsavedChanges = false
+                        self.lastCheckedArtworkString = artworkString
+                        
+                        // Show confirmation ID (optional)
+                        self.confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
+                        
+                        // Execute any pending action after saving
+                        if let pendingAction = UnsavedChangesHandler.proceedAction {
+                            // Call the pending action (e.g., reset canvas or load imported artwork)
+                            pendingAction()
+                            // Clear the pending action to prevent duplicate execution
+                            UnsavedChangesHandler.proceedAction = nil
+                            UnsavedChangesHandler.saveFirstAction = nil
+                            UnsavedChangesHandler.saveExistingArtworkAction = nil // Ensure this is also cleared
+                        }
                     }
+                    
+                    // List pieces (async) - this shouldn't affect UI state
+                    await firebaseService.listAllPieces()
                 }
             } catch {
                 // Display error alert
@@ -1057,62 +1228,74 @@ struct CanvasView: View {
   
    /// Save artwork to Photos library using ImageRenderer
    private func saveToPhotos() {
-       Task { @MainActor in
-              // 1. Define the content to render (Canvas + Background)
-              let contentToRender = ZStack {
-                   colorPresetManager.backgroundColor
-                   Canvas { context, size in
-                      // Use the exact same drawing logic as the main canvas
-                       drawShapes(context: context, size: size)
-                   }
+       // Set loading state immediately on the main thread
+       isSavingPhoto = true
+       
+       // Define the content to render (must be done on main thread)
+       let contentToRender = ZStack {
+           colorPresetManager.backgroundColor
+           Canvas { context, size in
+               drawShapes(context: context, size: size)
+           }
+       }
+       .frame(width: 1600, height: 1800)
+       
+       // Detach the rendering and saving to a background task
+       Task.detached(priority: .userInitiated) {
+           // 1. Create the ImageRenderer (can be done in background)
+           let renderer = await ImageRenderer(content: contentToRender)
+           // Get scale and set it on the main thread, awaiting the operation
+           await MainActor.run { // << Add await here
+               renderer.scale = UIScreen.main.scale 
+           }
+
+           // 2. Render the image (potentially heavy, keep off main thread)
+           // Await the rendering process
+           let uiImage = await renderer.uiImage 
+
+           // 3. Check if rendering succeeded
+           guard let imageToSave = uiImage else {
+               // If rendering failed, update UI back on main thread
+               await MainActor.run {
+                   isSavingPhoto = false
+                   alertTitle = "Error"
+                   alertMessage = "Failed to render artwork image."
+                   showAlert = true
                }
-              // Use the desired export size (e.g., canvas size without border)
-              .frame(width: 1600, height: 1800)
+               return // Stop execution
+           }
 
+           // 4. Call the ExportService function
+           // Use await withCheckedContinuation to bridge the callback
+           let success = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+               ExportService.saveImageToPhotoLibrary(image: imageToSave) { success, error in
+                   if !success {
+                       print("Error saving to photos: \(error?.localizedDescription ?? "Unknown error")")
+                   }
+                   continuation.resume(returning: success)
+               }
+           }
 
-              // 2. Create the ImageRenderer
-              let renderer = ImageRenderer(content: contentToRender)
-
-
-              // Optional: Improve quality if needed by setting scale
-              renderer.scale = UIScreen.main.scale // Use screen scale for better quality
-
-
-              // 3. Render the image (this can take time, keep ProgressView)
-              isSavingPhoto = true
-
-
-              // Asynchronously render the image
-              if let uiImage = renderer.uiImage {
-                  // 4. Call the updated ExportService function
-                  ExportService.saveImageToPhotoLibrary(image: uiImage) { success, error in
-                      // Update UI on the main thread
-                      isSavingPhoto = false // Hide progress view
-
-                  
-                   if success {
-                          alertTitle = "Success"
-                          alertMessage = "Artwork saved to Photos successfully!"
-                   } else {
-                          alertTitle = "Error"
-                          alertMessage = error?.localizedDescription ?? "Failed to save to Photos"
-                      }
-                      showAlert = true // Show the result alert
-                  }
-              } else {
-                  // Handle rendering failure
-                  isSavingPhoto = false
-                  alertTitle = "Error"
-                  alertMessage = "Failed to render artwork image."
-                  showAlert = true
-              }
-          }
-      }
+           // 5. Update UI on the main thread after saving attempt
+           await MainActor.run {
+               isSavingPhoto = false // Hide progress view
+               if success {
+                   alertTitle = "Success"
+                   alertMessage = "Artwork saved to Photos successfully!"
+               } else {
+                   // Error details are logged by ExportService or above
+                   alertTitle = "Error"
+                   alertMessage = "Failed to save to Photos. Check Photos permissions?"
+               }
+               showAlert = true // Show the result alert
+           }
+       }
+   }
 
 
     // Function to apply imported artwork data to the canvas state
     private func applyImportedArtwork(_ artworkString: String) {
-        print("Applying imported artwork string:")
+        print("[DEBUG] applyImportedArtwork: Starting to apply artwork string")
         // Decode the string into a dictionary
         let decodedParams = ArtworkData.decode(from: artworkString)
         print("Decoded parameters: \(decodedParams)")
@@ -1181,11 +1364,6 @@ struct CanvasView: View {
         }
         // --- End Re-add ---
 
-        // Note: Stroke and Alpha are not currently saved in artworkString, 
-        // so they are not applied during import.
-
-        print("Finished applying imported artwork.")
-        
         // --- Apply Stroke and Alpha --- 
         if let strokeColorString = decodedParams["strokeColor"], 
            let color = ArtworkData.hexToColor(strokeColorString) {
@@ -1206,6 +1384,23 @@ struct CanvasView: View {
             print("Applied shapeAlpha: \(colorPresetManager.shapeAlpha)")
         }
         // --- End Apply Stroke and Alpha ---
+        
+        // Create a new ArtworkData object from the imported string
+        self.loadedArtworkData = ArtworkData(
+            deviceId: firebaseService.getDeviceId(),
+            artworkString: artworkString,
+            timestamp: Date(),
+            title: "Imported Artwork",
+            pieceId: nil // Not saved to database yet
+        )
+        
+        // Set the imported artwork string as the reference point
+        lastCheckedArtworkString = artworkString
+        
+        // Force artwork to be considered "saved" initially after import
+        hasUnsavedChanges = false
+        
+        print("[DEBUG] applyImportedArtwork: Completed with loadedArtworkData set")
     }
 
     // Helper function to safely convert String? to Double?
@@ -1262,6 +1457,52 @@ struct CanvasView: View {
 
     /// Loads the parameters from a saved ArtworkData object into the current canvas state.
     private func loadArtwork(artwork: ArtworkData) {
+        // Check for unsaved changes before loading the artwork
+        if !UnsavedChangesHandler.checkUnsavedChanges(
+            hasUnsavedChanges: hasUnsavedChanges,
+            action: .importArtwork,
+            showAlert: $showAlert,
+            alertTitle: $alertTitle,
+            alertMessage: $alertMessage,
+            onProceed: {
+                // If user confirms, proceed with loading the artwork
+                self.applyLoadedArtwork(artwork)
+            },
+            onSaveFirst: {
+                // Check if we're updating existing artwork
+                if let existingArtwork = self.loadedArtworkData, existingArtwork.pieceId != nil {
+                    // Save existing artwork directly without showing name prompt
+                    self.saveArtwork(title: existingArtwork.title)
+                    
+                    // Store artwork temporarily
+                    let tempArtwork = artwork
+                    // We'll rely on the save action to proceed with loading after saving
+                    UnsavedChangesHandler.proceedAction = {
+                        self.applyLoadedArtwork(tempArtwork)
+                    }
+                } else {
+                    // Save first, then load
+                    showingSavePrompt = true
+                    // Store artwork temporarily
+                    let tempArtwork = artwork
+                    // We'll rely on the save action to proceed with loading after saving
+                    UnsavedChangesHandler.proceedAction = {
+                        self.applyLoadedArtwork(tempArtwork)
+                    }
+                }
+            }
+        ) {
+            // If checkUnsavedChanges returns false, it means an alert is shown
+            // So we return early and wait for the user's decision
+            return
+        }
+        
+        // If we get here, there were no unsaved changes, so proceed with loading
+        applyLoadedArtwork(artwork)
+    }
+    
+    /// Private helper method that performs the actual artwork loading
+    private func applyLoadedArtwork(_ artwork: ArtworkData) {
         print("[CanvasView] Loading artwork: \(artwork.title ?? "Untitled") (ID: \(artwork.id))")
         // Store the loaded artwork data, including its pieceId
         self.loadedArtworkData = artwork
@@ -1414,6 +1655,48 @@ struct CanvasView: View {
 
     /// Resets the canvas state and color settings to their default values.
     private func resetCanvasToDefault() {
+        // Check for unsaved changes first
+        if !UnsavedChangesHandler.checkUnsavedChanges(
+            hasUnsavedChanges: hasUnsavedChanges,
+            action: .newArtwork,
+            showAlert: $showAlert,
+            alertTitle: $alertTitle,
+            alertMessage: $alertMessage,
+            onProceed: {
+                // Reset canvas when user confirms
+                performCanvasReset()
+            },
+            onSaveFirst: {
+                // Check if we're updating existing artwork
+                if let existingArtwork = self.loadedArtworkData, existingArtwork.pieceId != nil {
+                    // Save existing artwork directly without showing name prompt
+                    self.saveArtwork(title: existingArtwork.title)
+                    
+                    // Set up the action to reset after saving
+                    UnsavedChangesHandler.proceedAction = {
+                        self.performCanvasReset()
+                    }
+                } else {
+                    // Save first, then reset
+                    showingSavePrompt = true
+                    // We'll rely on the save action to proceed with reset after saving
+                    UnsavedChangesHandler.proceedAction = {
+                        self.performCanvasReset()
+                    }
+                }
+            }
+        ) {
+            // If checkUnsavedChanges returns false, it means an alert is shown
+            // So we return early and wait for the user's decision
+            return
+        }
+        
+        // If we get here, there were no unsaved changes, so proceed with reset
+        performCanvasReset()
+    }
+
+    /// Performs the actual canvas reset (extracted to avoid code duplication)
+    private func performCanvasReset() {
         print("[CanvasView] Resetting canvas to default state.")
 
         // Reset shape parameters
@@ -1435,14 +1718,21 @@ struct CanvasView: View {
         loadedArtworkData = nil
         
         // Reset unsaved changes tracking
-        hasUnsavedChanges = false
+        hasUnsavedChanges = true  // Set to true for new artwork
         lastCheckedArtworkString = nil
+        initialArtworkString = nil
+        hasRecordedInitialState = false  // Reset this so we record the new initial state
 
         // Reset zoom and position
         resetPosition() // Call the existing position reset function
         zoomLevel = 1.0   // Reset zoom level to default
 
         print("[CanvasView] Canvas reset complete.")
+        
+        // Record the initial state after reset
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            self.checkForUnsavedChanges() // This will record the initial state
+        }
     }
 
     /// Loads initial artwork when the app starts
@@ -1492,9 +1782,9 @@ struct CanvasView: View {
         shapeVertical = Double.random(in: -50...50)
         shapePrimitive = Double.random(in: 1...5).rounded()
         
-        // Create random colors for the presets (using hue rotation for variety)
+        // C_eate random colors for the presets (using hue rotation for variety)
         var randomColors: [Color] = []
-        for i in 0..<10 {
+        for _ in 0..<10 {
             let hue = Double.random(in: 0...1)
             let saturation = Double.random(in: 0.7...1.0)
             let brightness = Double.random(in: 0.7...1.0)
@@ -1512,7 +1802,10 @@ struct CanvasView: View {
         colorPresetManager.strokeColor = randomColors.randomElement() ?? .black
         colorPresetManager.shapeAlpha = Double.random(in: 0.7...1.0)
         
-        print("[CanvasView] Created randomized artwork")
+        // Set as unsaved
+        hasUnsavedChanges = true
+        
+        print("[CanvasView] Created randomized artwork (Unsaved)")
     }
 
     // Add a function to handle replacing an existing artwork
@@ -1529,21 +1822,42 @@ struct CanvasView: View {
                 
                 let newPieceId = pieceRef.documentID
                 
-                // Update the loadedArtworkData state to reflect the newly saved piece
-                self.loadedArtworkData = ArtworkData(
-                    deviceId: firebaseService.getDeviceId(),
-                    artworkString: artworkString,
-                    timestamp: Date(),
-                    title: title,
-                    pieceId: newPieceId
-                )
+                // Wrap state updates in MainActor.run for reliable UI refresh
+                await MainActor.run {
+                    // Update the loadedArtworkData state to reflect the newly saved piece
+                    self.loadedArtworkData = ArtworkData(
+                        deviceId: firebaseService.getDeviceId(),
+                        artworkString: artworkString,
+                        timestamp: Date(),
+                        title: title,
+                        pieceId: newPieceId
+                    )
+                    
+                    // Set status to saved
+                    self.hasUnsavedChanges = false
+                    self.lastCheckedArtworkString = artworkString
+                    
+                    // Update confirmation state and close sheet
+                    self.confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
+                    self.showArtworkReplaceSheet = false // Close the selection sheet
+                    
+                    // Execute any pending action after saving (if needed)
+                    if let pendingAction = UnsavedChangesHandler.proceedAction {
+                        pendingAction()
+                        UnsavedChangesHandler.proceedAction = nil
+                        UnsavedChangesHandler.saveFirstAction = nil
+                        UnsavedChangesHandler.saveExistingArtworkAction = nil
+                    }
+                }
                 
+                // List pieces (async)
                 await firebaseService.listAllPieces()
                 
-                await MainActor.run {
-                    confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
-                    showArtworkReplaceSheet = false // Close the selection sheet
-                }
+                // Remove the older MainActor.run block
+                // await MainActor.run {
+                //     confirmedArtworkId = IdentifiableArtworkID(id: newPieceId)
+                //     showArtworkReplaceSheet = false // Close the selection sheet
+                // }
             } catch {
                 await MainActor.run {
                     alertTitle = "Error Replacing Artwork"
@@ -1665,14 +1979,34 @@ struct CanvasView: View {
     // Add this method after the getCurrentArtworkString method around line 1320
     /// Checks if there are unsaved changes by comparing the current settings with the loaded artwork
     private func checkForUnsavedChanges() {
-        // If no artwork is loaded, no changes to track
-        guard let loadedArtwork = loadedArtworkData else {
-            hasUnsavedChanges = false
+        // Get current artwork string
+        let currentArtworkString = getCurrentArtworkString()
+        
+        // If no artwork is loaded, we'll compare to the initial state (if recorded)
+        if loadedArtworkData == nil {
+            // If we haven't recorded an initial state yet, do so now
+            if !hasRecordedInitialState {
+                initialArtworkString = currentArtworkString
+                hasRecordedInitialState = true
+                hasUnsavedChanges = true  // Set to true for new artwork
+                print("[DEBUG] checkForUnsavedChanges: Recording initial state for new artwork (Unsaved)")
+                return
+            }
+            
+            // Compare with initial state
+            if let initialString = initialArtworkString, initialString == currentArtworkString {
+                // Even if unchanged from initial state, a new artwork is still considered unsaved until explicitly saved
+                hasUnsavedChanges = true
+                print("[DEBUG] New artwork matches initial state - still marked as unsaved")
+            } else {
+                hasUnsavedChanges = true
+                print("[DEBUG] New artwork has changes compared to initial state")
+            }
             return
         }
         
-        // Get current artwork string
-        let currentArtworkString = getCurrentArtworkString()
+        // Otherwise, proceed with comparing to loaded artwork
+        let loadedArtwork = loadedArtworkData!
         
         // If strings are identical, return immediately
         if loadedArtwork.artworkString == currentArtworkString {
@@ -1829,25 +2163,30 @@ struct CanvasView: View {
     /// Makes an artwork info banner to display at the bottom of the screen
     private func makeArtworkInfoBanner() -> some View {
         HStack(spacing: 8) {
+            // Show artwork title
             if let loadedArtwork = loadedArtworkData {
-                // Show artwork title
                 Text(loadedArtwork.title ?? "Untitled Artwork")
                     .font(.headline)
                     .foregroundColor(.primary)
                     .lineLimit(1)
-                
-                // Show status indicator
-                if hasUnsavedChanges {
-                    // Show "Unsaved" in red when changes detected
-                    Text("• Unsaved")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                } else {
-                    // Show "Saved" in green when no changes
-                    Text("• Saved")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                }
+            } else {
+                Text("Untitled Artwork")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+            }
+            
+            // Show status indicator
+            if hasUnsavedChanges {
+                // Show "Unsaved" in red when changes detected
+                Text("• Unsaved")
+                    .font(.caption)
+                    .foregroundColor(.red)
+            } else {
+                // Show "Saved" in green when no changes
+                Text("• Saved")
+                    .font(.caption)
+                    .foregroundColor(.green)
             }
         }
         .padding(.horizontal, 12)
@@ -1915,7 +2254,7 @@ struct CanvasView: View {
     private func areColorsVisuallyEquivalent(_ hex1: String, _ hex2: String) -> Bool {
         // Convert hex to RGB
         func hexToRGB(_ hex: String) -> (r: Int, g: Int, b: Int)? {
-            var hexSanitized = hex.replacingOccurrences(of: "#", with: "")
+            let hexSanitized = hex.replacingOccurrences(of: "#", with: "")
             if hexSanitized.count != 6 {
                 return nil
             }
@@ -1958,342 +2297,566 @@ struct CanvasView: View {
         
         return equivalent
     }
-}
 
-/// Helper for share/import button appearance
-@ViewBuilder
-private func buttonIcon(systemName: String) -> some View {
-    VStack {
-        Image(systemName: systemName)
-            .font(.system(size: 20))
-            .foregroundColor(Color(uiColor: .systemBlue))
-    }
-    .padding(8)
-    .frame(width: 40, height: 40)
-    .background(Color(uiColor: .systemBackground))
-    .cornerRadius(8)
-    .overlay(
-        RoundedRectangle(cornerRadius: 8)
-            .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-    )
-}
-
-// MARK: - Artwork Replace Sheet
-
-struct ArtworkReplaceSheet: View {
-    let artworks: [ArtworkData]
-    let thumbnails: [String: UIImage]
-    let onSelect: (ArtworkData) -> Void
-    let onCancel: () -> Void
-    
-    // Formatter for timestamp
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        return formatter
-    }()
-    
-    var body: some View {
-        NavigationView {
-            List {
-                Section(header: Text("Select an artwork to replace:")) {
-                    ForEach(artworks) { artwork in
-                        Button(action: {
-                            onSelect(artwork)
-                        }) {
-                            HStack {
-                                // Add a preview of the artwork
-                                ArtworkPreview(artwork: artwork, thumbnail: thumbnails[artwork.id])
-                                    .frame(width: 50, height: 50)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                                    )
-                                
-                                VStack(alignment: .leading) {
-                                    Text(artwork.title ?? "Untitled")
-                                        .font(.headline)
-                                    Text("Last modified: \(Self.dateFormatter.string(from: artwork.timestamp))")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "arrow.forward.circle")
-                                    .foregroundColor(.blue)
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(PlainButtonStyle())
+    /// Handles the import of artwork with unsaved changes check
+    private func handleImportedArtwork(_ artworkString: String) {
+        print("[DEBUG] handleImportedArtwork called, hasUnsavedChanges = \(hasUnsavedChanges)")
+        
+        // Check for unsaved changes first
+        if !UnsavedChangesHandler.checkUnsavedChanges(
+            hasUnsavedChanges: hasUnsavedChanges,
+            action: .importArtwork,
+            showAlert: $showAlert,
+            alertTitle: $alertTitle,
+            alertMessage: $alertMessage,
+            onProceed: {
+                print("[DEBUG] Import: Proceeding without saving")
+                // Apply imported artwork when user confirms
+                self.applyImportedArtwork(artworkString)
+            },
+            onSaveFirst: {
+                print("[DEBUG] Import: Save first selected")
+                
+                // Check if we're updating existing artwork
+                if let existingArtwork = self.loadedArtworkData, existingArtwork.pieceId != nil {
+                    // Save existing artwork directly without showing name prompt
+                    self.saveArtwork(title: existingArtwork.title)
+                    
+                    // Store the artwork string temporarily
+                    let tempArtworkString = artworkString
+                    // Set up the action to proceed with import after saving
+                    UnsavedChangesHandler.proceedAction = {
+                        self.applyImportedArtwork(tempArtworkString)
+                    }
+                } else {
+                    // This is a new artwork, show the save prompt
+                    showingSavePrompt = true
+                    // Store the artwork string temporarily
+                    let tempArtworkString = artworkString
+                    // We'll rely on the save action to proceed with import after saving
+                    UnsavedChangesHandler.proceedAction = {
+                        self.applyImportedArtwork(tempArtworkString)
                     }
                 }
             }
-            .listStyle(InsetGroupedListStyle())
-            .navigationTitle("Gallery Full")
-            .navigationBarItems(
-                trailing: Button("Cancel") {
-                    onCancel()
+        ) {
+            // If checkUnsavedChanges returns false, it means an alert is shown
+            // So we return early and wait for the user's decision
+            print("[DEBUG] Import: Alert is being shown for unsaved changes")
+            return
+        }
+        
+        // If we get here, there were no unsaved changes, so proceed with import
+        print("[DEBUG] Import: No unsaved changes, proceeding directly with import")
+        applyImportedArtwork(artworkString)
+    }
+     /// Helper for share/import button appearance
+    @ViewBuilder
+    private func buttonIcon(systemName: String) -> some View {
+        VStack {
+            Image(systemName: systemName)
+                .font(.system(size: 20))
+                .foregroundColor(Color(uiColor: .systemBlue))
+        }
+        .padding(8)
+        .frame(width: 40, height: 40)
+        .background(Color(uiColor: .systemBackground))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+        )
+    }
+    
+    // MARK: - Artwork Replace Sheet
+    
+    struct ArtworkReplaceSheet: View {
+        let artworks: [ArtworkData]
+        let thumbnails: [String: UIImage]
+        let onSelect: (ArtworkData) -> Void
+        let onCancel: () -> Void
+        
+        // Formatter for timestamp
+        private static let dateFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .short
+            formatter.timeStyle = .short
+            return formatter
+        }()
+        
+        var body: some View {
+            NavigationView {
+                List {
+                    Section(header: Text("Select an artwork to replace:")) {
+                        ForEach(artworks) { artwork in
+                            Button(action: {
+                                onSelect(artwork)
+                            }) {
+                                HStack {
+                                    // Add a preview of the artwork
+                                    ArtworkPreview(artwork: artwork, thumbnail: thumbnails[artwork.id])
+                                        .frame(width: 50, height: 50)
+                                        .cornerRadius(8)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                                        )
+                                    
+                                    VStack(alignment: .leading) {
+                                        Text(artwork.title ?? "Untitled")
+                                            .font(.headline)
+                                        Text("Last modified: \(Self.dateFormatter.string(from: artwork.timestamp))")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "arrow.forward.circle")
+                                        .foregroundColor(.blue)
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
                 }
-            )
-        }
-    }
-}
-
-// New view to render artwork preview
-struct ArtworkPreview: View {
-    let artwork: ArtworkData
-    let thumbnail: UIImage?
-    
-    var body: some View {
-        if let thumbnailImage = thumbnail {
-            // Use the pre-rendered thumbnail
-            Image(uiImage: thumbnailImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .background(Color(.systemBackground))
-        } else {
-            // Fallback if no thumbnail is available
-            ZStack {
-                Color.gray.opacity(0.3)
-                Image(systemName: "photo")
-                    .foregroundColor(.gray)
-            }
-        }
-    }
-}
-
-// Add ArtworkParameters struct to support the ArtworkPreview view
-private struct ArtworkParameters {
-    let shapeType: ShapesPanel.ShapeType
-    let rotation: Double
-    let scale: Double
-    let layer: Double
-    let skewX: Double
-    let skewY: Double
-    let spread: Double
-    let horizontal: Double
-    let vertical: Double
-    let primitive: Double
-    let colorPresets: [Color]
-    let backgroundColor: Color
-    let useDefaultRainbowColors: Bool
-    let rainbowStyle: Int
-    let hueAdjustment: Double
-    let saturationAdjustment: Double
-    let shapeAlpha: Double
-    let strokeWidth: Double
-    let strokeColor: Color
-}
-
-// ArtworkRendererView for rendering thumbnails
-private struct ArtworkRendererView: View {
-    let params: ArtworkParameters
-    // Define the rendering size
-    private let renderSize = CGSize(width: 100, height: 100)
-    
-    var body: some View {
-        Canvas { context, size in
-            // Fill background
-            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(params.backgroundColor))
-            // Draw the shapes
-            drawShapes(context: context, size: size, params: params)
-        }
-        .frame(width: renderSize.width, height: renderSize.height)
-    }
-    
-    // MARK: - Drawing Logic
-    private func drawShapes(context: GraphicsContext, size: CGSize, params: ArtworkParameters) {
-        let circleRadius = 10.0 // Smaller radius for thumbnails
-        let centerX = size.width / 2
-        let centerY = size.height / 2
-        let center = CGPoint(x: centerX, y: centerY)
-        
-        let numberOfLayers = max(0, min(72, Int(params.layer)))
-        if numberOfLayers > 0 {
-            drawLayers(
-                context: context,
-                layers: numberOfLayers,
-                center: center,
-                radius: circleRadius,
-                params: params
-            )
-        }
-    }
-    
-    private func drawLayers(
-        context: GraphicsContext,
-        layers: Int,
-        center: CGPoint,
-        radius: Double,
-        params: ArtworkParameters
-    ) {
-        let primitiveCount = Int(max(1.0, min(6.0, params.primitive)))
-        
-        for layerIndex in 0..<layers {
-            for primitiveIndex in 0..<primitiveCount {
-                let primitiveAngleOffset = (360.0 / Double(primitiveCount)) * Double(primitiveIndex)
-                drawSingleShape(
-                    context: context,
-                    layerIndex: layerIndex,
-                    primitiveAngleOffset: primitiveAngleOffset,
-                    center: center,
-                    radius: radius,
-                    params: params
+                .listStyle(InsetGroupedListStyle())
+                .navigationTitle("Gallery Full")
+                .navigationBarItems(
+                    trailing: Button("Cancel") {
+                        onCancel()
+                    }
                 )
             }
         }
     }
     
-    private func drawSingleShape(
-        context: GraphicsContext,
-        layerIndex: Int,
-        primitiveAngleOffset: Double,
-        center: CGPoint,
-        radius: Double,
-        params: ArtworkParameters
-    ) {
-        let angleInDegrees = (params.rotation * Double(layerIndex)) + primitiveAngleOffset
-        let angleInRadians = angleInDegrees * (.pi / 180)
+    // New view to render artwork preview
+    struct ArtworkPreview: View {
+        let artwork: ArtworkData
+        let thumbnail: UIImage?
         
-        let scaleFactor = 0.25
-        let layerScale = pow(1.0 + (params.scale - 1.0) * scaleFactor, Double(layerIndex + 1))
-        let scaledRadius = radius * layerScale
+        var body: some View {
+            if let thumbnailImage = thumbnail {
+                // Use the pre-rendered thumbnail
+                Image(uiImage: thumbnailImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .background(Color(.systemBackground))
+            } else {
+                // Fallback if no thumbnail is available
+                ZStack {
+                    Color.gray.opacity(0.3)
+                    Image(systemName: "photo")
+                        .foregroundColor(.gray)
+                }
+            }
+        }
+    }
+    
+    // Add ArtworkParameters struct to support the ArtworkPreview view
+    private struct ArtworkParameters {
+        let shapeType: ShapesPanel.ShapeType
+        let rotation: Double
+        let scale: Double
+        let layer: Double
+        let skewX: Double
+        let skewY: Double
+        let spread: Double
+        let horizontal: Double
+        let vertical: Double
+        let primitive: Double
+        let colorPresets: [Color]
+        let backgroundColor: Color
+        let useDefaultRainbowColors: Bool
+        let rainbowStyle: Int
+        let hueAdjustment: Double
+        let saturationAdjustment: Double
+        let shapeAlpha: Double
+        let strokeWidth: Double
+        let strokeColor: Color
+    }
+    
+    // ArtworkRendererView for rendering thumbnails
+    private struct ArtworkRendererView: View {
+        let params: ArtworkParameters
+        // Define the rendering size
+        private let renderSize = CGSize(width: 100, height: 100)
         
-        let spreadDistance = max(params.spread * Double(layerIndex), Double(layerIndex))
-        let spreadX = spreadDistance * cos(angleInRadians)
-        let spreadY = spreadDistance * sin(angleInRadians)
+        var body: some View {
+            Canvas { context, size in
+                // Fill background
+                context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(params.backgroundColor))
+                // Draw the shapes
+                drawShapes(context: context, size: size, params: params)
+            }
+            .frame(width: renderSize.width, height: renderSize.height)
+        }
         
-        let finalX = center.x + scaledRadius * cos(angleInRadians) + spreadX + params.horizontal
-        let finalY = center.y + scaledRadius * sin(angleInRadians) + spreadY - params.vertical
+        // MARK: - Drawing Logic
+        private func drawShapes(context: GraphicsContext, size: CGSize, params: ArtworkParameters) {
+            let circleRadius = 10.0 // Smaller radius for thumbnails
+            let centerX = size.width / 2
+            let centerY = size.height / 2
+            let center = CGPoint(x: centerX, y: centerY)
+            
+            let numberOfLayers = max(0, min(72, Int(params.layer)))
+            if numberOfLayers > 0 {
+                drawLayers(
+                    context: context,
+                    layers: numberOfLayers,
+                    center: center,
+                    radius: circleRadius,
+                    params: params
+                )
+            }
+        }
         
-        let baseRect = CGRect(
-            x: finalX - scaledRadius,
-            y: finalY - scaledRadius,
-            width: scaledRadius * 2,
-            height: scaledRadius * 2
+        private func drawLayers(
+            context: GraphicsContext,
+            layers: Int,
+            center: CGPoint,
+            radius: Double,
+            params: ArtworkParameters
+        ) {
+            let primitiveCount = Int(max(1.0, min(6.0, params.primitive)))
+            
+            for layerIndex in 0..<layers {
+                for primitiveIndex in 0..<primitiveCount {
+                    let primitiveAngleOffset = (360.0 / Double(primitiveCount)) * Double(primitiveIndex)
+                    drawSingleShape(
+                        context: context,
+                        layerIndex: layerIndex,
+                        primitiveAngleOffset: primitiveAngleOffset,
+                        center: center,
+                        radius: radius,
+                        params: params
+                    )
+                }
+            }
+        }
+        
+        private func drawSingleShape(
+            context: GraphicsContext,
+            layerIndex: Int,
+            primitiveAngleOffset: Double,
+            center: CGPoint,
+            radius: Double,
+            params: ArtworkParameters
+        ) {
+            let angleInDegrees = (params.rotation * Double(layerIndex)) + primitiveAngleOffset
+            let angleInRadians = angleInDegrees * (.pi / 180)
+            
+            let scaleFactor = 0.25
+            let layerScale = pow(1.0 + (params.scale - 1.0) * scaleFactor, Double(layerIndex + 1))
+            let scaledRadius = radius * layerScale
+            
+            let spreadDistance = max(params.spread * Double(layerIndex), Double(layerIndex))
+            let spreadX = spreadDistance * cos(angleInRadians)
+            let spreadY = spreadDistance * sin(angleInRadians)
+            
+            let finalX = center.x + scaledRadius * cos(angleInRadians) + spreadX + params.horizontal
+            let finalY = center.y + scaledRadius * sin(angleInRadians) + spreadY - params.vertical
+            
+            let baseRect = CGRect(
+                x: finalX - scaledRadius,
+                y: finalY - scaledRadius,
+                width: scaledRadius * 2,
+                height: scaledRadius * 2
+            )
+            
+            // Create shape path based on type
+            let shapePath: Path
+            switch params.shapeType {
+            case .circle:
+                shapePath = Path(ellipseIn: baseRect)
+            case .square:
+                shapePath = Path(baseRect)
+            case .triangle:
+                var path = Path()
+                path.move(to: CGPoint(x: finalX, y: finalY - scaledRadius))
+                path.addLine(to: CGPoint(x: finalX - scaledRadius, y: finalY + scaledRadius))
+                path.addLine(to: CGPoint(x: finalX + scaledRadius, y: finalY + scaledRadius))
+                path.closeSubpath()
+                shapePath = path
+            case .hexagon:
+                shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 6)
+            case .star:
+                shapePath = createStarPath(center: CGPoint(x: finalX, y: finalY), innerRadius: scaledRadius * 0.4, outerRadius: scaledRadius, points: 5)
+            case .pentagon:
+                shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 5)
+            case .octagon:
+                shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 8)
+            default:
+                // Default to circle for other shapes to keep it simple
+                shapePath = Path(ellipseIn: baseRect)
+            }
+            
+            // Apply transformations
+            var shapeTransform = CGAffineTransform.identity
+            
+            if abs(angleInRadians) > 0.001 {
+                shapeTransform = shapeTransform.rotated(by: CGFloat(angleInRadians))
+            }
+            
+            // Apply skew if needed
+            if abs(params.skewX) > 0.01 || abs(params.skewY) > 0.01 {
+                let skewXRad = (params.skewX / 100.0) * (.pi / 15)
+                let skewYRad = (params.skewY / 100.0) * (.pi / 15)
+                
+                if abs(params.skewX) > 0.01 {
+                    let shearX = CGFloat(tan(skewXRad))
+                    shapeTransform = shapeTransform.concatenating(CGAffineTransform(a: 1, b: 0, c: shearX, d: 1, tx: 0, ty: 0))
+                }
+                
+                if abs(params.skewY) > 0.01 {
+                    let shearY = CGFloat(tan(skewYRad))
+                    shapeTransform = shapeTransform.concatenating(CGAffineTransform(a: 1, b: shearY, c: 0, d: 1, tx: 0, ty: 0))
+                }
+            }
+            
+            // Apply the complete transform
+            let toOriginTransform = CGAffineTransform(translationX: -finalX, y: -finalY)
+            let backToPositionTransform = CGAffineTransform(translationX: finalX, y: finalY)
+            let finalTransform = toOriginTransform.concatenating(shapeTransform).concatenating(backToPositionTransform)
+            let transformedPath = shapePath.applying(finalTransform)
+            
+            // Determine color for this layer
+            let layerColor: Color
+            if params.useDefaultRainbowColors {
+                // Use rainbow colors based on style
+                switch params.rainbowStyle {
+                case 1: layerColor = ColorUtils.cyberpunkRainbowColor(for: layerIndex, hueAdjustment: params.hueAdjustment, saturationAdjustment: params.saturationAdjustment)
+                case 2: layerColor = ColorUtils.halfSpectrumRainbowColor(for: layerIndex, hueAdjustment: params.hueAdjustment, saturationAdjustment: params.saturationAdjustment)
+                default: layerColor = ColorUtils.rainbowColor(for: layerIndex, hueAdjustment: params.hueAdjustment, saturationAdjustment: params.saturationAdjustment)
+                }
+            } else {
+                // Use presets
+                if !params.colorPresets.isEmpty {
+                    let colorIndex = layerIndex % params.colorPresets.count
+                    layerColor = params.colorPresets[colorIndex]
+                } else {
+                    layerColor = .gray // Fallback
+                }
+            }
+            
+            // Draw the shape
+            let baseOpacity = params.shapeAlpha
+            let layerOpacity = layerIndex == 0 ? baseOpacity : baseOpacity * 0.8
+            
+            context.fill(transformedPath, with: .color(layerColor.opacity(layerOpacity)))
+            
+            // Apply stroke if needed
+            if params.strokeWidth > 0 {
+                context.stroke(
+                    transformedPath,
+                    with: .color(params.strokeColor),
+                    lineWidth: CGFloat(params.strokeWidth)
+                )
+            }
+        }
+        
+        // Helper to create polygon paths
+        private func createPolygonPath(center: CGPoint, radius: Double, sides: Int) -> Path {
+            var path = Path()
+            let angle = (2.0 * .pi) / Double(sides)
+            for index in 0..<sides {
+                let currentAngle = angle * Double(index) - (.pi / 2)
+                let x = center.x + CGFloat(radius * cos(currentAngle))
+                let y = center.y + CGFloat(radius * sin(currentAngle))
+                if index == 0 { path.move(to: CGPoint(x: x, y: y)) }
+                else { path.addLine(to: CGPoint(x: x, y: y)) }
+            }
+            path.closeSubpath()
+            return path
+        }
+        
+        // Helper to create star paths
+        private func createStarPath(center: CGPoint, innerRadius: Double, outerRadius: Double, points: Int) -> Path {
+            var path = Path()
+            let totalPoints = points * 2
+            let angle = (2.0 * .pi) / Double(totalPoints)
+            for i in 0..<totalPoints {
+                let radius = i % 2 == 0 ? outerRadius : innerRadius
+                let currentAngle = angle * Double(i) - (.pi / 2)
+                let x = center.x + CGFloat(radius * cos(currentAngle))
+                let y = center.y + CGFloat(radius * sin(currentAngle))
+                if i == 0 { path.move(to: CGPoint(x: x, y: y)) }
+                else { path.addLine(to: CGPoint(x: x, y: y)) }
+            }
+            path.closeSubpath()
+            return path
+        }
+    }
+
+    /// Saves the current artwork state for potential restoration
+    private func saveCurrentStateForRestoration() {
+        if hasUnsavedChanges {
+            let currentArtworkString = getCurrentArtworkString()
+            UnsavedChangesHandler.saveStateForRestoration(
+                artworkString: currentArtworkString, 
+                hasUnsavedChanges: hasUnsavedChanges
+            )
+            print("[DEBUG] Saved current artwork state for potential restoration")
+        } else {
+            // No unsaved changes, clear any previously saved state
+            UnsavedChangesHandler.clearSavedState()
+            print("[DEBUG] No unsaved changes, cleared any previous saved state")
+        }
+    }
+
+    /// Checks if there's a previously saved artwork state to restore
+    private func checkForPreviouslySavedWork() {
+        // Don't check for previous state if we're intentionally loading an artwork
+        if loadedArtworkData != nil {
+            return
+        }
+        
+        let result = UnsavedChangesHandler.checkForPreviousSession(
+            showAlert: $showRestorationAlert,
+            alertTitle: $alertTitle,
+            alertMessage: $alertMessage,
+            onRestore: {
+                // Restore previous work
+                if let savedArtworkString = UnsavedChangesHandler.getSavedArtworkString() {
+                    restorePreviousWork(artworkString: savedArtworkString)
+                    
+                    // Clear saved state after restoring
+                    UnsavedChangesHandler.clearSavedState()
+                }
+            },
+            onDiscard: {
+                // User chose to start fresh, do nothing
+                // The saved state will be cleared in the UnsavedChangesHandler
+            }
         )
         
-        // Create shape path based on type
-        let shapePath: Path
-        switch params.shapeType {
-        case .circle:
-            shapePath = Path(ellipseIn: baseRect)
-        case .square:
-            shapePath = Path(baseRect)
-        case .triangle:
-            var path = Path()
-            path.move(to: CGPoint(x: finalX, y: finalY - scaledRadius))
-            path.addLine(to: CGPoint(x: finalX - scaledRadius, y: finalY + scaledRadius))
-            path.addLine(to: CGPoint(x: finalX + scaledRadius, y: finalY + scaledRadius))
-            path.closeSubpath()
-            shapePath = path
-        case .hexagon:
-            shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 6)
-        case .star:
-            shapePath = createStarPath(center: CGPoint(x: finalX, y: finalY), innerRadius: scaledRadius * 0.4, outerRadius: scaledRadius, points: 5)
-        case .pentagon:
-            shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 5)
-        case .octagon:
-            shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 8)
-        default:
-            // Default to circle for other shapes to keep it simple
-            shapePath = Path(ellipseIn: baseRect)
-        }
-        
-        // Apply transformations
-        var shapeTransform = CGAffineTransform.identity
-        
-        if abs(angleInRadians) > 0.001 {
-            shapeTransform = shapeTransform.rotated(by: CGFloat(angleInRadians))
-        }
-        
-        // Apply skew if needed
-        if abs(params.skewX) > 0.01 || abs(params.skewY) > 0.01 {
-            let skewXRad = (params.skewX / 100.0) * (.pi / 15)
-            let skewYRad = (params.skewY / 100.0) * (.pi / 15)
-            
-            if abs(params.skewX) > 0.01 {
-                let shearX = CGFloat(tan(skewXRad))
-                shapeTransform = shapeTransform.concatenating(CGAffineTransform(a: 1, b: 0, c: shearX, d: 1, tx: 0, ty: 0))
-            }
-            
-            if abs(params.skewY) > 0.01 {
-                let shearY = CGFloat(tan(skewYRad))
-                shapeTransform = shapeTransform.concatenating(CGAffineTransform(a: 1, b: shearY, c: 0, d: 1, tx: 0, ty: 0))
-            }
-        }
-        
-        // Apply the complete transform
-        let toOriginTransform = CGAffineTransform(translationX: -finalX, y: -finalY)
-        let backToPositionTransform = CGAffineTransform(translationX: finalX, y: finalY)
-        let finalTransform = toOriginTransform.concatenating(shapeTransform).concatenating(backToPositionTransform)
-        let transformedPath = shapePath.applying(finalTransform)
-        
-        // Determine color for this layer
-        let layerColor: Color
-        if params.useDefaultRainbowColors {
-            // Use rainbow colors based on style
-            switch params.rainbowStyle {
-            case 1: layerColor = ColorUtils.cyberpunkRainbowColor(for: layerIndex, hueAdjustment: params.hueAdjustment, saturationAdjustment: params.saturationAdjustment)
-            case 2: layerColor = ColorUtils.halfSpectrumRainbowColor(for: layerIndex, hueAdjustment: params.hueAdjustment, saturationAdjustment: params.saturationAdjustment)
-            default: layerColor = ColorUtils.rainbowColor(for: layerIndex, hueAdjustment: params.hueAdjustment, saturationAdjustment: params.saturationAdjustment)
-            }
+        if result {
+            print("[DEBUG] Found previously saved artwork state, showing restoration dialog")
         } else {
-            // Use presets
-            if !params.colorPresets.isEmpty {
-                let colorIndex = layerIndex % params.colorPresets.count
-                layerColor = params.colorPresets[colorIndex]
-            } else {
-                layerColor = .gray // Fallback
+            print("[DEBUG] No previously saved artwork state found")
+        }
+    }
+
+    /// Restores previously saved artwork
+    private func restorePreviousWork(artworkString: String) {
+        print("[DEBUG] Restoring previously saved artwork")
+        
+        // Parse the artwork string into parameters
+        let params = ArtworkData.decode(from: artworkString)
+        
+        // Restore shape type
+        if let shapeTypeStr = params["shape"], let shapeType = ShapesPanel.ShapeType(rawValue: shapeTypeStr) {
+            selectedShape = shapeType
+        }
+        
+        // Restore numeric values
+        if let val = params["rotation"], let double = Double(val) { shapeRotation = double }
+        if let val = params["scale"], let double = Double(val) { shapeScale = double }
+        if let val = params["layer"], let double = Double(val) { shapeLayer = double }
+        if let val = params["skewX"], let double = Double(val) { shapeSkewX = double }
+        if let val = params["skewY"], let double = Double(val) { shapeSkewY = double }
+        if let val = params["spread"], let double = Double(val) { shapeSpread = double }
+        if let val = params["horizontal"], let double = Double(val) { shapeHorizontal = double }
+        if let val = params["vertical"], let double = Double(val) { shapeVertical = double }
+        if let val = params["primitive"], let double = Double(val) { shapePrimitive = double }
+        if let val = params["strokeWidth"], let double = Double(val) { colorPresetManager.strokeWidth = double }
+        if let val = params["alpha"], let double = Double(val) { colorPresetManager.shapeAlpha = double }
+        
+        // Restore color presets if available
+        if let colorsStr = params["colors"] {
+            let colors = ArtworkData.reconstructColors(from: colorsStr)
+            if !colors.isEmpty {
+                colorPresetManager.colorPresets = colors
+                colorUpdateTrigger = UUID() // Force update
             }
         }
         
-        // Draw the shape
-        let baseOpacity = params.shapeAlpha
-        let layerOpacity = layerIndex == 0 ? baseOpacity : baseOpacity * 0.8
+        // Restore background color
+        if let backgroundStr = params["background"], let bgColor = ArtworkData.hexToColor(backgroundStr) {
+            colorPresetManager.backgroundColor = bgColor
+            backgroundColorTrigger = UUID() // Force update
+        }
         
-        context.fill(transformedPath, with: .color(layerColor.opacity(layerOpacity)))
+        // Restore stroke color
+        if let strokeColorStr = params["strokeColor"], let strokeColor = ArtworkData.hexToColor(strokeColorStr) {
+            colorPresetManager.strokeColor = strokeColor
+            strokeSettingsTrigger = UUID() // Force update
+        }
         
-        // Apply stroke if needed
-        if params.strokeWidth > 0 {
-            context.stroke(
-                transformedPath,
-                with: .color(params.strokeColor),
-                lineWidth: CGFloat(params.strokeWidth)
-            )
+        // Restore rainbow settings
+        if let useRainbowStr = params["useRainbow"], let useRainbow = Bool(useRainbowStr) {
+            colorPresetManager.useDefaultRainbowColors = useRainbow
         }
+        
+        if let rainbowStyleStr = params["rainbowStyle"], let rainbowStyle = Int(rainbowStyleStr) {
+            colorPresetManager.rainbowStyle = rainbowStyle
+        }
+        
+        if let hueAdjStr = params["hueAdj"], let hueAdj = Double(hueAdjStr) {
+            colorPresetManager.hueAdjustment = hueAdj
+        }
+        
+        if let satAdjStr = params["satAdj"], let satAdj = Double(satAdjStr) {
+            colorPresetManager.saturationAdjustment = satAdj
+        }
+        
+        // Restore preset count if available
+        if let presetCountStr = params["presetCount"], let presetCount = Int(presetCountStr) {
+            colorPresetManager.numberOfVisiblePresets = presetCount
+        }
+        
+        // Set proper initialization flags
+        hasRecordedInitialState = true
+        initialArtworkString = artworkString
+        lastCheckedArtworkString = artworkString
+        
+        // This work is unsaved (it's a restoration, not a loaded saved artwork)
+        hasUnsavedChanges = true
+        
+        print("[DEBUG] Successfully restored previous artwork state")
     }
-    
-    // Helper to create polygon paths
-    private func createPolygonPath(center: CGPoint, radius: Double, sides: Int) -> Path {
-        var path = Path()
-        let angle = (2.0 * .pi) / Double(sides)
-        for i in 0..<sides {
-            let currentAngle = angle * Double(i) - (.pi / 2)
-            let x = center.x + CGFloat(radius * cos(currentAngle))
-            let y = center.y + CGFloat(radius * sin(currentAngle))
-            if i == 0 { path.move(to: CGPoint(x: x, y: y)) }
-            else { path.addLine(to: CGPoint(x: x, y: y)) }
+
+    // MARK: - Offset Calculation
+
+    /// Calculates the dynamic vertical offset for the canvas.
+    private func calculateCanvasVerticalOffset(geometry: GeometryProxy) -> CGFloat {
+        let screenHeight = geometry.size.height
+        let topSafeArea = geometry.safeAreaInsets.top
+        
+        // Estimate panel height (can be refined if needed)
+        // Assuming all panels effectively take up roughly half the screen for centering purposes
+        let panelHeightEstimate = screenHeight / 2 
+        
+        // Check if any panel is open
+        let isPanelOpen = showProperties || showColorShapes || showShapesPanel || showGalleryPanel
+        
+        if isPanelOpen {
+            // Calculate the top boundary (bottom of safe area/notch)
+            let topBoundary = topSafeArea
+            // Calculate the bottom boundary (top of the panel)
+            let bottomBoundary = screenHeight - panelHeightEstimate
+            
+            // Calculate the desired center Y position (midpoint between boundaries)
+            let targetCenterY = (topBoundary + bottomBoundary) / 2
+            
+            // Get the canvas's default center Y when no panel is open
+            // (Initial offset is designed to center it on the screen initially)
+            // The initial offset calculation might need adjustment based on actual screen size
+            // Assuming the initial offset correctly centers it vertically on the screen for simplicity here.
+            // A more robust approach might calculate this default center explicitly.
+            let defaultCenterY = screenHeight / 2 // Approximate default center
+            
+            // Calculate the required offset to move from default center to target center
+            let requiredOffset = targetCenterY - defaultCenterY
+            
+            print("Panel Open: ScreenH=\(screenHeight), TopSafe=\(topSafeArea), PanelH=\(panelHeightEstimate), TargetCenter=\(targetCenterY), DefaultCenter=\(defaultCenterY), Offset=\(requiredOffset)")
+            
+            return requiredOffset
+            
+        } else {
+            // No panel is open, no additional offset needed (initial offset handles screen centering)
+            print("Panel Closed: No vertical offset needed.")
+            return 0
         }
-        path.closeSubpath()
-        return path
-    }
-    
-    // Helper to create star paths
-    private func createStarPath(center: CGPoint, innerRadius: Double, outerRadius: Double, points: Int) -> Path {
-        var path = Path()
-        let totalPoints = points * 2
-        let angle = (2.0 * .pi) / Double(totalPoints)
-        for i in 0..<totalPoints {
-            let radius = i % 2 == 0 ? outerRadius : innerRadius
-            let currentAngle = angle * Double(i) - (.pi / 2)
-            let x = center.x + CGFloat(radius * cos(currentAngle))
-            let y = center.y + CGFloat(radius * sin(currentAngle))
-            if i == 0 { path.move(to: CGPoint(x: x, y: y)) }
-            else { path.addLine(to: CGPoint(x: x, y: y)) }
-        }
-        path.closeSubpath()
-        return path
     }
 }

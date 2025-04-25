@@ -6,6 +6,19 @@ struct SaveConfirmationView: View {
     let artworkId: String
     @State private var isCopied = false
     let dismissAction: () -> Void
+    let title: String
+    let message: String
+    
+    // Default initializer with custom title and message
+    init(artworkId: String, 
+         title: String = "Artwork Saved Successfully!", 
+         message: String = "Share this ID with friends so they can view your artwork!",
+         dismissAction: @escaping () -> Void) {
+        self.artworkId = artworkId
+        self.title = title
+        self.message = message
+        self.dismissAction = dismissAction
+    }
     
     var body: some View {
         VStack(spacing: 20) {
@@ -14,7 +27,7 @@ struct SaveConfirmationView: View {
                 .foregroundColor(.green)
                 .padding(.top, 30)
             
-            Text("Artwork Saved Successfully!")
+            Text(title)
                 .font(.headline)
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier("Save Confirmation Text")
@@ -54,7 +67,7 @@ struct SaveConfirmationView: View {
             }
             .padding(.horizontal, 20)
             
-            Text("Share this ID with friends so they can view your artwork!")
+            Text(message)
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -82,5 +95,19 @@ struct SaveConfirmationView: View {
 }
 
 #Preview {
-    SaveConfirmationView(artworkId: "preview-artwork-id-123", dismissAction: { print("Dismissed") })
+    VStack(spacing: 30) {
+        // Save confirmation version
+        SaveConfirmationView(
+            artworkId: "save-artwork-id-123", 
+            dismissAction: { print("Dismissed save version") }
+        )
+        
+        // Share version
+        SaveConfirmationView(
+            artworkId: "share-artwork-id-456",
+            title: "Share Your Artwork",
+            message: "Copy this ID and share it with friends so they can view and import your artwork!",
+            dismissAction: { print("Dismissed share version") }
+        )
+    }
 } 

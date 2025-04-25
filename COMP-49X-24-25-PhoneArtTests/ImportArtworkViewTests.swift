@@ -375,8 +375,8 @@ class MockFirebaseService: FirebaseService {
         return mockArtworkDataResult
     }
     
-    // Mock for saveArtwork that returns a DocumentReference
-    override func saveArtwork(artworkData: String, title: String? = nil) async throws -> DocumentReference {
+    // Mock for saveArtwork that matches the tuple return type of the original
+    override func saveArtwork(artworkData: String, title: String? = nil) async throws -> (DocumentReference?, Bool, [ArtworkData]) {
         saveArtworkCalled = true
         print("MockFirebaseService: saveArtwork called.")
         if let error = mockSaveError {
@@ -386,8 +386,9 @@ class MockFirebaseService: FirebaseService {
         // Return a DocumentReference - use TestArtwork collection to avoid touching production data
         let db = Firestore.firestore()
         let docRef = db.collection("TestArtwork").document(mockSaveDocumentID)
-        print("MockFirebaseService: Returning mock document reference: \(docRef.path)")
-        return docRef
+        print("MockFirebaseService: Returning mock document reference: \(docRef.path) and default tuple values")
+        // Return the correct tuple type: (DocumentReference?, isGalleryFull, existingArtworks)
+        return (docRef, false, []) 
     }
     
     // Mock for listAllPieces
