@@ -422,12 +422,12 @@ struct GalleryPanel: View {
       let heightRatio = targetSize.height / size.height
       let ratio = min(widthRatio, heightRatio)
       let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
-      let rect = CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height)
+      let rect = CGRect(origin: .zero, size: newSize)
 
 
       UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
       image.draw(in: rect)
-      let newImage = UIGraphicsGetImageFromCurrentImageContext()
+      let newImage = UIGraphicsGetImageFromCurrentImageContext()!
       UIGraphicsEndImageContext()
 
 
@@ -930,7 +930,7 @@ private func createShapePath(shapeType: ShapesPanel.ShapeType, finalX: CGFloat, 
             path.addLine(to: CGPoint(x: finalX - scaledRadius * 0.8, y: finalY))
             path.closeSubpath()
             return path
-       case .parallelogram:
+       case .parallelogram: // Re-adding parallelogram case
            var path = Path()
            path.move(to: CGPoint(x: finalX - scaledRadius + scaledRadius * 0.4, y: finalY - scaledRadius * 0.6))
            path.addLine(to: CGPoint(x: finalX + scaledRadius + scaledRadius * 0.4, y: finalY - scaledRadius * 0.6))
@@ -938,14 +938,15 @@ private func createShapePath(shapeType: ShapesPanel.ShapeType, finalX: CGFloat, 
            path.addLine(to: CGPoint(x: finalX - scaledRadius - scaledRadius * 0.4, y: finalY + scaledRadius * 0.6))
            path.closeSubpath()
            return path
-       case .trapezoid:
-           var path = Path()
-           path.move(to: CGPoint(x: finalX - scaledRadius * 0.8, y: finalY - scaledRadius * 0.6))
-           path.addLine(to: CGPoint(x: finalX + scaledRadius * 0.8, y: finalY - scaledRadius * 0.6))
-           path.addLine(to: CGPoint(x: finalX + scaledRadius, y: finalY + scaledRadius * 0.6))
-           path.addLine(to: CGPoint(x: finalX - scaledRadius, y: finalY + scaledRadius * 0.6))
-           path.closeSubpath()
-           return path
+       case .capsule:
+           // Create a capsule shape within the baseRect
+           let capsuleRect = CGRect(
+               x: finalX - scaledRadius * 0.8, // Match CanvasView
+               y: finalY - scaledRadius,
+               width: scaledRadius * 1.6,
+               height: scaledRadius * 2
+           )
+           return Capsule(style: .continuous).path(in: capsuleRect)
    }
 }
 

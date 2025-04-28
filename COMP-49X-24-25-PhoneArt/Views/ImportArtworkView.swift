@@ -88,56 +88,99 @@ struct ImportArtworkView: View {
    @FocusState private var isIdFieldFocused: Bool
   
    var body: some View {
-       VStack(spacing: 20) {
-           Text("Import Artwork")
+       VStack(spacing: 25) {
+           Image(systemName: "arrow.down.circle.fill")
+               .font(.system(size: 60))
+               .foregroundColor(.blue)
+               .padding(.top, 30)
+          
+           Text("Import Artwork Code")
                .font(.headline)
-               .padding(.top)
+               .multilineTextAlignment(.center)
           
-           Text("Enter the artwork ID to import:")
-               .font(.subheadline)
-               .foregroundColor(.secondary)
-          
-           TextField("Artwork ID", text: $viewModel.artworkIdText)
-               .textFieldStyle(RoundedBorderTextFieldStyle())
-               .padding(.horizontal)
-               .focused($isIdFieldFocused)
-               .onAppear {
-                   // Focus the text field when view appears
-                   DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                       isIdFieldFocused = true
+           VStack(alignment: .leading, spacing: 10) {
+               Text("Artwork ID:")
+                   .font(.subheadline)
+                   .foregroundColor(.secondary)
+              
+               HStack {
+                   TextField("Artwork ID", text: $viewModel.artworkIdText)
+                       .font(.system(.body, design: .monospaced))
+                       .padding(10)
+                       .background(Color(uiColor: .secondarySystemBackground))
+                       .cornerRadius(8)
+                       .focused($isIdFieldFocused)
+                       .onAppear {
+                           // Focus the text field when view appears
+                           DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                               isIdFieldFocused = true
+                           }
+                       }
+                   
+                   Button(action: {
+                       if let string = UIPasteboard.general.string {
+                           viewModel.artworkIdText = string
+                       }
+                   }) {
+                       Image(systemName: "doc.on.clipboard")
+                           .foregroundColor(Color(uiColor: .systemBlue))
+                           .padding(8)
+                           .background(Color(uiColor: .tertiarySystemBackground))
+                           .cornerRadius(8)
                    }
+                   .accessibilityIdentifier("Paste ID Button")
                }
+           }
+           .padding(.horizontal, 30)
           
            if viewModel.showError {
                Text(viewModel.errorMessage)
                    .foregroundColor(.red)
                    .font(.caption)
-                   .padding(.horizontal)
+                   .multilineTextAlignment(.center)
+                   .padding(.horizontal, 30)
                    .transition(.opacity)
            }
+           
+           Text("Enter an artwork code shared with you to import the artwork.")
+               .font(.caption)
+               .foregroundColor(.secondary)
+               .multilineTextAlignment(.center)
+               .padding(.horizontal, 30)
+               .padding(.top, 5)
           
            HStack(spacing: 20) {
                Button("Cancel") {
                    viewModel.cancelImport()
                }
-               .buttonStyle(.bordered)
-              
+               .foregroundColor(.black)
+               .padding(.vertical, 14)
+               .padding(.horizontal, 30)
+               .background(Color(uiColor: .secondarySystemBackground))
+               .cornerRadius(10)
+               
                Button("Import") {
                    viewModel.importArtwork()
                }
-               .buttonStyle(.borderedProminent)
+               .padding(.vertical, 14)
+               .padding(.horizontal, 30)
+               .background(Color(uiColor: .systemBlue))
+               .foregroundColor(.white)
+               .cornerRadius(10)
                .disabled(viewModel.artworkIdText.isEmpty || viewModel.isLoading)
            }
-           .padding(.bottom)
+           .padding(.top, 20)
+           .padding(.bottom, viewModel.isLoading ? 10 : 30)
           
            if viewModel.isLoading {
                ProgressView()
-                   .padding()
+                   .padding(.bottom, 30)
            }
        }
-       .frame(width: 350, height: 250)
-       .background(Color(.systemBackground))
-       .cornerRadius(12)
+       .frame(width: 350)
+       .background(Color(uiColor: .systemBackground))
+       .cornerRadius(16)
        .shadow(radius: 10)
+       .padding(30)
    }
 }

@@ -92,42 +92,6 @@ struct ColorPropertiesPanel: View {
                        // Shapes tab content - without outer ScrollView since we're already in one
                        ShapesSectionContent()
                    } else {
-                       // Toggle for default colors - styled to match property rows
-                       VStack(alignment: .leading, spacing: 0) {
-                           // Combined row with icon, text and toggle
-                           HStack {
-                               Image(systemName: "wand.and.stars")
-                                   .foregroundColor(.blue)
-                                   .font(.system(size: 18))
-                                   .frame(width: 24)
-                               
-                               Text("Toggle Default Colors")
-                                   .font(.headline)
-                               
-                               Spacer() // Push the toggle to the right
-                               
-                               Toggle("", isOn: Binding(
-                                   get: { ColorPresetManager.shared.useDefaultRainbowColors },
-                                   set: { newValue in
-                                       ColorPresetManager.shared.useDefaultRainbowColors = newValue
-                                       // Always set to dynamic style (index 0) when toggled
-                                       if newValue {
-                                           ColorPresetManager.shared.rainbowStyle = 0
-                                       }
-                                   }
-                               ))
-                               .labelsHidden()
-                               .frame(width: 51) // Set a fixed width to match iOS standard toggle
-                           }
-                           .padding(.vertical, 10) // Add vertical padding to match the height of other controls
-                       }
-                       .padding(.vertical, 12)
-                       .padding(.horizontal, 16)
-                       .background(Color(uiColor: .systemGray6))
-                       .cornerRadius(8)
-                       .padding(.horizontal, 16)
-                       .padding(.top, 16)
-                       
                        // Colors tab content
                        ColorSelectionPanel(selectedColor: $selectedColor)
                            .padding(.horizontal, 16)
@@ -357,6 +321,40 @@ struct ShapesSectionContent: View {
   
    var body: some View {
        VStack(alignment: .leading, spacing: 16) {
+           // Toggle for default colors - moved from the Colors tab to the Properties tab
+           VStack(alignment: .leading, spacing: 0) {
+               // Combined row with icon, text and toggle
+               HStack {
+                   Image(systemName: "wand.and.stars")
+                       .foregroundColor(.blue)
+                       .font(.system(size: 18))
+                       .frame(width: 24)
+                   
+                   Text("Toggle Default Colors")
+                       .font(.headline)
+                   
+                   Spacer() // Push the toggle to the right
+                   
+                   Toggle("", isOn: Binding(
+                       get: { ColorPresetManager.shared.useDefaultRainbowColors },
+                       set: { newValue in
+                           ColorPresetManager.shared.useDefaultRainbowColors = newValue
+                           // Always set to dynamic style (index 0) when toggled
+                           if newValue {
+                               ColorPresetManager.shared.rainbowStyle = 0
+                           }
+                       }
+                   ))
+                   .labelsHidden()
+                   .frame(width: 51) // Set a fixed width to match iOS standard toggle
+               }
+               .padding(.vertical, 10) // Add vertical padding to match the height of other controls
+           }
+           .padding(.vertical, 12)
+           .padding(.horizontal, 16)
+           .background(Color(uiColor: .systemGray6))
+           .cornerRadius(8)
+           
            // Color properties - Always visible regardless of toggle state
            VStack(spacing: 12) {
                // Hue slider - only visible when default rainbow colors are enabled
