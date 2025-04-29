@@ -213,7 +213,6 @@ struct PropertiesPanel: View {
                          rotation = value
                      }
                  }
-             Text("°")
          }
      }
  }
@@ -237,7 +236,6 @@ struct PropertiesPanel: View {
                          scale = value
                      }
                  }
-             Text("x")
          }
      }
  }
