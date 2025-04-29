@@ -91,7 +91,11 @@ struct CanvasView: View {
     @State private var pendingArtworkData: (String, String?) = ("", nil) // (artworkString, title)
     @State private var showArtworkReplaceSheet = false
     @State private var galleryThumbnails: [String: UIImage] = [:] // Dictionary to store thumbnails [artworkId: UIImage]
-   
+    
+    // Add state variables for the artwork one change ago
+    @State private var previousArtworkState: (selectedShape: ShapesPanel.ShapeType, shapeRotation: Double, shapeScale: Double, shapeLayer: Double, shapeSkewX: Double, shapeSkewY: Double, shapeSpread: Double, shapeHorizontal: Double, shapeVertical: Double, shapePrimitive: Double, colorPresets: [Color], backgroundColor: Color, strokeWidth: Double, strokeColor: Color, shapeAlpha: Double)? = nil
+    @State private var showUndoButton: Bool = false
+
     // Add these state variables after the other @State declarations around line 80-90
     @State internal var hasUnsavedChanges = false
     @State private var lastCheckedArtworkString: String? = nil
@@ -234,9 +238,86 @@ struct CanvasView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
         // Reset button in upper right
-        VStack(spacing: 10) {
+        VStack(spacing: 20) {
             makeResetButton()
-                .padding(.bottom, 30)
+            // Randomize icon button styled exactly like the center button
+            Button(action: {
+                previousArtworkState = (
+                    selectedShape,
+                    shapeRotation,
+                    shapeScale,
+                    shapeLayer,
+                    shapeSkewX,
+                    shapeSkewY,
+                    shapeSpread,
+                    shapeHorizontal,
+                    shapeVertical,
+                    shapePrimitive,
+                    colorPresetManager.colorPresets,
+                    colorPresetManager.backgroundColor,
+                    colorPresetManager.strokeWidth,
+                    colorPresetManager.strokeColor,
+                    colorPresetManager.shapeAlpha
+                )
+                createRandomizedArtwork()
+                showUndoButton = true
+            }) {
+                Rectangle()
+                    .foregroundColor(.clear)
+                    .frame(width: 40, height: 40) // Matches Reset button size
+                    .background(Color(uiColor: .systemBackground))
+                    .cornerRadius(8)
+                    .overlay(
+                        Image(systemName: "shuffle")
+                            .font(.system(size: 20)) // Matches Reset button icon size
+                            .foregroundColor(Color(uiColor: .systemBlue))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                    )
+            }
+            .accessibilityIdentifier("Randomize Button")
+
+            // Undo icon button (only appears when needed)
+            if showUndoButton {
+                Button(action: {
+                    if let prev = previousArtworkState {
+                        selectedShape = prev.selectedShape
+                        shapeRotation = prev.shapeRotation
+                        shapeScale = prev.shapeScale
+                        shapeLayer = prev.shapeLayer
+                        shapeSkewX = prev.shapeSkewX
+                        shapeSkewY = prev.shapeSkewY
+                        shapeSpread = prev.shapeSpread
+                        shapeHorizontal = prev.shapeHorizontal
+                        shapeVertical = prev.shapeVertical
+                        shapePrimitive = prev.shapePrimitive
+                        colorPresetManager.colorPresets = prev.colorPresets
+                        colorPresetManager.backgroundColor = prev.backgroundColor
+                        colorPresetManager.strokeWidth = prev.strokeWidth
+                        colorPresetManager.strokeColor = prev.strokeColor
+                        colorPresetManager.shapeAlpha = prev.shapeAlpha
+                    }
+                    showUndoButton = false
+                }) {
+                    Rectangle()
+                        .foregroundColor(.clear) // Match style
+                        .frame(width: 40, height: 40) // Match size
+                        .background(Color(uiColor: .systemBackground))
+                        .cornerRadius(8)
+                        .overlay(
+                            Image(systemName: "arrow.uturn.backward")
+                                .font(.system(size: 20)) // Match icon size
+                                .foregroundColor(Color(uiColor: .systemOrange)) // Different color for distinction
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                        )
+                }
+                .accessibilityIdentifier("Undo Button")
+            }
         }
         .frame(width: 50) 
         .padding(.top, 50)
@@ -1803,21 +1884,21 @@ struct CanvasView: View {
         
         // Random shape properties within reasonable ranges
         shapeRotation = Double.random(in: 0...360)
-        shapeScale = Double.random(in: 0.8...1.5)
-        shapeLayer = Double.random(in: 0...5)
+        shapeScale = Double.random(in: 0.7...1.2)
+        shapeLayer = Double.random(in: 15...40)
         shapeSkewX = Double.random(in: 0...30)
         shapeSkewY = Double.random(in: 0...30)
         shapeSpread = Double.random(in: 5...40)
-        shapeHorizontal = Double.random(in: -50...50)
-        shapeVertical = Double.random(in: -50...50)
+        shapeHorizontal = Double.random(in: 0...0)
+        shapeVertical = Double.random(in: 0...0)
         shapePrimitive = Double.random(in: 1...5).rounded()
         
-        // C_eate random colors for the presets (using hue rotation for variety)
+        // Create random colors for the presets (using hue rotation for variety)
         var randomColors: [Color] = []
         for _ in 0..<10 {
             let hue = Double.random(in: 0...1)
             let saturation = Double.random(in: 0.7...1.0)
-            let brightness = Double.random(in: 0.7...1.0)
+            let brightness = Double.random(in: 0.7...0.9)
             randomColors.append(Color(hue: hue, saturation: saturation, brightness: brightness))
         }
         
