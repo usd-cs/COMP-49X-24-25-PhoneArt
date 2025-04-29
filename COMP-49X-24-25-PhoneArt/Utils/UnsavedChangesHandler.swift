@@ -28,7 +28,7 @@ struct UnsavedChangesHandler {
             case .newArtwork:
                 return "Create New Artwork - Unsaved Changes"
             case .importArtwork:
-                return "Import Artwork - Unsaved Changes"
+                return "Import Artwork Code - Unsaved Changes"
             case .shareArtwork:
                 return "Share Artwork"
             case .shareModifiedArtwork:
@@ -43,7 +43,7 @@ struct UnsavedChangesHandler {
             case .newArtwork:
                 return "You have unsaved changes. Creating a new artwork will discard these changes."
             case .importArtwork:
-                return "You have unsaved changes. Importing a different artwork will discard these changes."
+                return "You have unsaved changes. Importing a different artwork code will discard these changes."
             case .shareArtwork:
                 return "To share this artwork, you need to save it first. Would you like to save now?"
             case .shareModifiedArtwork:
