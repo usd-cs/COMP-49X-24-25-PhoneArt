@@ -3,6 +3,7 @@ import SwiftUI
 import Combine
 import FirebaseFirestore
 import FirebaseCore
+import UIKit
 @testable import COMP_49X_24_25_PhoneArt
 
 // Define the ViewModel if it doesn't exist
@@ -215,4 +216,57 @@ final class GalleryPanelTests: XCTestCase {
         XCTAssertEqual(sut.artworks.first?.pieceId, "p-load")
     }
 
+    func testArtworkGridItemInitialization() {
+        let dummyArtwork = ArtworkData(deviceId: "test-device", artworkString: "{}", timestamp: Date(), title: "Test", pieceId: "1")
+        let item = ArtworkGridItem(
+            artwork: dummyArtwork,
+            thumbnail: UIImage(),
+            onTap: {},
+            onRename: {},
+            onDelete: {},
+            onShare: {}
+        )
+        XCTAssertEqual(item.artwork.id, "1")
+        XCTAssertNotNil(item.thumbnail)
+    }
+
+    func testArtworkGridItemWithoutThumbnail() {
+        let dummyArtwork = ArtworkData(deviceId: "test-device", artworkString: "{}", timestamp: Date(), title: "Test", pieceId: "1")
+        let item = ArtworkGridItem(
+            artwork: dummyArtwork,
+            thumbnail: nil,
+            onTap: {},
+            onRename: {},
+            onDelete: {},
+            onShare: {}
+        )
+        XCTAssertEqual(item.artwork.id, "1")
+        XCTAssertNil(item.thumbnail)
+    }
+
+    func testGalleryPanelArtworkRendererViewInitialization() {
+        let params = CanvasView.ArtworkParameters(
+            shapeType: ShapesPanel.ShapeType.circle,
+            rotation: 0,
+            scale: 1,
+            layer: 1,
+            skewX: 0,
+            skewY: 0,
+            spread: 0,
+            horizontal: 0,
+            vertical: 0,
+            primitive: 1,
+            colorPresets: [Color.red],
+            backgroundColor: Color.white,
+            useDefaultRainbowColors: false,
+            rainbowStyle: 0,
+            hueAdjustment: 0,
+            saturationAdjustment: 0,
+            shapeAlpha: 1,
+            strokeWidth: 1,
+            strokeColor: Color.black
+        )
+        let renderer = CanvasView.ArtworkRendererView(params: params)
+        XCTAssertEqual(renderer.params.shapeType, ShapesPanel.ShapeType.circle)
+    }
 }

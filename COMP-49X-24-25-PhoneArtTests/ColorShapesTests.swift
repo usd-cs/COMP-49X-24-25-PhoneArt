@@ -204,4 +204,14 @@ final class ColorShapesTests: XCTestCase {
        // Then
        XCTAssertFalse(isShowingValue)
    }
+
+   func testShapesSectionContentInitialization() {
+       let section = ShapesSectionContent()
+       XCTAssertNotNil(section)
+       // Test testable properties if available
+       _ = section.testHueText
+       _ = section.testSaturationText
+       _ = section.testAlphaText
+       _ = section.testStrokeWidthText
+   }
 }

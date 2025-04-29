@@ -8,6 +8,7 @@
 import XCTest
 import SwiftUI
 import FirebaseFirestore
+import UIKit
 @testable import COMP_49X_24_25_PhoneArt
 
 /// Test suite for the CanvasView component
@@ -531,6 +532,59 @@ final class CanvasViewTests: XCTestCase {
        let loadedArtwork = try decoder.decode(ArtworkData.self, from: data)
        
        XCTAssertNil(loadedArtwork.title)
+   }
+
+   func testArtworkReplaceSheetInitialization() {
+       let dummyArtwork = ArtworkData(deviceId: "test-device", artworkString: "{}", timestamp: Date(), title: "Test", pieceId: "1")
+       let sheet = CanvasView.ArtworkReplaceSheet(
+           artworks: [dummyArtwork],
+           thumbnails: ["1": UIImage()],
+           onSelect: { _ in },
+           onCancel: {}
+       )
+       XCTAssertEqual(sheet.artworks.count, 1)
+       XCTAssertNotNil(sheet.thumbnails["1"])
+   }
+
+   func testArtworkPreviewWithThumbnail() {
+       let dummyArtwork = ArtworkData(deviceId: "test-device", artworkString: "{}", timestamp: Date(), title: "Test", pieceId: "1")
+       let image = UIImage(systemName: "photo")
+       let preview = CanvasView.ArtworkPreview(artwork: dummyArtwork, thumbnail: image)
+       XCTAssertNotNil(preview.artwork)
+       XCTAssertEqual(preview.thumbnail, image)
+   }
+
+   func testArtworkPreviewWithoutThumbnail() {
+       let dummyArtwork = ArtworkData(deviceId: "test-device", artworkString: "{}", timestamp: Date(), title: "Test", pieceId: "1")
+       let preview = CanvasView.ArtworkPreview(artwork: dummyArtwork, thumbnail: nil)
+       XCTAssertNotNil(preview.artwork)
+       XCTAssertNil(preview.thumbnail)
+   }
+
+   func testArtworkRendererViewInitialization() {
+       let params = CanvasView.ArtworkParameters(
+           shapeType: ShapesPanel.ShapeType.circle,
+           rotation: 0,
+           scale: 1,
+           layer: 1,
+           skewX: 0,
+           skewY: 0,
+           spread: 0,
+           horizontal: 0,
+           vertical: 0,
+           primitive: 1,
+           colorPresets: [.red],
+           backgroundColor: .white,
+           useDefaultRainbowColors: false,
+           rainbowStyle: 0,
+           hueAdjustment: 0,
+           saturationAdjustment: 0,
+           shapeAlpha: 1,
+           strokeWidth: 1,
+           strokeColor: .black
+       )
+       let renderer = CanvasView.ArtworkRendererView(params: params)
+       XCTAssertEqual(renderer.params.shapeType, ShapesPanel.ShapeType.circle)
    }
 }
 

@@ -173,6 +173,24 @@ final class ColorSelectionTests: XCTestCase {
        // No assertion needed - if body fails, test will crash
    }
   
+   func testColorPresetButtonSelectedState() {
+       var actionCalled = false
+       let button = ColorPresetButton(color: .red, isSelected: true) {
+           actionCalled = true
+       }
+       XCTAssertTrue(button.isSelected)
+       XCTAssertEqual(button.color, .red)
+       // Simulate tap
+       button.action()
+       XCTAssertTrue(actionCalled)
+   }
+  
+   func testColorPresetButtonUnselectedState() {
+       let button = ColorPresetButton(color: .blue, isSelected: false, action: {})
+       XCTAssertFalse(button.isSelected)
+       XCTAssertEqual(button.color, .blue)
+   }
+  
    // Helper to compare colors by component equality rather than distance
    private func colorComponentsEqual(_ color1: Color, _ color2: Color) -> Bool {
        let uiColor1 = uiColorFromColor(color1)
