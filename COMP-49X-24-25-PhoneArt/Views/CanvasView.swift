@@ -57,7 +57,7 @@ struct CanvasView: View {
     /// This color can be changed through the ColorSelectionPanel
     @State private var shapeColor: Color = .red  // Default to red
     /// The currently selected shape type
-    @State internal var selectedShape: ShapesPanel.ShapeType = .circle  // Default to circle
+    @State internal var selectedShape: ShapesPanel.ShapeType = .capsule  // Default to capsule
     /// Use the shared color preset manager for real-time updates
     @ObservedObject private var colorPresetManager = ColorPresetManager.shared
      /// State variable to force view updates when color presets change
@@ -233,20 +233,28 @@ struct CanvasView: View {
         .padding(.leading, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-        // Reset button and zoom slider in upper right
+        // Reset button in upper right
         VStack(spacing: 10) {
             makeResetButton()
                 .padding(.bottom, 30)
-            if showZoomSlider {
-                makeZoomSlider()
-                    .transition(.opacity.animation(.easeInOut))
-            }
         }
         .frame(width: 50) 
         .padding(.top, 50)
-        // Reduce trailing padding slightly
         .padding(.trailing, 15) 
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        
+        // Zoom slider in middle right
+        if showZoomSlider {
+            VStack {
+                Spacer()
+                makeZoomSlider()
+                Spacer()
+            }
+            .frame(width: 50)
+            .padding(.trailing, 15)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            .transition(.opacity.animation(.easeInOut(duration: 0.5)))
+        }
     }
 
     @ViewBuilder
@@ -329,7 +337,7 @@ struct CanvasView: View {
 
                 SaveConfirmationView(
                     artworkId: confirmedId.id,
-                    title: "Share Your Artwork",
+                    title: "Share Your Artwork Code",
                     message: "Copy this ID and share it with friends so they can view and import your artwork!"
                 ) { confirmedArtworkId = nil }
                 .transition(.opacity.animation(.easeInOut))
@@ -386,7 +394,7 @@ struct CanvasView: View {
     @ViewBuilder
     private func unsavedChangesAlertButtons() -> some View {
         if alertTitle.contains("Unsaved Changes") ||
-           alertTitle == "Import Artwork" ||
+           alertTitle == "Import Artwork Code" ||
            alertTitle == "Create New Artwork" ||
            alertTitle == "Share Artwork" ||
            alertTitle == "Share Modified Artwork" {
@@ -434,7 +442,9 @@ struct CanvasView: View {
     private func handleZoomChange(value: MagnificationGesture.Value) {
         let newZoom = startingZoomLevel * value
         zoomLevel = validateZoom(newZoom)
-        showZoomSlider = true
+        withAnimation(.easeInOut(duration: 0.5)) {
+            showZoomSlider = true
+        }
         lastZoomInteractionTime = Date()
     }
 
@@ -459,8 +469,10 @@ struct CanvasView: View {
     }
 
     private func handleZoomTimerTick() {
-        if showZoomSlider && Date().timeIntervalSince(lastZoomInteractionTime) > 15 {
-            showZoomSlider = false
+        if showZoomSlider && Date().timeIntervalSince(lastZoomInteractionTime) > 3 {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                showZoomSlider = false
+            }
         }
     }
     
@@ -490,7 +502,7 @@ struct CanvasView: View {
         let center = CGPoint(x: centerX, y: centerY)
  
         // Draw center point of the canvas
-        drawCenterDot(context: context, at: center, color: .black)
+        // drawCenterDot(context: context, at: center, color: .black)
  
         let numberOfLayers = max(0, min(72, Int(shapeLayer)))
         if numberOfLayers > 0 {
@@ -531,7 +543,7 @@ struct CanvasView: View {
     ) {
         // Get the number of primitives (1-6)
         let primitiveCount = Int(validatePrimitive(shapePrimitive))
- 
+  
         for layerIndex in 0..<layers {
             // For each primitive in the current layer, draw evenly spaced shapes
             for primitiveIndex in 0..<primitiveCount {
@@ -570,7 +582,7 @@ struct CanvasView: View {
         let angleInRadians = angleInDegrees * (.pi / 180)
   
         // Scale compounds with each layer, but significantly reduced
-        let scaleFactor = 0.06125  // Reduced from 0.25 to 0.125 to halve the scale effect strength
+        let scaleFactor = 0.20  // Reduced from 0.25 to 0.125 to halve the scale effect strength
         let layerScale = pow(1.0 + (shapeScale - 1.0) * scaleFactor, Double(layerIndex + 1))
         let scaledRadius = radius * layerScale
   
@@ -658,15 +670,17 @@ struct CanvasView: View {
             path.addLine(to: CGPoint(x: finalX - scaledRadius - scaledRadius * 0.4, y: finalY + scaledRadius * 0.6))
             path.closeSubpath()
             shapePath = path
-        case .trapezoid:
-            var path = Path()
-            path.move(to: CGPoint(x: finalX - scaledRadius * 0.8, y: finalY - scaledRadius * 0.6))
-            path.addLine(to: CGPoint(x: finalX + scaledRadius * 0.8, y: finalY - scaledRadius * 0.6))
-            path.addLine(to: CGPoint(x: finalX + scaledRadius, y: finalY + scaledRadius * 0.6))
-            path.addLine(to: CGPoint(x: finalX - scaledRadius, y: finalY + scaledRadius * 0.6))
-            path.closeSubpath()
-            shapePath = path
-        }
+        case .capsule:
+             // Create a capsule shape within the baseRect
+             // Adjust the height slightly to make it visually distinct from oval
+             let capsuleRect = CGRect(
+                 x: finalX - scaledRadius * 0.8, // Slightly narrower
+                 y: finalY - scaledRadius, // Full height
+                 width: scaledRadius * 1.6, // Slightly narrower
+                 height: scaledRadius * 2
+             )
+             shapePath = Capsule(style: .continuous).path(in: capsuleRect)
+         }
    
         // Create separate transformations and apply them in the correct sequence
    
@@ -970,7 +984,7 @@ struct CanvasView: View {
                 .accessibilityIdentifier("New Canvas Button")
 
                 Button(action: { showImportSheet = true }) {
-                    Label("Import from ID...", systemImage: "square.and.arrow.down") // Icon indicates retrieving
+                    Label("Import Artwork Code...", systemImage: "square.and.arrow.down") // Icon indicates retrieving
             }
             .accessibilityIdentifier("Import Button")
             
@@ -1725,7 +1739,7 @@ struct CanvasView: View {
         shapeHorizontal = 0
         shapeVertical = 0
         shapePrimitive = 1
-        selectedShape = .circle // Default shape
+        selectedShape = .capsule // Default shape
 
         // Reset color manager
         ColorPresetManager.shared.resetToDefaults()
@@ -1784,8 +1798,8 @@ struct CanvasView: View {
     /// Creates an artwork with randomized properties
     private func createRandomizedArtwork() {
         // Random shape type from available options
-        let shapeTypes: [ShapesPanel.ShapeType] = [.circle, .square, .triangle, .pentagon, .star]
-        selectedShape = shapeTypes.randomElement() ?? .circle
+        let shapeTypes: [ShapesPanel.ShapeType] = [.capsule, .square, .triangle, .pentagon, .star]
+        selectedShape = shapeTypes.randomElement() ?? .capsule
         
         // Random shape properties within reasonable ranges
         shapeRotation = Double.random(in: 0...360)
@@ -2602,6 +2616,16 @@ struct CanvasView: View {
                 shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 5)
             case .octagon:
                 shapePath = createPolygonPath(center: CGPoint(x: finalX, y: finalY), radius: scaledRadius, sides: 8)
+            case .capsule:
+                // Create a capsule shape within the baseRect
+                // Adjust the height slightly to make it visually distinct from oval
+                let capsuleRect = CGRect(
+                    x: finalX - scaledRadius * 0.8, // Slightly narrower
+                    y: finalY - scaledRadius, // Full height
+                    width: scaledRadius * 1.6, // Slightly narrower
+                    height: scaledRadius * 2
+                )
+                shapePath = Capsule(style: .continuous).path(in: capsuleRect)
             default:
                 // Default to circle for other shapes to keep it simple
                 shapePath = Path(ellipseIn: baseRect)

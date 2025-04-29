@@ -105,7 +105,7 @@ struct SaveConfirmationView: View {
         // Share version
         SaveConfirmationView(
             artworkId: "share-artwork-id-456",
-            title: "Share Your Artwork",
+            title: "Share Your Artwork Code",
             message: "Copy this ID and share it with friends so they can view and import your artwork!",
             dismissAction: { print("Dismissed share version") }
         )

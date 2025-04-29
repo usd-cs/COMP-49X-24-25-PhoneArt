@@ -73,10 +73,10 @@ final class ShapesPanelTests: XCTestCase {
        XCTAssertEqual(ShapesPanel.ShapeType.diamond.icon, "diamond.fill")
        XCTAssertEqual(ShapesPanel.ShapeType.pentagon.icon, "pentagon.fill")
        XCTAssertEqual(ShapesPanel.ShapeType.octagon.icon, "octagon.fill")
-       XCTAssertEqual(ShapesPanel.ShapeType.arrow.icon, "arrow.up.circle.fill")
+       XCTAssertEqual(ShapesPanel.ShapeType.arrow.icon, "arrowshape.up.fill")
        XCTAssertEqual(ShapesPanel.ShapeType.rhombus.icon, "rhombus.fill")
        XCTAssertEqual(ShapesPanel.ShapeType.parallelogram.icon, "rectangle.portrait.fill")
-       XCTAssertEqual(ShapesPanel.ShapeType.trapezoid.icon, "trapezoid.and.line.vertical.fill")
+       XCTAssertEqual(ShapesPanel.ShapeType.capsule.icon, "capsule.fill")
    }
   
    /// Tests that all shape types have proper identifiers

@@ -651,3 +651,4 @@ final class CanvasViewInteractionTests: XCTestCase {
        XCTAssertTrue(true)
    }
 }
+

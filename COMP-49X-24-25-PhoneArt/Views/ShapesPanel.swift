@@ -21,7 +21,7 @@ struct ShapesPanel: View {
     enum ShapeType: String, CaseIterable, Identifiable {
         case circle, square, triangle, hexagon, star
         case rectangle, oval, diamond, pentagon, octagon
-        case arrow, rhombus, parallelogram, trapezoid
+        case arrow, rhombus, parallelogram, capsule
         
         /// Unique identifier for each shape type
         var id: String { self.rawValue }
@@ -39,10 +39,10 @@ struct ShapesPanel: View {
             case .diamond: return "diamond.fill"
             case .pentagon: return "pentagon.fill"
             case .octagon: return "octagon.fill"
-            case .arrow: return "arrow.up.circle.fill"
+            case .arrow: return "arrowshape.up.fill"
             case .rhombus: return "rhombus.fill"
             case .parallelogram: return "rectangle.portrait.fill"
-            case .trapezoid: return "trapezoid.and.line.vertical.fill"
+            case .capsule: return "capsule.fill"
             }
         }
     }
