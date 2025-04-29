@@ -241,7 +241,7 @@ struct PropertiesPanel: View {
  }
   /// Creates a row for controlling layer count
  private func layerPropertyRow() -> some View {
-     propertyRow(title: "Layer", icon: "square.3.stack.3d") {
+     propertyRow(title: "Layer", icon: "paintpalette") {
          HStack {
              Slider(value: $layer, in: 0...72)
                  .accessibilityIdentifier("Layer Slider")
@@ -496,7 +496,7 @@ struct PropertiesPanel: View {
                .frame(width: 50, height: 50)
                .cornerRadius(8)
                .overlay(
-                   Image(systemName: "square.3.stack.3d")
+                   Image(systemName: "paintpalette")
                        .font(.system(size: 22))
                        .foregroundColor(Color(uiColor: .systemBlue))
                )

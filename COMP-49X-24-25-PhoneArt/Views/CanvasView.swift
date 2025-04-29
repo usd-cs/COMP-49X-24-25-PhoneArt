@@ -959,7 +959,7 @@ struct CanvasView: View {
                .frame(width: 50, height: 50)
                 .cornerRadius(8)
                 .overlay(
-                    Image(systemName: "square.3.stack.3d")
+                    Image(systemName: "paintpalette")
                        .font(.system(size: 22))
                         .foregroundColor(Color(uiColor: .systemBlue))
                 )

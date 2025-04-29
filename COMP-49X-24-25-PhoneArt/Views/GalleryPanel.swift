@@ -227,7 +227,7 @@ struct GalleryPanel: View {
    /// Creates a button that switches to the Color Shapes panel.
   private func makeColorShapesButton() -> some View {
       Button(action: onSwitchToColorShapes) {
-          buttonContent(icon: "square.3.stack.3d", isActive: false)
+          buttonContent(icon: "paintpalette", isActive: false)
       }
       .accessibilityIdentifier("Color Shapes Button")
   }
