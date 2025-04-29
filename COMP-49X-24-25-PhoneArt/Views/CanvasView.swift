@@ -2400,7 +2400,7 @@ struct CanvasView: View {
     
     // MARK: - Artwork Replace Sheet
     
-    struct ArtworkReplaceSheet: View {
+    internal struct ArtworkReplaceSheet: View {
         let artworks: [ArtworkData]
         let thumbnails: [String: UIImage]
         let onSelect: (ArtworkData) -> Void
@@ -2461,7 +2461,7 @@ struct CanvasView: View {
     }
     
     // New view to render artwork preview
-    struct ArtworkPreview: View {
+    internal struct ArtworkPreview: View {
         let artwork: ArtworkData
         let thumbnail: UIImage?
         
@@ -2484,7 +2484,7 @@ struct CanvasView: View {
     }
     
     // Add ArtworkParameters struct to support the ArtworkPreview view
-    private struct ArtworkParameters {
+    internal struct ArtworkParameters {
         let shapeType: ShapesPanel.ShapeType
         let rotation: Double
         let scale: Double
@@ -2507,7 +2507,7 @@ struct CanvasView: View {
     }
     
     // ArtworkRendererView for rendering thumbnails
-    private struct ArtworkRendererView: View {
+    internal struct ArtworkRendererView: View {
         let params: ArtworkParameters
         // Define the rendering size
         private let renderSize = CGSize(width: 100, height: 100)
