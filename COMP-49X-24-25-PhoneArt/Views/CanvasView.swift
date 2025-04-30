@@ -45,6 +45,10 @@ struct CanvasView: View {
     @State private var zoomLevel: Double = 1.0
     /// Add state to track the starting zoom level during a pinch gesture
     @State private var startingZoomLevel: Double = 1.0
+    /// Add state for current rotation angle (in degrees)
+    @State private var currentRotation: Angle = .degrees(0)
+    /// Add state to track starting rotation angle during rotation gesture
+    @State private var startRotation: Angle = .degrees(0)
      /// Add new state variable
     @State internal var showColorShapes = false
      /// Add new state variable for shapes panel
@@ -185,6 +189,7 @@ struct CanvasView: View {
             .onChange(of: shapeVertical) { _, _ in checkForUnsavedChanges() }
             .onChange(of: shapePrimitive) { _, _ in checkForUnsavedChanges() }
             .onChange(of: selectedShape) { _, _ in checkForUnsavedChanges() }
+            .onChange(of: currentRotation) { _, _ in checkForUnsavedChanges() }
             // Note: .onChange for panel visibility (showProperties, etc.) removed as they only contained empty animations
         }
     }
@@ -209,19 +214,20 @@ struct CanvasView: View {
             .frame(width: 1600, height: 1800)
             .border(Color(uiColor: .label), width: 2)
             .scaleEffect(zoomLevel)
+            .rotationEffect(currentRotation) // Apply rotation
             // Calculate and apply offset using the new function and outer geometry
             .offset(x: offset.width, y: offset.height + calculateCanvasVerticalOffset(geometry: geometry))
             .animation(.easeInOut(duration: 0.25), value: showProperties || showColorShapes || showShapesPanel || showGalleryPanel) // Animate based on panel visibility
         }
         .gesture(
-            DragGesture()
-                .onChanged(handleDragChange)
-                .onEnded(handleDragEnd)
-        )
-        .gesture(
-            MagnificationGesture()
-                .onChanged { value in handleZoomChange(value: value) }
-                .onEnded { value in handleZoomEnd(value: value) }
+            SimultaneousGesture(
+                MagnificationGesture()
+                    .onChanged { value in handleZoomChange(value: value) }
+                    .onEnded { value in handleZoomEnd(value: value) },
+                RotationGesture()
+                    .onChanged { value in handleRotationChange(angle: value) }
+                    .onEnded { value in handleRotationEnd(angle: value) }
+            )
         )
         .onAppear { handleOnAppear() }
     }
@@ -534,8 +540,22 @@ struct CanvasView: View {
         lastZoomInteractionTime = Date()
     }
 
+    private func handleRotationChange(angle: Angle) {
+        // Combine the starting rotation with the change detected by the gesture
+        currentRotation = startRotation + angle
+        // You might want to add logic here to trigger the zoom slider or similar feedback
+        lastZoomInteractionTime = Date() // Reuse zoom interaction time for simplicity
+    }
+
+    private func handleRotationEnd(angle: Angle) {
+        // Update the starting rotation for the next gesture
+        startRotation = currentRotation
+        lastZoomInteractionTime = Date() // Update timestamp
+    }
+
     private func handleOnAppear() {
         startingZoomLevel = zoomLevel
+        startRotation = currentRotation
         loadInitialArtwork()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             checkForUnsavedChanges()
@@ -897,6 +917,9 @@ struct CanvasView: View {
                 height: (UIScreen.main.bounds.height - 1800) / 2
             )
             lastOffset = offset
+            // Reset rotation to original position (0 degrees)
+            currentRotation = .degrees(0)
+            startRotation = .degrees(0)
         }
     }
      // MARK: - UI Components
