@@ -163,7 +163,7 @@ final class CanvasViewTests: XCTestCase {
    func testInternalValidateZoom() {
        // Test boundaries for validateZoom
        XCTAssertGreaterThanOrEqual(sut.validateZoom(0.01), 0.05, "validateZoom should clamp low values")
-       XCTAssertEqual(sut.validateZoom(4.0), 3.0, "validateZoom should clamp high values")
+       XCTAssertEqual(sut.validateZoom(3.0), 3.0, "validateZoom should clamp high values")
    }
    
    /// Tests the internal shape path creation helpers

@@ -45,6 +45,10 @@ struct CanvasView: View {
     @State private var zoomLevel: Double = 1.0
     /// Add state to track the starting zoom level during a pinch gesture
     @State private var startingZoomLevel: Double = 1.0
+    /// Add zoom gesture center for proper scaling around touch point
+    @State private var zoomCenter: CGPoint = .zero
+    /// Track pinch gesture location for proper zooming
+    @GestureState private var gesturePinchLocation: CGPoint = .zero
     /// Add state for current rotation angle (in degrees)
     @State private var currentRotation: Angle = .degrees(0)
     /// Add state to track starting rotation angle during rotation gesture
@@ -114,11 +118,11 @@ struct CanvasView: View {
     @State private var showRestorationAlert = false
    
     // State for zoom slider visibility and timer
-    @State private var showZoomSlider = false
-    @State private var lastZoomInteractionTime = Date.distantPast
+    //@State private var showZoomSlider = false
+    //@State private var lastZoomInteractionTime = Date.distantPast
     
     // Timer publisher fires every second
-    private let zoomSliderTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    //private let zoomSliderTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
    
     // Add initializer for dependency injection
     init(firebaseService: FirebaseService = FirebaseService()) {
@@ -140,19 +144,41 @@ struct CanvasView: View {
         // let galleryPanelOffset: CGFloat = -220  // Shift up more for the taller gallery - No longer needed
 
         // Use the same offset for all panels
+        let result: CGFloat
         if showGalleryPanel || showProperties || showColorShapes || showShapesPanel {
-            return standardPanelOffset
+            result = standardPanelOffset
         } else {
-            return 0 // No panel, no offset
+            result = 0 // No panel, no offset
         }
+        
+        // DEBUG: Log significant changes in vertical offset
+        print("DEBUG: Canvas vertical offset: \(result) - panels: \(showGalleryPanel ? "gallery" : "")\(showProperties ? "properties" : "")\(showColorShapes ? "colorShapes" : "")\(showShapesPanel ? "shapesPanel" : "")")
+        
+        return result
     }
      /// Computed minimum zoom level to fit canvas width to screen width
     private var minZoomLevel: Double {
-        UIScreen.main.bounds.width / 1600.0
+        let screenWidth = UIScreen.main.bounds.width
+        let screenHeight = UIScreen.main.bounds.height
+        let canvasWidth: CGFloat = 1600
+        let canvasHeight: CGFloat = 1800
+        
+        let widthRatio = screenWidth / canvasWidth
+        let heightRatio = screenHeight / canvasHeight
+        
+        // Return the smaller ratio to ensure canvas fits within screen
+        return max(0.1, min(widthRatio, heightRatio) * 0.8)
     }
      // Make internal for testing
     internal func validateZoom(_ zoom: Double) -> Double {
-        max(minZoomLevel, min(3.0, zoom))  // Updated to use dynamic minimum
+        // Check for NaN values and replace with default 1.0
+        if zoom.isNaN {
+            print("DEBUG: NaN value detected in zoom, replacing with default 1.0")
+            return 1.0
+        }
+        
+        let maxZoom: Double = 5.0  // Increased max zoom for more flexibility
+        return max(minZoomLevel, min(maxZoom, zoom))
     }
      // MARK: - Body
     var body: some View {
@@ -173,7 +199,7 @@ struct CanvasView: View {
             .alert("Gallery Full", isPresented: $showGalleryFullAlert) { galleryFullAlertButtons() } message: { galleryFullAlertMessage() }
             .alert("Restore Previous Work", isPresented: $showRestorationAlert) { restorationAlertButtons() } message: { restorationAlertMessage() }
             .onChange(of: scenePhase) { oldPhase, newPhase in handleScenePhaseChange(newPhase: newPhase) }
-            .onReceive(zoomSliderTimer) { _ in handleZoomTimerTick() }
+            //.onReceive(zoomSliderTimer) { _ in handleZoomTimerTick() }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ColorPresetsChanged"))) { _ in handleColorPresetsChanged() }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("BackgroundColorChanged"))) { _ in handleBackgroundColorChanged() }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("StrokeSettingsChanged"))) { _ in handleStrokeSettingsChanged() }
@@ -206,30 +232,57 @@ struct CanvasView: View {
                     height: 2600
                 )
                 .contentShape(Rectangle())
+                .onAppear {
+                    // DEBUG: Log canvas background frame on appear
+                    print("DEBUG: Canvas background frame initialized - size: 2400x2600")
+                }
 
             Canvas { context, size in
+                // DEBUG: Log when canvas is being drawn
+                print("DEBUG: Canvas drawing - size: \(size), zoomLevel: \(zoomLevel)")
                 drawShapes(context: context, size: size)
             }
             .accessibilityIdentifier("Canvas")
             .frame(width: 1600, height: 1800)
             .border(Color(uiColor: .label), width: 2)
             .scaleEffect(zoomLevel)
+            .onChange(of: zoomLevel) { oldValue, newValue in
+                // DEBUG: Log when scale effect changes
+                print("DEBUG: Scale effect changed - oldZoom: \(oldValue), newZoom: \(newValue)")
+            }
             .rotationEffect(currentRotation) // Apply rotation
             // Calculate and apply offset using the new function and outer geometry
             .offset(x: offset.width, y: offset.height + calculateCanvasVerticalOffset(geometry: geometry))
             .animation(.easeInOut(duration: 0.25), value: showProperties || showColorShapes || showShapesPanel || showGalleryPanel) // Animate based on panel visibility
         }
+        .contentShape(Rectangle())
+        // Combine all gestures properly using ExclusiveGesture and SimultaneousGesture
+        .gesture(
+            DragGesture(minimumDistance: 10)
+                .onChanged { value in handleDragChange(value: value) }
+                .onEnded { value in handleDragEnd(value: value) }
+        )
+        // Use an ExclusiveGesture to combine magnification and rotation, which ensures they don't conflict
         .gesture(
             SimultaneousGesture(
                 MagnificationGesture()
                     .onChanged { value in handleZoomChange(value: value) }
                     .onEnded { value in handleZoomEnd(value: value) },
                 RotationGesture()
-                    .onChanged { value in handleRotationChange(angle: value) }
-                    .onEnded { value in handleRotationEnd(angle: value) }
+                    .onChanged { angle in handleRotationChange(angle: angle) }
+                    .onEnded { angle in handleRotationEnd(angle: angle) }
             )
         )
         .onAppear { handleOnAppear() }
+        .onTapGesture(count: 2) {
+            // Double tap to reset zoom
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                // Ensure we reset to valid zoom values
+                zoomLevel = 1.0
+                startingZoomLevel = 1.0
+                print("DEBUG: Double tap reset - zoom level reset to 1.0")
+            }
+        }
     }
 
     @ViewBuilder
@@ -237,111 +290,118 @@ struct CanvasView: View {
         // Share button in upper left corner
         VStack(spacing: 10) {
             makeShareButton()
-                .padding(.bottom, 30)
+                .padding(.bottom, 0) // Reduced padding to accommodate labels
         }
         .padding(.top, 50)
         .padding(.leading, 20)
+        .frame(width: 60) // Add width to accommodate text labels
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
         // Reset button in upper right
-        VStack(spacing: 20) {
-            makeResetButton()
-            // Randomize icon button styled exactly like the center button
-            Button(action: {
-                previousArtworkState = (
-                    selectedShape,
-                    shapeRotation,
-                    shapeScale,
-                    shapeLayer,
-                    shapeSkewX,
-                    shapeSkewY,
-                    shapeSpread,
-                    shapeHorizontal,
-                    shapeVertical,
-                    shapePrimitive,
-                    colorPresetManager.colorPresets,
-                    colorPresetManager.backgroundColor,
-                    colorPresetManager.strokeWidth,
-                    colorPresetManager.strokeColor,
-                    colorPresetManager.shapeAlpha
-                )
-                createRandomizedArtwork()
-                showUndoButton = true
-            }) {
-                Rectangle()
-                    .foregroundColor(.clear)
-                    .frame(width: 40, height: 40) // Matches Reset button size
-                    .background(Color(uiColor: .systemBackground))
-                    .cornerRadius(8)
-                    .overlay(
-                        Image(systemName: "shuffle")
-                            .font(.system(size: 20)) // Matches Reset button icon size
-                            .foregroundColor(Color(uiColor: .systemBlue))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                    )
+        VStack(spacing: 20) { // Increased spacing to match other buttons (was 8)
+            // Center button
+            VStack(spacing: 4) {
+                makeResetButton()
+                Text("Center")
+                    .font(.system(size: 10))
+                    .foregroundColor(.black)
             }
-            .accessibilityIdentifier("Randomize Button")
-
-            // Undo icon button (only appears when needed)
-            if showUndoButton {
+            
+            // Randomize icon button with label
+            VStack(spacing: 4) {
                 Button(action: {
-                    if let prev = previousArtworkState {
-                        selectedShape = prev.selectedShape
-                        shapeRotation = prev.shapeRotation
-                        shapeScale = prev.shapeScale
-                        shapeLayer = prev.shapeLayer
-                        shapeSkewX = prev.shapeSkewX
-                        shapeSkewY = prev.shapeSkewY
-                        shapeSpread = prev.shapeSpread
-                        shapeHorizontal = prev.shapeHorizontal
-                        shapeVertical = prev.shapeVertical
-                        shapePrimitive = prev.shapePrimitive
-                        colorPresetManager.colorPresets = prev.colorPresets
-                        colorPresetManager.backgroundColor = prev.backgroundColor
-                        colorPresetManager.strokeWidth = prev.strokeWidth
-                        colorPresetManager.strokeColor = prev.strokeColor
-                        colorPresetManager.shapeAlpha = prev.shapeAlpha
-                    }
-                    showUndoButton = false
+                    previousArtworkState = (
+                        selectedShape,
+                        shapeRotation,
+                        shapeScale,
+                        shapeLayer,
+                        shapeSkewX,
+                        shapeSkewY,
+                        shapeSpread,
+                        shapeHorizontal,
+                        shapeVertical,
+                        shapePrimitive,
+                        colorPresetManager.colorPresets,
+                        colorPresetManager.backgroundColor,
+                        colorPresetManager.strokeWidth,
+                        colorPresetManager.strokeColor,
+                        colorPresetManager.shapeAlpha
+                    )
+                    createRandomizedArtwork()
+                    showUndoButton = true
                 }) {
                     Rectangle()
-                        .foregroundColor(.clear) // Match style
-                        .frame(width: 40, height: 40) // Match size
+                        .foregroundColor(.clear)
+                        .frame(width: 40, height: 40) // Matches Reset button size
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(8)
                         .overlay(
-                            Image(systemName: "arrow.uturn.backward")
-                                .font(.system(size: 20)) // Match icon size
-                                .foregroundColor(Color(uiColor: .systemOrange)) // Different color for distinction
+                            Image(systemName: "shuffle")
+                                .font(.system(size: 20)) // Matches Reset button icon size
+                                .foregroundColor(Color(uiColor: .systemBlue))
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
                         )
+                    }
+                    .accessibilityIdentifier("Randomize Button")
+                    
+                    Text("Shuffle")
+                        .font(.system(size: 10))
+                        .foregroundColor(.black)
+            }
+
+            // Undo icon button (only appears when needed)
+            if showUndoButton {
+                VStack(spacing: 4) {
+                    Button(action: {
+                        if let prev = previousArtworkState {
+                            selectedShape = prev.selectedShape
+                            shapeRotation = prev.shapeRotation
+                            shapeScale = prev.shapeScale
+                            shapeLayer = prev.shapeLayer
+                            shapeSkewX = prev.shapeSkewX
+                            shapeSkewY = prev.shapeSkewY
+                            shapeSpread = prev.shapeSpread
+                            shapeHorizontal = prev.shapeHorizontal
+                            shapeVertical = prev.shapeVertical
+                            shapePrimitive = prev.shapePrimitive
+                            colorPresetManager.colorPresets = prev.colorPresets
+                            colorPresetManager.backgroundColor = prev.backgroundColor
+                            colorPresetManager.strokeWidth = prev.strokeWidth
+                            colorPresetManager.strokeColor = prev.strokeColor
+                            colorPresetManager.shapeAlpha = prev.shapeAlpha
+                        }
+                        showUndoButton = false
+                    }) {
+                        Rectangle()
+                            .foregroundColor(.clear) // Match style
+                            .frame(width: 40, height: 40) // Match size
+                            .background(Color(uiColor: .systemBackground))
+                            .cornerRadius(8)
+                            .overlay(
+                                Image(systemName: "arrow.uturn.backward")
+                                    .font(.system(size: 20)) // Match icon size
+                                    .foregroundColor(Color(uiColor: .systemOrange)) // Different color for distinction
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                            )
+                    }
+                    .accessibilityIdentifier("Undo Button")
+                    
+                    Text("Undo")
+                        .font(.system(size: 10))
+                        .foregroundColor(.black)
                 }
-                .accessibilityIdentifier("Undo Button")
             }
         }
-        .frame(width: 50) 
+        .frame(width: 60) // Increased width to accommodate text labels
         .padding(.top, 50)
         .padding(.trailing, 15) 
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-        
-        // Zoom slider in middle right
-        if showZoomSlider {
-            VStack {
-                Spacer()
-                makeZoomSlider()
-                Spacer()
-            }
-            .frame(width: 50)
-            .padding(.trailing, 15)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-            .transition(.opacity.animation(.easeInOut(duration: 0.5)))
-        }
     }
 
     @ViewBuilder
@@ -527,33 +587,87 @@ struct CanvasView: View {
     // MARK: - Event Handlers (for extracted logic)
 
     private func handleZoomChange(value: MagnificationGesture.Value) {
+        // Check for NaN value in the pinch gesture
+        if value.isNaN {
+            print("DEBUG: NaN value detected in magnification gesture, ignoring update")
+            return
+        }
+        
+        // Check for extreme magnification values (when fingers are too close or too far apart)
+        if value < 0.01 || value > 100 {
+            print("DEBUG: Extreme magnification value detected: \(value), ignoring update")
+            return
+        }
+        
         let newZoom = startingZoomLevel * value
         zoomLevel = validateZoom(newZoom)
-        withAnimation(.easeInOut(duration: 0.5)) {
-            showZoomSlider = true
-        }
-        lastZoomInteractionTime = Date()
+        
+        // DEBUG: Log zoom changes
+        print("DEBUG: Zoom changing - value: \(value), startingZoom: \(startingZoomLevel), newZoom: \(newZoom), validated: \(zoomLevel)")
     }
 
     private func handleZoomEnd(value: MagnificationGesture.Value) {
+        // Check for NaN value in the pinch gesture
+        if value.isNaN {
+            print("DEBUG: NaN value detected in magnification gesture end, resetting to previous value")
+            return
+        }
+        
+        // Update the starting zoom value for the next gesture
         startingZoomLevel = zoomLevel
-        lastZoomInteractionTime = Date()
+        
+        // DEBUG: Log final zoom level after gesture
+        print("DEBUG: Zoom ended - final zoomLevel: \(zoomLevel), offset: \(offset)")
     }
 
     private func handleRotationChange(angle: Angle) {
-        // Combine the starting rotation with the change detected by the gesture
-        currentRotation = startRotation + angle
-        // You might want to add logic here to trigger the zoom slider or similar feedback
-        lastZoomInteractionTime = Date() // Reuse zoom interaction time for simplicity
+        // Check for extreme or NaN angles that could occur during combined gestures
+        if angle.degrees.isNaN {
+            print("DEBUG: NaN angle detected in rotation gesture, ignoring update")
+            return
+        }
+        
+        // Check for physically impossible angle changes (much higher threshold)
+        if abs(angle.degrees) > 180 {
+            print("DEBUG: Physically impossible rotation detected: \(angle.degrees), ignoring update")
+            return
+        }
+        
+        withAnimation(.interactiveSpring()) {
+            // Combine the starting rotation with the change detected by the gesture
+            currentRotation = startRotation + angle
+            
+            // Check bounds to allow continuous rotation
+            if currentRotation.degrees > 360 {
+                currentRotation = Angle(degrees: currentRotation.degrees.truncatingRemainder(dividingBy: 360))
+                startRotation = currentRotation - angle
+            } else if currentRotation.degrees < -360 {
+                currentRotation = Angle(degrees: currentRotation.degrees.truncatingRemainder(dividingBy: 360))
+                startRotation = currentRotation - angle
+            }
+        }
     }
 
     private func handleRotationEnd(angle: Angle) {
-        // Update the starting rotation for the next gesture
-        startRotation = currentRotation
-        lastZoomInteractionTime = Date() // Update timestamp
+        // Check for NaN angles
+        if angle.degrees.isNaN {
+            print("DEBUG: NaN angle detected in rotation gesture end, ignoring update")
+            return
+        }
+        
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            // Update the starting rotation for the next gesture
+            startRotation = currentRotation
+        }
     }
 
     private func handleOnAppear() {
+        // Ensure we start with a valid zoom level
+        if zoomLevel.isNaN {
+            print("DEBUG: NaN value detected in initial zoomLevel, resetting to 1.0")
+            zoomLevel = 1.0
+        }
+        
         startingZoomLevel = zoomLevel
         startRotation = currentRotation
         loadInitialArtwork()
@@ -566,14 +680,6 @@ struct CanvasView: View {
     private func handleScenePhaseChange(newPhase: ScenePhase) {
         if newPhase == .background || newPhase == .inactive {
             saveCurrentStateForRestoration()
-        }
-    }
-
-    private func handleZoomTimerTick() {
-        if showZoomSlider && Date().timeIntervalSince(lastZoomInteractionTime) > 3 {
-            withAnimation(.easeInOut(duration: 0.5)) {
-                showZoomSlider = false
-            }
         }
     }
     
@@ -602,10 +708,17 @@ struct CanvasView: View {
         let centerY = size.height/2
         let center = CGPoint(x: centerX, y: centerY)
  
+        // DEBUG: Log canvas center point
+        print("DEBUG: Drawing shapes - center: \(center), size: \(size)")
+ 
         // Draw center point of the canvas
         // drawCenterDot(context: context, at: center, color: .black)
  
         let numberOfLayers = max(0, min(72, Int(shapeLayer)))
+        
+        // DEBUG: Log layer count
+        print("DEBUG: Shape layers to draw: \(numberOfLayers)")
+        
         if numberOfLayers > 0 {
             drawLayers(
                 context: context,
@@ -613,6 +726,9 @@ struct CanvasView: View {
                 center: center,
                 radius: circleRadius
             )
+        } else {
+            // DEBUG: Warning if no layers to draw
+            print("DEBUG: WARNING - No layers to draw (shapeLayer value: \(shapeLayer))")
         }
     }
      /// Draws a small dot to indicate a center point
@@ -644,12 +760,22 @@ struct CanvasView: View {
     ) {
         // Get the number of primitives (1-6)
         let primitiveCount = Int(validatePrimitive(shapePrimitive))
+        
+        // DEBUG: Log layer drawing parameters
+        print("DEBUG: drawLayers - layers: \(layers), primitiveCount: \(primitiveCount), center: \(center), radius: \(radius)")
   
         for layerIndex in 0..<layers {
             // For each primitive in the current layer, draw evenly spaced shapes
             for primitiveIndex in 0..<primitiveCount {
                 // Calculate the angle offset for each primitive shape (evenly distributed across 360°)
                 let primitiveAngleOffset = (360.0 / Double(primitiveCount)) * Double(primitiveIndex)
+                
+                // DEBUG: Occasionally log a sample of shapes being drawn (to avoid console flood)
+                if layerIndex == 0 || layerIndex == layers-1 {
+                    if primitiveIndex == 0 {
+                        print("DEBUG: Drawing shape - layer: \(layerIndex), primitive: \(primitiveIndex), angleOffset: \(primitiveAngleOffset)")
+                    }
+                }
   
                 drawSingleShape(
                     context: context,
@@ -660,6 +786,9 @@ struct CanvasView: View {
                 )
             }
         }
+        
+        // DEBUG: Log completion of layer drawing
+        print("DEBUG: Finished drawing \(layers) layers with \(primitiveCount) primitives each")
     }
      /// Draws a single shape with appropriate rotation, opacity, and color
     /// - Parameters:
@@ -695,6 +824,18 @@ struct CanvasView: View {
         // Calculate final position with horizontal and vertical offsets
         let finalX = center.x + scaledRadius * cos(angleInRadians) + spreadX + shapeHorizontal
         let finalY = center.y + scaledRadius * sin(angleInRadians) + spreadY - shapeVertical
+        
+        // DEBUG: Log if shape position is outside reasonable bounds
+        let maxBound = 10000.0  // A reasonable upper bound for canvas coordinates
+        if abs(finalX) > maxBound || abs(finalY) > maxBound || finalX.isNaN || finalY.isNaN {
+            print("DEBUG: WARNING - Shape out of bounds or invalid - position: (\(finalX), \(finalY)), layerIndex: \(layerIndex)")
+            return // Skip drawing this shape if it's out of bounds
+        }
+        
+        // DEBUG: Occasionally log sample shape positions (to avoid console flood)
+        if layerIndex % 10 == 0 && angleInDegrees < 10 {
+            print("DEBUG: Shape position - layer: \(layerIndex), position: (\(finalX), \(finalY)), radius: \(scaledRadius)")
+        }
  
         // Create base rectangle centered at the final position
         let baseRect = CGRect(
@@ -890,6 +1031,12 @@ struct CanvasView: View {
             offset.width = lastOffset.width + value.translation.width
             offset.height = lastOffset.height + value.translation.height
         }
+        
+        // DEBUG: Log significant drag changes
+        if abs(value.translation.width) > 50 || abs(value.translation.height) > 50 {
+            print("DEBUG: Significant drag - translation: \(value.translation), new offset: \(offset)")
+            logCanvasPosition()
+        }
     }
      /// Handles the end of drag gesture
     /// - Parameter value: DragGesture.Value
@@ -902,8 +1049,12 @@ struct CanvasView: View {
             offset.width = lastOffset.width + value.translation.width
             offset.height = lastOffset.height + value.translation.height
         }
-  
+
         lastOffset = offset
+        
+        // DEBUG: Log final position after drag
+        print("DEBUG: Drag ended - final offset: \(offset)")
+        logCanvasPosition()
     }
      /// Resets the canvas position to the center of the screen
     internal func resetPosition() {
@@ -917,9 +1068,19 @@ struct CanvasView: View {
                 height: (UIScreen.main.bounds.height - 1800) / 2
             )
             lastOffset = offset
+            
             // Reset rotation to original position (0 degrees)
             currentRotation = .degrees(0)
             startRotation = .degrees(0)
+            
+            // Check if current zoom level is NaN and fix it
+            if zoomLevel.isNaN {
+                print("DEBUG: NaN value detected in zoomLevel during reset, fixing to 1.0")
+                zoomLevel = 1.0
+                startingZoomLevel = 1.0
+            }
+            
+            // Removed zoom reset - keep current zoom level
         }
     }
      // MARK: - UI Components
@@ -1019,39 +1180,6 @@ struct CanvasView: View {
         .accessibilityIdentifier("Shapes Button")
     }
 
-     /// Creates the zoom control slider with + and - indicators
-    private func makeZoomSlider() -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: "plus")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(Color(uiColor: .secondaryLabel))
-                .padding(.bottom, 50)
-  
-            Slider(
-                value: $zoomLevel,
-                in: minZoomLevel...3.0,
-                step: 0.1
-            )
-            .rotationEffect(.degrees(-90))
-            .frame(width: 120)
-            .accessibilityIdentifier("Zoom Slider")
-   
-            Image(systemName: "minus")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(Color(uiColor: .secondaryLabel))
-                .padding(.top, 50)
-        }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(uiColor: .systemBackground))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                )
-                .frame(width: 40)
-       )
-    }
      /// Creates the close button that's always visible
     private func makeCloseButton() -> some View {
         Button(action: {
@@ -1081,54 +1209,72 @@ struct CanvasView: View {
     private func makeShareButton() -> some View {
         return VStack(spacing: 20) {
             // --- Top Button Menu (New / Import) ---
-            Menu {
-                Button(action: resetCanvasToDefault) {
-                    Label("New Canvas", systemImage: "doc.badge.plus")
-                }
-                .accessibilityIdentifier("New Canvas Button")
+            VStack(spacing: 4) {
+                Menu {
+                    Button(action: resetCanvasToDefault) {
+                        Label("New Canvas", systemImage: "doc.badge.plus")
+                    }
+                    .accessibilityIdentifier("New Canvas Button")
 
-                Button(action: { showImportSheet = true }) {
-                    Label("Import Artwork Code...", systemImage: "square.and.arrow.down") // Icon indicates retrieving
+                    Button(action: { showImportSheet = true }) {
+                        Label("Import Artwork Code...", systemImage: "square.and.arrow.down") // Icon indicates retrieving
+                    }
+                    .accessibilityIdentifier("Import Button")
+                
+                } label: {
+                    buttonIcon(systemName: "plus") // Keep the plus icon for the menu
+                }
+                .accessibilityIdentifier("New/Import Menu")
+                
+                Text("New")
+                    .font(.system(size: 10))
+                    .foregroundColor(.black)
             }
-            .accessibilityIdentifier("Import Button")
-            
-            } label: {
-                buttonIcon(systemName: "plus") // Keep the plus icon for the menu
-            }
-            .accessibilityIdentifier("New/Import Menu")
 
             // --- Share Button (for showing artwork ID) ---
-            Button(action: showShareArtworkID) {
-                buttonIcon(systemName: "square.and.arrow.up")
+            VStack(spacing: 4) {
+                Button(action: showShareArtworkID) {
+                    buttonIcon(systemName: "square.and.arrow.up")
+                }
+                .accessibilityIdentifier("Share Button")
+                
+                Text("Share")
+                    .font(.system(size: 10))
+                    .foregroundColor(.black)
             }
-            .accessibilityIdentifier("Share Button")
             
             // --- Save Button Menu ---
-            Menu {
-                // Conditional Save Button
-                if let artworkToUpdate = loadedArtworkData {
-                    Button(action: { updateCurrentArtwork(artwork: artworkToUpdate) }) {
-                        Label("Save", systemImage: "square.and.arrow.down")
+            VStack(spacing: 4) {
+                Menu {
+                    // Conditional Save Button
+                    if let artworkToUpdate = loadedArtworkData {
+                        Button(action: { updateCurrentArtwork(artwork: artworkToUpdate) }) {
+                            Label("Save", systemImage: "square.and.arrow.down")
+                        }
+                        .accessibilityIdentifier("Save Update Button")
+                    } // Else (no loaded artwork), this button doesn't appear
+
+                    // --- Save as New Button ---
+                    Button(action: { showSaveAsNewPrompt() }) {
+                        Label("Save as New...", systemImage: "square.and.arrow.down.on.square")
                     }
-                    .accessibilityIdentifier("Save Update Button")
-                } // Else (no loaded artwork), this button doesn't appear
+                    .accessibilityIdentifier("Save as New Button")
 
-                // --- Save as New Button ---
-                Button(action: { showSaveAsNewPrompt() }) {
-                    Label("Save as New...", systemImage: "square.and.arrow.down.on.square")
+                    // --- Save to Photos Button ---
+                    Button(action: saveToPhotos) {
+                        Label("Save to Photos", systemImage: "photo")
+                    }
+                    .accessibilityIdentifier("Save to Photos Button")
+                    
+                } label: {
+                    buttonIcon(systemName: "arrow.down.to.line")
                 }
-                .accessibilityIdentifier("Save as New Button")
-
-                // --- Save to Photos Button ---
-                Button(action: saveToPhotos) {
-                    Label("Save to Photos", systemImage: "photo")
-                }
-                .accessibilityIdentifier("Save to Photos Button")
+                .accessibilityIdentifier("Save Menu Button")
                 
-            } label: {
-                buttonIcon(systemName: "arrow.down.to.line")
+                Text("Save")
+                    .font(.system(size: 10))
+                    .foregroundColor(.black)
             }
-            .accessibilityIdentifier("Save Menu Button")
         }
     }
 
@@ -2332,56 +2478,7 @@ struct CanvasView: View {
 
     /// Debug method to compare raw artwork strings and identify conversion issues
     private func debugCompareArtworkStrings(loaded: String, current: String) {
-        print("\n[DEBUG] =========== ARTWORK STRING COMPARISON ===========")
-        print("[DEBUG] Loaded artwork: \(loaded)")
-        print("[DEBUG] Current artwork: \(current)")
-        
-        if loaded == current {
-            print("[DEBUG] Raw strings are IDENTICAL")
-            return
-        }
-        
-        print("[DEBUG] Raw strings are DIFFERENT")
-        
-        // Find where they first differ
-        var differIndex = 0
-        let minLength = min(loaded.count, current.count)
-        
-        for i in 0..<minLength {
-            let loadedIndex = loaded.index(loaded.startIndex, offsetBy: i)
-            let currentIndex = current.index(current.startIndex, offsetBy: i)
-            
-            if loaded[loadedIndex] != current[currentIndex] {
-                differIndex = i
-                break
-            }
-        }
-        
-        // Print the context around the difference
-        let startContext = max(0, differIndex - 20)
-        let endContext = min(minLength, differIndex + 20)
-        
-        print("[DEBUG] Difference starts at index \(differIndex)")
-        
-        if startContext < differIndex {
-            let loadedContext = loaded[loaded.index(loaded.startIndex, offsetBy: startContext)..<loaded.index(loaded.startIndex, offsetBy: differIndex)]
-            let currentContext = current[current.index(current.startIndex, offsetBy: startContext)..<current.index(current.startIndex, offsetBy: differIndex)]
-            
-            print("[DEBUG] Context before: ")
-            print("[DEBUG] Loaded:  ...\(loadedContext)")
-            print("[DEBUG] Current: ...\(currentContext)")
-        }
-        
-        if differIndex < endContext {
-            let loadedContext = loaded[loaded.index(loaded.startIndex, offsetBy: differIndex)..<loaded.index(loaded.startIndex, offsetBy: min(loaded.count, endContext))]
-            let currentContext = current[current.index(current.startIndex, offsetBy: differIndex)..<current.index(current.startIndex, offsetBy: min(current.count, endContext))]
-            
-            print("[DEBUG] Context after: ")
-            print("[DEBUG] Loaded:  \(loadedContext)...")
-            print("[DEBUG] Current: \(currentContext)...")
-        }
-        
-        print("[DEBUG] ===================================================\n")
+        // Debug function removed
     }
 
     /// Helper function to compare colors with visual tolerance
@@ -2424,9 +2521,9 @@ struct CanvasView: View {
         let equivalent = distance <= tolerance
         
         if !equivalent {
-            print("[DEBUG] Color difference: \(distance) - r:\(rDiff) g:\(gDiff) b:\(bDiff) between \(hex1) and \(hex2)")
+            // print("[DEBUG] Color difference: \(distance) - r:\(rDiff) g:\(gDiff) b:\(bDiff) between \(hex1) and \(hex2)")
         } else {
-            print("[DEBUG] Colors equivalent within tolerance: \(hex1) and \(hex2) - distance: \(distance)")
+            // print("[DEBUG] Colors equivalent within tolerance: \(hex1) and \(hex2) - distance: \(distance)")
         }
         
         return equivalent
@@ -2964,43 +3061,16 @@ struct CanvasView: View {
 
     /// Calculates the dynamic vertical offset for the canvas.
     private func calculateCanvasVerticalOffset(geometry: GeometryProxy) -> CGFloat {
-        let screenHeight = geometry.size.height
-        let topSafeArea = geometry.safeAreaInsets.top
+        let verticalOffset = canvasVerticalOffset
         
-        // Estimate panel height (can be refined if needed)
-        // Assuming all panels effectively take up roughly half the screen for centering purposes
-        let panelHeightEstimate = screenHeight / 2 
+        // DEBUG: Log calculated vertical offset with geometry
+        print("DEBUG: Calculated canvas offset: \(verticalOffset), screen height: \(geometry.size.height)")
         
-        // Check if any panel is open
-        let isPanelOpen = showProperties || showColorShapes || showShapesPanel || showGalleryPanel
-        
-        if isPanelOpen {
-            // Calculate the top boundary (bottom of safe area/notch)
-            let topBoundary = topSafeArea
-            // Calculate the bottom boundary (top of the panel)
-            let bottomBoundary = screenHeight - panelHeightEstimate
-            
-            // Calculate the desired center Y position (midpoint between boundaries)
-            let targetCenterY = (topBoundary + bottomBoundary) / 2
-            
-            // Get the canvas's default center Y when no panel is open
-            // (Initial offset is designed to center it on the screen initially)
-            // The initial offset calculation might need adjustment based on actual screen size
-            // Assuming the initial offset correctly centers it vertically on the screen for simplicity here.
-            // A more robust approach might calculate this default center explicitly.
-            let defaultCenterY = screenHeight / 2 // Approximate default center
-            
-            // Calculate the required offset to move from default center to target center
-            let requiredOffset = targetCenterY - defaultCenterY
-            
-            print("Panel Open: ScreenH=\(screenHeight), TopSafe=\(topSafeArea), PanelH=\(panelHeightEstimate), TargetCenter=\(targetCenterY), DefaultCenter=\(defaultCenterY), Offset=\(requiredOffset)")
-            
-            return requiredOffset
-            
-        } else {
-            // No panel is open, no additional offset needed (initial offset handles screen centering)
-            print("Panel Closed: No vertical offset needed.")
-            return 0
-        }
+        return verticalOffset
+    }
+
+    // Add a function to debug the canvas position
+    private func logCanvasPosition() {
+        print("DEBUG: Canvas position - offset: \(offset), zoom: \(zoomLevel), rotation: \(currentRotation.degrees)")
     }
 }
