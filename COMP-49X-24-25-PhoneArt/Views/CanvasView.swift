@@ -139,21 +139,16 @@ struct CanvasView: View {
     }
      /// Computed vertical offset for the canvas when properties panel or color shapes panel is shown
     internal var canvasVerticalOffset: CGFloat {
-        // Change the standard offset to -50
-        let standardPanelOffset: CGFloat = -50 
-        // let galleryPanelOffset: CGFloat = -220  // Shift up more for the taller gallery - No longer needed
-
-        // Use the same offset for all panels
+        // Increase the offset when any bottom panel is open
+        let raisedPanelOffset: CGFloat = -150 // Raise more when a panel is open
+        let standardPanelOffset: CGFloat = -50
         let result: CGFloat
         if showGalleryPanel || showProperties || showColorShapes || showShapesPanel {
-            result = standardPanelOffset
+            result = raisedPanelOffset
         } else {
             result = 0 // No panel, no offset
         }
-        
-        // DEBUG: Log significant changes in vertical offset
-        print("DEBUG: Canvas vertical offset: \(result) - panels: \(showGalleryPanel ? "gallery" : "")\(showProperties ? "properties" : "")\(showColorShapes ? "colorShapes" : "")\(showShapesPanel ? "shapesPanel" : "")")
-        
+        // print("DEBUG: Canvas vertical offset: \(result) - panels: \(showGalleryPanel ? \"gallery\" : \"\")\(showProperties ? \"properties\" : \"\")\(showColorShapes ? \"colorShapes\" : \"\")\(showShapesPanel ? \"shapesPanel\" : \"\")")
         return result
     }
      /// Computed minimum zoom level to fit canvas width to screen width
@@ -2010,6 +2005,7 @@ struct CanvasView: View {
 
         // Reset color manager
         ColorPresetManager.shared.resetToDefaults()
+        colorPresetManager.saturationAdjustment = 1.0 // Default to 100%
 
         // Clear loaded artwork data
         loadedArtworkData = nil
@@ -2060,6 +2056,7 @@ struct CanvasView: View {
                 }
             }
         }
+        colorPresetManager.saturationAdjustment = 1.0 // Default to 100%
     }
     
     /// Creates an artwork with randomized properties
@@ -2069,9 +2066,9 @@ struct CanvasView: View {
         selectedShape = shapeTypes.randomElement() ?? .capsule
         
         // Random shape properties within reasonable ranges
-        shapeRotation = Double.random(in: 0...360)
-        shapeScale = Double.random(in: 0.7...1.2)
-        shapeLayer = Double.random(in: 15...40)
+        shapeRotation = Double.random(in: 2...360)
+        shapeScale = Double.random(in: 0.9...1.4)
+        shapeLayer = Double.random(in: 30...50)
         shapeSkewX = Double.random(in: 0...30)
         shapeSkewY = Double.random(in: 0...30)
         shapeSpread = Double.random(in: 5...40)
@@ -2083,7 +2080,7 @@ struct CanvasView: View {
         var randomColors: [Color] = []
         for _ in 0..<10 {
             let hue = Double.random(in: 0...1)
-            let saturation = Double.random(in: 0.7...1.0)
+            let saturation = Double.random(in: 0.5...1.0) // Only randomize between 50-100%
             let brightness = Double.random(in: 0.7...0.9)
             randomColors.append(Color(hue: hue, saturation: saturation, brightness: brightness))
         }
@@ -2093,11 +2090,14 @@ struct CanvasView: View {
         colorPresetManager.backgroundColor = Color(hue: Double.random(in: 0...1), 
                                                   saturation: Double.random(in: 0.1...0.3), 
                                                   brightness: Double.random(in: 0.9...1.0))
-                                                  
+        
         // Random stroke and alpha settings
         colorPresetManager.strokeWidth = Double.random(in: 0...5)
         colorPresetManager.strokeColor = randomColors.randomElement() ?? .black
         colorPresetManager.shapeAlpha = Double.random(in: 0.7...1.0)
+        
+        // Randomize saturation adjustment between 0.5 and 1.0
+        colorPresetManager.saturationAdjustment = Double.random(in: 0.5...1.0)
         
         // Set as unsaved
         hasUnsavedChanges = true
