@@ -648,7 +648,7 @@ private struct ArtworkParameters {
 // MARK: - Decoding Helper
 private func decodeArtworkParameters(from artworkString: String) -> ArtworkParameters? {
    let decodedParams = ArtworkData.decode(from: artworkString)
-   print("[GalleryPanel] Decoded Raw Params for \(artworkString.prefix(30))...: \(decodedParams)") // Print raw decoded map
+   // print("[GalleryPanel] Decoded Raw Params for \(artworkString.prefix(30))...: \(decodedParams)")
 
 
    // Use helper for doubles, including strokeWidth and alpha
@@ -663,7 +663,7 @@ private func decodeArtworkParameters(from artworkString: String) -> ArtworkParam
 
    guard let shapeString = decodedParams["shape"],
          let shapeType = ShapesPanel.ShapeType(rawValue: shapeString) else {
-       print("Error: Could not decode shapeType from string")
+       // print("Error: Could not decode shapeType from string")
        return nil // Cannot render without shape type
    }
 

@@ -47,6 +47,9 @@ struct ShapesPanel: View {
         }
     }
     
+    /// Panel description text
+    let panelDescription = "Select a shape to use as the base element for your artwork pattern."
+    
     /// Currently selected shape type, bound to parent view
     @Binding var selectedShape: ShapeType
     
@@ -71,11 +74,19 @@ struct ShapesPanel: View {
             
             // Main content area
             VStack(spacing: 0) {
-                Text("Choose a Shape")
+                Text("Shapes")
                     .font(.title2).bold()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.horizontal)
-                    .padding(.vertical, 10)
+                    .padding(.top, 10)
+                
+                // Add description text
+                Text(panelDescription)
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 5)
                 
                 // Shape selection grid in scrollable area
                 ScrollView {

@@ -5,13 +5,10 @@
 //  Created by Emmett DeBruin on 02/27/25.
 //
 
-
-
-
 import SwiftUI
 
-
-
+// Add CustomNumericField from PropertiesPanel
+import UIKit
 
 /// A panel that provides controls for modifying colors and shapes on the canvas.
 /// This panel serves as a container for two distinct functionalities:
@@ -30,6 +27,9 @@ struct ColorPropertiesPanel: View {
    /// - 0: Shapes tab
    /// - 1: Colors tab
    @State private var selectedTab = 0
+   
+   /// Reference to the color preset manager for watching default color changes
+   @ObservedObject private var colorManager = ColorPresetManager.shared
   
    /// Controls visibility of the panel
    /// When false, the panel is hidden from view
@@ -48,8 +48,8 @@ struct ColorPropertiesPanel: View {
    var onSwitchToShapes: () -> Void
 
    /// Callback function to switch to the Gallery panel
-  var onSwitchToGallery: () -> Void
-  
+   var onSwitchToGallery: () -> Void
+
    // MARK: - Initialization
   
    /// Initializes the panel with bindings and callback
@@ -77,9 +77,16 @@ struct ColorPropertiesPanel: View {
            panelHeader()
           
            // Title for the panel
-           Text("Color & Stroke")
+           Text("Colors and Strokes")
                .font(.title2).bold()
                .padding(.top, 10)
+           
+           // Add message about custom colors
+           Text("Note: Custom colors are disabled when using default colors")
+               .font(.caption)
+               .foregroundColor(.gray)
+               .padding(.horizontal, 20)
+               .padding(.bottom, 5)
           
            // Tab selector for switching between Shapes and Colors
            tabSelector()
@@ -88,11 +95,11 @@ struct ColorPropertiesPanel: View {
            ScrollView {
                VStack(spacing: 16) {
                    // Content area - displays either ShapesSection or ColorSelectionPanel based on selected tab
-                   if selectedTab == 0 {
+                   if selectedTab == 0 || colorManager.useDefaultRainbowColors {
                        // Shapes tab content - without outer ScrollView since we're already in one
                        ShapesSectionContent()
                    } else {
-                       // Colors tab content
+                       // Colors tab content - only shown when default colors are off
                        ColorSelectionPanel(selectedColor: $selectedColor)
                            .padding(.horizontal, 16)
                            .onAppear {
@@ -114,6 +121,12 @@ struct ColorPropertiesPanel: View {
        .background(Color(.systemBackground))
        .cornerRadius(15, corners: [.topLeft, .topRight])
        .shadow(radius: 10)
+       .onChange(of: colorManager.useDefaultRainbowColors) { _, newValue in
+           // Force switch to Properties tab when Default Colors are enabled
+           if newValue {
+               selectedTab = 0
+           }
+       }
    }
  
    // MARK: - UI Components
@@ -176,14 +189,42 @@ struct ColorPropertiesPanel: View {
    /// Creates the tab selector for switching between Shapes and Colors
    /// - Returns: A segmented control view for tab selection
    private func tabSelector() -> some View {
-       Picker("", selection: $selectedTab) {
-           Text("Properties").tag(0)
-           Text("Custom Colors").tag(1)
+       VStack(spacing: 0) {
+           Picker("", selection: Binding(
+               get: { 
+                   // If default colors are on and user was on custom colors tab, force back to Properties
+                   if ColorPresetManager.shared.useDefaultRainbowColors && selectedTab == 1 {
+                       return 0
+                   }
+                   return selectedTab
+               },
+               set: { newValue in
+                   // Only allow selecting Custom Colors tab if default colors are off
+                   if newValue == 1 && ColorPresetManager.shared.useDefaultRainbowColors {
+                       // Don't change tab if default colors are on
+                       return
+                   }
+                   selectedTab = newValue
+               }
+           )) {
+               Text("Properties").tag(0)
+               
+               // Grey out the Custom Colors text when default colors are enabled
+               Group {
+                   if ColorPresetManager.shared.useDefaultRainbowColors {
+                       Text("Custom Colors")
+                           .foregroundColor(.gray)
+                   } else {
+                       Text("Custom Colors")
+                   }
+               }.tag(1)
+           }
+           .pickerStyle(SegmentedPickerStyle())
+           .disabled(ColorPresetManager.shared.useDefaultRainbowColors) // Disable the entire segmented control
+           .padding(.horizontal, 20)
+           .padding(.vertical, 10)
+           .frame(maxWidth: .infinity)
        }
-       .pickerStyle(SegmentedPickerStyle())
-       .padding(.horizontal, 20)
-       .padding(.vertical, 10)
-       .frame(maxWidth: .infinity)
    }
   
    /// Creates a button that switches to the Properties panel
@@ -367,16 +408,16 @@ struct ShapesSectionContent: View {
                                    hueText = "\(Int(newValue * 100))"
                                }
                           
-                           TextField("", text: $hueText)
-                               .frame(width: 50)
-                               .textFieldStyle(RoundedBorderTextFieldStyle())
-                               .keyboardType(.numberPad)
-                               .multilineTextAlignment(.center)
-                               .onChange(of: hueText) { _, newValue in
-                                   if let value = Double(newValue), value >= 0, value <= 100 {
-                                       colorManager.hueAdjustment = value / 100
-                                   }
+                           // Replace TextField with CustomNumericField
+                           CustomNumericField(text: $hueText, 
+                                           commitAction: { value in
+                               if let doubleValue = Double(value), doubleValue >= 0, doubleValue <= 100 {
+                                   colorManager.hueAdjustment = doubleValue / 100
                                }
+                           }, keyboardType: .numberPad,
+                              minValue: 0, maxValue: 100, propertyName: "Hue")
+                               .frame(width: 50, height: 35)
+                               .accessibilityIdentifier("Hue TextField")
                            Text("%")
                        }
                    }
@@ -391,16 +432,16 @@ struct ShapesSectionContent: View {
                                saturationText = "\(Int(newValue * 100))"
                            }
                           
-                       TextField("", text: $saturationText)
-                           .frame(width: 50)
-                           .textFieldStyle(RoundedBorderTextFieldStyle())
-                           .keyboardType(.numberPad)
-                           .multilineTextAlignment(.center)
-                           .onChange(of: saturationText) { _, newValue in
-                               if let value = Double(newValue), value >= 0, value <= 100 {
-                                   colorManager.saturationAdjustment = value / 100
-                               }
+                       // Replace TextField with CustomNumericField
+                       CustomNumericField(text: $saturationText, 
+                                       commitAction: { value in
+                           if let doubleValue = Double(value), doubleValue >= 0, doubleValue <= 100 {
+                               colorManager.saturationAdjustment = doubleValue / 100
                            }
+                       }, keyboardType: .numberPad,
+                          minValue: 0, maxValue: 100, propertyName: "Saturation")
+                           .frame(width: 50, height: 35)
+                           .accessibilityIdentifier("Saturation TextField")
                        Text("%")
                    }
                }
@@ -414,16 +455,16 @@ struct ShapesSectionContent: View {
                                alphaText = "\(Int(newValue * 100))"
                            }
                       
-                       TextField("", text: $alphaText)
-                           .frame(width: 50)
-                           .textFieldStyle(RoundedBorderTextFieldStyle())
-                           .keyboardType(.numberPad)
-                           .multilineTextAlignment(.center)
-                           .onChange(of: alphaText) { _, newValue in
-                               if let value = Double(newValue), value >= 0, value <= 100 {
-                                   colorManager.shapeAlpha = value / 100
-                               }
+                       // Replace TextField with CustomNumericField
+                       CustomNumericField(text: $alphaText, 
+                                       commitAction: { value in
+                           if let doubleValue = Double(value), doubleValue >= 0, doubleValue <= 100 {
+                               colorManager.shapeAlpha = doubleValue / 100
                            }
+                       }, keyboardType: .numberPad,
+                          minValue: 0, maxValue: 100, propertyName: "Alpha")
+                           .frame(width: 50, height: 35)
+                           .accessibilityIdentifier("Alpha TextField")
                        Text("%")
                    }
                }
@@ -446,16 +487,16 @@ struct ShapesSectionContent: View {
                                strokeWidthText = String(format: "%.1f", newValue)
                            }
                       
-                       TextField("", text: $strokeWidthText)
-                           .frame(width: 50)
-                           .textFieldStyle(RoundedBorderTextFieldStyle())
-                           .keyboardType(.decimalPad)
-                           .multilineTextAlignment(.center)
-                           .onChange(of: strokeWidthText) { _, newValue in
-                               if let value = Double(newValue), value >= 0, value <= 10 {
-                                   colorManager.strokeWidth = value
-                               }
+                       // Replace TextField with CustomNumericField
+                       CustomNumericField(text: $strokeWidthText, 
+                                       commitAction: { value in
+                           if let doubleValue = Double(value), doubleValue >= 0, doubleValue <= 10 {
+                               colorManager.strokeWidth = doubleValue
                            }
+                       }, keyboardType: .decimalPad,
+                          minValue: 0, maxValue: 10, propertyName: "Stroke Width")
+                           .frame(width: 50, height: 35)
+                           .accessibilityIdentifier("Stroke Width TextField")
                        Text("pt")
                    }
                }

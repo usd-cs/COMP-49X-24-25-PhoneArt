@@ -164,20 +164,20 @@ class FirebaseService: ObservableObject {
                 .collection("pieces")
                 .getDocuments()
             
-            print("\n=== All saved pieces ===")
-            for doc in snapshot.documents {
-                print("Piece ID: \(doc.documentID)")
-                print("Data: \(doc.data())")
-                print("---")
-            }
+            // print("\n=== All saved pieces ===")
+            // for doc in snapshot.documents {
+            //     print("Piece ID: \(doc.documentID)")
+            //     print("Data: \(doc.data())")
+            //     print("---")
+            // }
         } catch {
-            print("Error listing pieces:", error)
+            // print("Error listing pieces:", error)
         }
     }
     
     func decodeArtworkString(_ artworkString: String) {
         let pairs = artworkString.components(separatedBy: ";")
-        print("\n=== Decoded Artwork Values ===")
+        // print("\n=== Decoded Artwork Values ===")
         
         for pair in pairs {
             let keyValue = pair.components(separatedBy: ":")
@@ -187,37 +187,49 @@ class FirebaseService: ObservableObject {
                 
                 switch key {
                 case "shape":
-                    print("Shape Type: \(value)")
+                    // print("Shape Type: \(value)")
+                    break
                 case "rotation":
-                    print("Rotation: \(value)°")
+                    // print("Rotation: \(value)°")
+                    break
                 case "scale":
-                    print("Scale: \(value)x")
+                    // print("Scale: \(value)x")
+                    break
                 case "layer":
-                    print("Layer Count: \(value)")
+                    // print("Layer Count: \(value)")
+                    break
                 case "skewX":
-                    print("Skew X: \(value)%")
+                    // print("Skew X: \(value)%")
+                    break
                 case "skewY":
-                    print("Skew Y: \(value)%")
+                    // print("Skew Y: \(value)%")
+                    break
                 case "spread":
-                    print("Spread: \(value)")
+                    // print("Spread: \(value)")
+                    break
                 case "horizontal":
-                    print("Horizontal Offset: \(value)")
+                    // print("Horizontal Offset: \(value)")
+                    break
                 case "vertical":
-                    print("Vertical Offset: \(value)")
+                    // print("Vertical Offset: \(value)")
+                    break
                 case "colors":
-                    let colors = value.components(separatedBy: ",")
-                    print("Color Presets:")
-                    for (index, color) in colors.enumerated() {
-                        print("  Color \(index + 1): \(color)")
-                    }
+                    // let colors = value.components(separatedBy: ",")
+                    // print("Color Presets:")
+                    // for (index, color) in colors.enumerated() {
+                    //     print("  Color \(index + 1): \(color)")
+                    // }
+                    break
                 case "background":
-                    print("Background Color: \(value)")
+                    // print("Background Color: \(value)")
+                    break
                 default:
-                    print("Other parameter - \(key): \(value)")
+                    // print("Other parameter - \(key): \(value)")
+                    break
                 }
             }
         }
-        print("===========================")
+        // print("===========================")
     }
     
     // Function to fetch a specific artwork piece by its ID using a collection group query

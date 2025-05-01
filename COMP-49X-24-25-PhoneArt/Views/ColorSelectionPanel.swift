@@ -3,6 +3,7 @@
 
 import SwiftUI
 import Combine
+import UIKit  // Add this for UIKit components
 
 
 /// A shared model to keep track of color presets across views
@@ -18,7 +19,6 @@ class ColorPresetManager: ObservableObject {
   
    @Published var numberOfVisiblePresets: Int = 5 {
        didSet {
-           print("Updated numberOfVisiblePresets to: \(numberOfVisiblePresets)")
            UserDefaults.standard.set(numberOfVisiblePresets, forKey: "numberOfVisiblePresets")
            distributeColorsToElements()
        }
@@ -197,8 +197,6 @@ class ColorPresetManager: ObservableObject {
            self.saturationAdjustment = 0.8
        }
       
-       print("ColorPresetManager initialized with \(colorPresets.count) colors and \(numberOfVisiblePresets) visible presets")
-      
        // Then try to load from UserDefaults
        if let savedColors = loadPresetsFromUserDefaults() {
            // Make sure we have at least 10 colors
@@ -211,7 +209,6 @@ class ColorPresetManager: ObservableObject {
                }
            }
            self.colorPresets = loadedColors
-           print("Loaded \(loadedColors.count) colors from UserDefaults")
        }
    }
   
@@ -235,14 +232,11 @@ class ColorPresetManager: ObservableObject {
        // Skip if no colors or no elements
        guard !visibleColors.isEmpty, !canvasElements.isEmpty else { return }
       
-       print("Distributing \(visibleColors.count) colors to \(canvasElements.count) elements")
-      
        // Loop through elements and assign colors based on their position
        let sortedIDs = canvasElements.keys.sorted()
        for (index, id) in sortedIDs.enumerated() {
            let colorIndex = index % visibleColors.count
            canvasElements[id] = visibleColors[colorIndex]
-           print("Element \(index): assigned color \(colorIndex) of \(visibleColors.count)")
        }
       
        // Force a UI update to reflect the changes
@@ -330,12 +324,9 @@ class ColorPresetManager: ObservableObject {
    /// Updates the ColorPresetManager's properties based on decoded artwork parameters.
    /// - Parameter decodedParams: A dictionary decoded from an ArtworkData string.
    func update(from decodedParams: [String: String]) {
-       print("[ColorPresetManager] Updating from decoded params: \(decodedParams)")
-
        // Helper to safely extract double values
        func doubleValue(from key: String, default defaultValue: Double) -> Double {
            guard let stringValue = decodedParams[key], let value = Double(stringValue) else {
-               print("[ColorPresetManager] Warning: Could not decode Double for key '\(key)', using default: \(defaultValue)")
                return defaultValue
            }
            return value
@@ -343,7 +334,6 @@ class ColorPresetManager: ObservableObject {
        // Helper to safely extract Int values
        func intValue(from key: String, default defaultValue: Int) -> Int {
            guard let stringValue = decodedParams[key], let value = Int(stringValue) else {
-                print("[ColorPresetManager] Warning: Could not decode Int for key '\(key)', using default: \(defaultValue)")
                return defaultValue
            }
            return value
@@ -351,7 +341,6 @@ class ColorPresetManager: ObservableObject {
        // Helper to safely extract Bool values
        func boolValue(from key: String, default defaultValue: Bool) -> Bool {
            guard let stringValue = decodedParams[key] else {
-                print("[ColorPresetManager] Warning: Could not decode Bool for key '\(key)', using default: \(defaultValue)")
                return defaultValue
            }
            return stringValue.lowercased() == "true"
@@ -370,9 +359,6 @@ class ColorPresetManager: ObservableObject {
                    }
                }
                self.colorPresets = finalPresets
-               print("[ColorPresetManager] Updated presets. Count: \(finalPresets.count)")
-           } else {
-               print("[ColorPresetManager] Warning: Decoded 'colors' string resulted in empty array.")
            }
        }
 
@@ -380,9 +366,6 @@ class ColorPresetManager: ObservableObject {
        if let backgroundHex = decodedParams["background"],
           let bgColor = ArtworkData.hexToColor(backgroundHex) {
            self.backgroundColor = bgColor
-           print("[ColorPresetManager] Updated background color to: \(backgroundHex)")
-       } else {
-            print("[ColorPresetManager] Warning: Could not decode 'background' color.")
        }
 
        // Update Rainbow Mode & Settings
@@ -390,29 +373,24 @@ class ColorPresetManager: ObservableObject {
        self.rainbowStyle = intValue(from: "rainbowStyle", default: self.rainbowStyle)
        self.hueAdjustment = doubleValue(from: "hueAdj", default: self.hueAdjustment)
        self.saturationAdjustment = doubleValue(from: "satAdj", default: self.saturationAdjustment)
-       print("[ColorPresetManager] Updated rainbow settings: use=\(useDefaultRainbowColors), style=\(rainbowStyle), hue=\(hueAdjustment), sat=\(saturationAdjustment)")
 
        // Update Preset Count (visible presets)
        self.numberOfVisiblePresets = intValue(from: "presetCount", default: self.numberOfVisiblePresets)
-       print("[ColorPresetManager] Updated numberOfVisiblePresets to: \(numberOfVisiblePresets)")
 
        // Update Stroke & Alpha
        self.strokeColor = ArtworkData.hexToColor(decodedParams["strokeColor"] ?? "") ?? self.strokeColor
        self.strokeWidth = doubleValue(from: "strokeWidth", default: self.strokeWidth)
        self.shapeAlpha = doubleValue(from: "alpha", default: self.shapeAlpha)
-       print("[ColorPresetManager] Updated stroke/alpha: width=\(strokeWidth), alpha=\(shapeAlpha), color=\(strokeColor.toHex() ?? "N/A")")
        
        // Crucially, trigger notifications/updates AFTER all properties are set
        objectWillChange.send()
        NotificationCenter.default.post(name: Notification.Name("ColorPresetsChanged"), object: nil)
        NotificationCenter.default.post(name: Notification.Name("BackgroundColorChanged"), object: nil)
        NotificationCenter.default.post(name: Notification.Name("StrokeSettingsChanged"), object: nil)
-       print("[ColorPresetManager] Update complete and notifications sent.")
    }
 
    /// Resets all manager properties to their initial default values.
    func resetToDefaults() {
-       print("[ColorPresetManager] Resetting to default values.")
        // Default Presets
        self.colorPresets = [
            .purple, .blue, .pink, .yellow, .green,
@@ -455,7 +433,6 @@ class ColorPresetManager: ObservableObject {
        NotificationCenter.default.post(name: Notification.Name("ColorPresetsChanged"), object: nil)
        NotificationCenter.default.post(name: Notification.Name("BackgroundColorChanged"), object: nil)
        NotificationCenter.default.post(name: Notification.Name("StrokeSettingsChanged"), object: nil)
-       print("[ColorPresetManager] Reset complete and notifications sent.")
    }
 }
 
@@ -476,9 +453,6 @@ struct ColorSelectionPanel: View {
    /// Binding to the currently selected color, shared with the canvas
    @Binding var selectedColor: Color
   
-   /// Current hex color value displayed in the text field
-   @State private var hexValue: String = "#000000"
-   
    // MARK: - Tooltip State
    @State private var showingTooltip: Bool = false
    @State private var tooltipText: String = ""
@@ -489,14 +463,13 @@ struct ColorSelectionPanel: View {
    private let tooltipDescriptions: [String: String] = [
        "Preset Count": "Determines how many color preset slots are visible for selection.",
        "Color Presets": "Quick access to saved colors you can apply to your artwork.",
-       "Edit Color": "Change the selected color using the color picker or hex code input."
+       "Edit Color": "Change the selected color using the color picker."
    ]
   
    /// Initializes the color selection panel with a binding to the selected color
    /// - Parameter selectedColor: Binding to the color that will be applied to shapes
    init(selectedColor: Binding<Color>) {
        self._selectedColor = selectedColor
-       self._hexValue = State(initialValue: selectedColor.wrappedValue.toHex() ?? "#000000")
        self._presetCountText = State(initialValue: "\(ColorPresetManager.shared.numberOfVisiblePresets)")
    }
   
@@ -532,21 +505,20 @@ struct ColorSelectionPanel: View {
                        )
                        .accessibilityIdentifier("Preset Count Slider")
                       
-                       TextField("", text: $presetCountText)
-                           .frame(width: 50)
-                           .textFieldStyle(RoundedBorderTextFieldStyle())
-                           .keyboardType(.numberPad)
-                           .multilineTextAlignment(.center)
-                           .onChange(of: presetCountText) { _, newValue in
-                               if let value = Int(newValue), value >= 1, value <= 10 {
-                                   presetManager.numberOfVisiblePresets = value
-                                   // Notify about the change
-                                   NotificationCenter.default.post(
-                                       name: Notification.Name("ColorPresetsChanged"),
-                                       object: nil
-                                   )
-                               }
+                       CustomNumericField(text: $presetCountText, 
+                                        commitAction: { value in
+                           if let intValue = Int(value), intValue >= 1, intValue <= 10 {
+                               presetManager.numberOfVisiblePresets = intValue
+                               // Notify about the change
+                               NotificationCenter.default.post(
+                                   name: Notification.Name("ColorPresetsChanged"),
+                                   object: nil
+                               )
                            }
+                       }, keyboardType: .numberPad,
+                          minValue: 1, maxValue: 10, propertyName: "Preset Count")
+                           .frame(width: 50, height: 35)
+                           .accessibilityIdentifier("Preset Count TextField")
                    }
                }
                .padding(.bottom, 12)
@@ -566,7 +538,6 @@ struct ColorSelectionPanel: View {
                                ) {
                                    selectedPresetIndex = index
                                    selectedColor = visibleColors[index]
-                                   hexValue = selectedColor.toHex() ?? "#000000"
                                }
                            }
                        }
@@ -579,8 +550,8 @@ struct ColorSelectionPanel: View {
               
                // Color picker section with consistent styling
                propertyRow(title: "Edit Color", icon: "eyedropper") {
-                   HStack(spacing: 16) {
-                       // Custom styled color picker
+                   HStack {
+                       Spacer() // Add spacer before ColorPicker like in other panels
                        ColorPicker("", selection: Binding(
                            get: { selectedColor },
                            set: { newColor in
@@ -589,36 +560,9 @@ struct ColorSelectionPanel: View {
                                var updatedPresets = presetManager.colorPresets
                                updatedPresets[selectedPresetIndex] = newColor
                                presetManager.colorPresets = updatedPresets
-                               hexValue = newColor.toHex() ?? "#000000"
                            }
                        ))
                        .labelsHidden()
-                       .frame(width: 40, height: 40)
-                       .background(
-                           Circle()
-                               .fill(selectedColor)
-                               .frame(width: 40, height: 40)
-                               .overlay(
-                                   Circle()
-                                       .stroke(Color.black, lineWidth: 3)
-                               )
-                       )
-                       .scaleEffect(1.2) // Slightly larger to ensure the picker is easily tappable
-                       .clipShape(Circle())
-                      
-                       // Hex input field
-                       TextField("Hex", text: $hexValue)
-                           .textFieldStyle(RoundedBorderTextFieldStyle())
-                           .frame(height: 40)
-                           .onChange(of: hexValue) { _, newValue in
-                               if let color = Color(hex: newValue) {
-                                   selectedColor = color
-                                   // Update the color preset in our manager
-                                   var updatedPresets = presetManager.colorPresets
-                                   updatedPresets[selectedPresetIndex] = color
-                                   presetManager.colorPresets = updatedPresets
-                               }
-                           }
                    }
                }
            }

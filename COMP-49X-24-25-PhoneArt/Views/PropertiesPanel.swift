@@ -31,6 +31,9 @@ struct PropertiesPanel: View {
  @Binding var primitive: Double
  @Binding var isShowing: Bool
 
+ // Panel description text
+ let panelDescription = "Customize your artwork by adjusting the Layer slider first, then explore other transformations!"
+ 
  // MARK: - Tooltip State
  @State private var showingTooltip: Bool = false
  @State private var tooltipText: String = ""
@@ -59,6 +62,12 @@ struct PropertiesPanel: View {
      return formatter
  }()
  
+ // Add FocusState for keyboard management
+ @FocusState private var focusedField: Field?
+ enum Field: Hashable {
+     case rotation, scale, layer, skewX, skewY, spread, horizontal, vertical, primitive
+ }
+ 
  // MARK: - Tooltip Descriptions
  // Dictionary mapping property title to its description for the tooltip
  private let tooltipDescriptions: [String: String] = [
@@ -74,101 +83,138 @@ struct PropertiesPanel: View {
  ]
  
  var body: some View {
-     VStack(spacing: 0) {
-         // Panel header with evenly distributed buttons
-         HStack(alignment: .center, spacing: 0) {
-             Spacer() // Left margin spacer for equal distribution
-            
-             makePropertiesButton()
-            
-             Spacer() // Spacer between buttons for equal distribution
-            
-             makeAlternatePropertiesButton()
-            
-             Spacer() // Spacer between buttons for equal distribution
-            
-             makeShapesButton()
+     // Wrap everything in a ZStack to layer the accessory view
+     ZStack(alignment: .bottom) {
+         // Main Panel Content
+         VStack(spacing: 0) {
+             // Panel header with evenly distributed buttons
+             HStack(alignment: .center, spacing: 0) {
+                 Spacer() // Left margin spacer for equal distribution
+                
+                 makePropertiesButton()
+                
+                 Spacer() // Spacer between buttons for equal distribution
+                
+                 makeAlternatePropertiesButton()
+                
+                 Spacer() // Spacer between buttons for equal distribution
+                
+                 makeShapesButton()
 
-             Spacer() // Spacer between buttons for equal distribution
+                 Spacer() // Spacer between buttons for equal distribution
 
-             // Add the Gallery Button
-             makeGalleryButton()
+                 // Add the Gallery Button
+                 makeGalleryButton()
 
-             Spacer() // Spacer between buttons for equal distribution
-            
-             // Close button
-             Button(action: {
-                 withAnimation(.easeInOut(duration: 0.25)) {
-                     isShowing = false
-                 }
-             }) {
-                 Rectangle()
-                     .foregroundColor(Color(uiColor: .systemBackground))
-                     .frame(width: 50, height: 50)
-                     .cornerRadius(8)
-                     .overlay(
-                         Image(systemName: "xmark")
-                             .font(.system(size: 22))
-                             .foregroundColor(Color(uiColor: .systemBlue))
-                     )
-                     .overlay(
-                         RoundedRectangle(cornerRadius: 8)
-                             .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                     )
-             }
-             .accessibilityLabel("Close")
-             .accessibilityIdentifier("CloseButton")
-            
-             Spacer() // Right margin spacer for equal distribution
-         }
-         .padding(.horizontal)
-         .padding(.vertical, 4)
-         .background(Color(uiColor: .systemGray5))
-         .cornerRadius(8, corners: [.topLeft, .topRight])
-      
-         // Title for the panel
-         Text("Properties")
-             .font(.title2).bold()
-             .padding(.top, 10)
-      
-         ScrollView {
-             VStack(spacing: 12) {
-                 primitivePropertyRow()
-                 rotationPropertyRow()
-                 scalePropertyRow()
-                 layerPropertyRow()
-                 skewXPropertyRow()
-                 skewYPropertyRow()
-                 spreadPropertyRow()
-                 horizontalPropertyRow()
-                 verticalPropertyRow()
-             }
-             .padding()
-             .toolbar {
-                 ToolbarItem(placement: .keyboard) {
-                     Button("Done") {
-                         hideKeyboard()
+                 Spacer() // Spacer between buttons for equal distribution
+                
+                 // Close button
+                 Button(action: {
+                     withAnimation(.easeInOut(duration: 0.25)) {
+                         isShowing = false
                      }
+                 }) {
+                     Rectangle()
+                         .foregroundColor(Color(uiColor: .systemBackground))
+                         .frame(width: 50, height: 50)
+                         .cornerRadius(8)
+                         .overlay(
+                             Image(systemName: "xmark")
+                                 .font(.system(size: 22))
+                                 .foregroundColor(Color(uiColor: .systemBlue))
+                         )
+                         .overlay(
+                             RoundedRectangle(cornerRadius: 8)
+                                 .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+                         )
                  }
+                 .accessibilityLabel("Close")
+                 .accessibilityIdentifier("CloseButton")
+                
+                 Spacer() // Right margin spacer for equal distribution
              }
-         }
-         .simultaneousGesture(
-             TapGesture()
-                 .onEnded { _ in
-                     if showingTooltip {
-                         withAnimation(.easeOut(duration: 0.2)) {
-                             showingTooltip = false
-                             activeTooltipIdentifier = nil
+             .padding(.horizontal)
+             .padding(.vertical, 4)
+             .background(Color(uiColor: .systemGray5))
+             .cornerRadius(8, corners: [.topLeft, .topRight])
+          
+             // Title for the panel
+             Text("Properties")
+                 .font(.title2).bold()
+                 .padding(.top, 10)
+                 
+             // Display the description text
+             Text(panelDescription)
+                 .font(.caption)
+                 .multilineTextAlignment(.center)
+                 .foregroundColor(.secondary)
+                 .padding(.horizontal, 20)
+                 .padding(.bottom, 5)
+          
+             ScrollView {
+                 VStack(spacing: 12) {
+                     primitivePropertyRow()
+                     rotationPropertyRow()
+                     scalePropertyRow()
+                     layerPropertyRow()
+                     skewXPropertyRow()
+                     skewYPropertyRow()
+                     spreadPropertyRow()
+                     horizontalPropertyRow()
+                     verticalPropertyRow()
+                 }
+                 .padding()
+             }
+             .simultaneousGesture(
+                 TapGesture()
+                     .onEnded { _ in
+                         if showingTooltip {
+                             withAnimation(.easeOut(duration: 0.2)) {
+                                 showingTooltip = false
+                                 activeTooltipIdentifier = nil
+                             }
                          }
                      }
-                 }
-         )
+             )
+         }
+         .frame(maxWidth: .infinity)
+         .frame(height: UIScreen.main.bounds.height / 2)
+         .background(Color(uiColor: .systemBackground))
+         .cornerRadius(15, corners: [.topLeft, .topRight])
+         .shadow(radius: 10)
+
+         // Conditionally display the custom keyboard accessory view
+         if focusedField != nil {
+             KeyboardAccessoryView(focusedField: $focusedField, textBinding: currentTextBinding)
+                 .transition(.move(edge: .bottom).combined(with: .opacity))
+         }
      }
-     .frame(maxWidth: .infinity)
-     .frame(height: UIScreen.main.bounds.height / 2)
-     .background(Color(uiColor: .systemBackground))
-     .cornerRadius(15, corners: [.topLeft, .topRight])
-     .shadow(radius: 10)
+     .animation(.easeInOut(duration: 0.2), value: focusedField) // Animate accessory appearance
+     .ignoresSafeArea(.keyboard, edges: .bottom) // Allow content to go under keyboard, accessory floats
+ }
+
+ // Computed property to get the correct text binding based on the focused field
+ private var currentTextBinding: Binding<String> {
+     switch focusedField {
+     case .rotation: return $rotationText
+     case .scale: return $scaleText
+     case .layer: return $layerText
+     case .skewX: return $skewXText
+     case .skewY: return $skewYText
+     case .spread: return $spreadText
+     case .horizontal: return $horizontalText
+     case .vertical: return $verticalText
+     case .primitive: return $primitiveText
+     case .none: return .constant("") // Default/fallback
+     }
+ }
+
+ // Determine keyboard type based on focused field
+ private var currentKeyboardType: UIKeyboardType {
+     switch focusedField {
+     case .scale: return .decimalPad
+     default: return .numberPad
+     }
  }
   // MARK: - Property Row Views
   /// Creates a row for controlling primitive type
@@ -180,16 +226,17 @@ struct PropertiesPanel: View {
                  .onChange(of: primitive) { _, newValue in
                      primitiveText = "\(Int(newValue))"
                  }
-             TextField("", text: $primitiveText)
-                 .frame(width: 65)
-                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(UIKeyboardType.numberPad)
-                 .multilineTextAlignment(.center)
-                 .onChange(of: primitiveText) { _, newValue in
-                     if let value = Double(newValue), value >= 1, value <= 6 {
-                         primitive = value
-                     }
+             
+             // Replace TextField with CustomNumericField for Primitive
+             CustomNumericField(text: $primitiveText, 
+                                commitAction: { value in
+                 if let doubleValue = Double(value), doubleValue >= 1, doubleValue <= 6 {
+                     primitive = doubleValue
                  }
+             }, keyboardType: .numberPad,
+                minValue: 1, maxValue: 6, propertyName: "Primitive")
+                 .frame(width: 65, height: 35)
+                 .accessibilityIdentifier("Primitive TextField")
          }
      }
  }
@@ -203,16 +250,16 @@ struct PropertiesPanel: View {
                      rotationText = "\(Int(newValue))"
                  }
              
-             TextField("", text: $rotationText)
-                 .frame(width: 65)
-                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(UIKeyboardType.numberPad)
-                 .multilineTextAlignment(.center)
-                 .onChange(of: rotationText) { _, newValue in
-                     if let value = Double(newValue), value >= 0, value <= 360 {
-                         rotation = value
-                     }
+             // Replace TextField with CustomNumericField for Rotation
+             CustomNumericField(text: $rotationText, 
+                              commitAction: { value in
+                 if let doubleValue = Double(value), doubleValue >= 0, doubleValue <= 360 {
+                     rotation = doubleValue
                  }
+             }, keyboardType: .numberPad,
+                minValue: 0, maxValue: 360, propertyName: "Rotation")
+                 .frame(width: 65, height: 35)
+                 .accessibilityIdentifier("Rotation TextField")
          }
      }
  }
@@ -225,17 +272,17 @@ struct PropertiesPanel: View {
                  .onChange(of: scale) { _, newValue in
                      scaleText = String(format: "%.1f", newValue)
                  }
-            
-             TextField("", text: $scaleText)
-                 .frame(width: 65)
-                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(UIKeyboardType.decimalPad)
-                 .multilineTextAlignment(.center)
-                 .onChange(of: scaleText) { _, newValue in
-                     if let value = Double(newValue), value >= 0.5, value <= 2.0 {
-                         scale = value
-                     }
+             
+             // Replace TextField with CustomNumericField for Scale
+             CustomNumericField(text: $scaleText, 
+                              commitAction: { value in
+                 if let doubleValue = Double(value), doubleValue >= 0.5, doubleValue <= 2.0 {
+                     scale = doubleValue
                  }
+             }, keyboardType: .decimalPad,
+                minValue: 0.5, maxValue: 2.0, propertyName: "Scale")
+                 .frame(width: 65, height: 35)
+                 .accessibilityIdentifier("Scale TextField")
          }
      }
  }
@@ -248,17 +295,17 @@ struct PropertiesPanel: View {
                  .onChange(of: layer) { _, newValue in
                      layerText = "\(Int(newValue))"
                  }
-            
-             TextField("", text: $layerText)
-                 .frame(width: 65)
-                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(UIKeyboardType.numberPad)
-                 .multilineTextAlignment(.center)
-                 .onChange(of: layerText) { _, newValue in
-                     if let value = Double(newValue), value >= 0, value <= 72 {
-                         layer = value
-                     }
+             
+             // Replace TextField with CustomNumericField for Layer
+             CustomNumericField(text: $layerText, 
+                              commitAction: { value in
+                 if let doubleValue = Double(value), doubleValue >= 0, doubleValue <= 72 {
+                     layer = doubleValue
                  }
+             }, keyboardType: .numberPad,
+                minValue: 0, maxValue: 72, propertyName: "Layer")
+                 .frame(width: 65, height: 35)
+                 .accessibilityIdentifier("Layer TextField")
          }
      }
  }
@@ -271,17 +318,17 @@ struct PropertiesPanel: View {
                  .onChange(of: skewX) { _, newValue in
                      skewXText = "\(Int(newValue))"
                  }
-            
-             TextField("", text: $skewXText)
-                 .frame(width: 65)
-                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(UIKeyboardType.numberPad)
-                 .multilineTextAlignment(.center)
-                 .onChange(of: skewXText) { _, newValue in
-                     if let value = Double(newValue), value >= 0, value <= 80 {
-                         skewX = value
-                     }
+             
+             // Replace TextField with CustomNumericField for Skew X
+             CustomNumericField(text: $skewXText, 
+                              commitAction: { value in
+                 if let doubleValue = Double(value), doubleValue >= 0, doubleValue <= 80 {
+                     skewX = doubleValue
                  }
+             }, keyboardType: .numberPad,
+                minValue: 0, maxValue: 80, propertyName: "Skew X")
+                 .frame(width: 65, height: 35)
+                 .accessibilityIdentifier("Skew X TextField")
          }
      }
  }
@@ -294,17 +341,17 @@ struct PropertiesPanel: View {
                  .onChange(of: skewY) { _, newValue in
                      skewYText = "\(Int(newValue))"
                  }
-            
-             TextField("", text: $skewYText)
-                 .frame(width: 65)
-                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(UIKeyboardType.numberPad)
-                 .multilineTextAlignment(.center)
-                 .onChange(of: skewYText) { _, newValue in
-                     if let value = Double(newValue), value >= 0, value <= 80 {
-                         skewY = value
-                     }
+             
+             // Replace TextField with CustomNumericField for Skew Y
+             CustomNumericField(text: $skewYText, 
+                              commitAction: { value in
+                 if let doubleValue = Double(value), doubleValue >= 0, doubleValue <= 80 {
+                     skewY = doubleValue
                  }
+             }, keyboardType: .numberPad,
+                minValue: 0, maxValue: 80, propertyName: "Skew Y")
+                 .frame(width: 65, height: 35)
+                 .accessibilityIdentifier("Skew Y TextField")
          }
      }
  }
@@ -317,17 +364,17 @@ struct PropertiesPanel: View {
                  .onChange(of: spread) { _, newValue in
                      spreadText = "\(Int(newValue))"
                  }
-            
-             TextField("", text: $spreadText)
-                 .frame(width: 65)
-                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(UIKeyboardType.numberPad)
-                 .multilineTextAlignment(.center)
-                 .onChange(of: spreadText) { _, newValue in
-                     if let value = Double(newValue), value >= 0, value <= 100 {
-                         spread = value
-                     }
+             
+             // Replace TextField with CustomNumericField for Spread
+             CustomNumericField(text: $spreadText, 
+                              commitAction: { value in
+                 if let doubleValue = Double(value), doubleValue >= 0, doubleValue <= 100 {
+                     spread = doubleValue
                  }
+             }, keyboardType: .numberPad,
+                minValue: 0, maxValue: 100, propertyName: "Spread")
+                 .frame(width: 65, height: 35)
+                 .accessibilityIdentifier("Spread TextField")
          }
      }
  }
@@ -340,17 +387,17 @@ struct PropertiesPanel: View {
                  .onChange(of: horizontal) { _, newValue in
                      horizontalText = "\(Int(newValue))"
                  }
-            
-             TextField("", text: $horizontalText)
-                 .frame(width: 65)
-                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(UIKeyboardType.numberPad)
-                 .multilineTextAlignment(.center)
-                 .onChange(of: horizontalText) { _, newValue in
-                     if let value = Double(newValue), value >= -300, value <= 300 {
-                         horizontal = value
-                     }
+             
+             // Replace TextField with CustomNumericField for Horizontal
+             CustomNumericField(text: $horizontalText, 
+                              commitAction: { value in
+                 if let doubleValue = Double(value), doubleValue >= -300, doubleValue <= 300 {
+                     horizontal = doubleValue
                  }
+             }, keyboardType: .numberPad,
+                minValue: -300, maxValue: 300, propertyName: "Horizontal")
+                 .frame(width: 65, height: 35)
+                 .accessibilityIdentifier("Horizontal TextField")
          }
      }
  }
@@ -363,17 +410,17 @@ struct PropertiesPanel: View {
                  .onChange(of: vertical) { _, newValue in
                      verticalText = "\(Int(newValue))"
                  }
-            
-             TextField("", text: $verticalText)
-                 .frame(width: 65)
-                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                 .keyboardType(UIKeyboardType.numberPad)
-                 .multilineTextAlignment(.center)
-                 .onChange(of: verticalText) { _, newValue in
-                     if let value = Double(newValue), value >= -300, value <= 300 {
-                         vertical = value
-                     }
+             
+             // Replace TextField with CustomNumericField for Vertical
+             CustomNumericField(text: $verticalText, 
+                              commitAction: { value in
+                 if let doubleValue = Double(value), doubleValue >= -300, doubleValue <= 300 {
+                     vertical = doubleValue
                  }
+             }, keyboardType: .numberPad,
+                minValue: -300, maxValue: 300, propertyName: "Vertical")
+                 .frame(width: 65, height: 35)
+                 .accessibilityIdentifier("Vertical TextField")
          }
      }
  }
@@ -604,21 +651,75 @@ struct PropertiesPanel: View {
  }
 }
 
+// MARK: - Custom Keyboard Accessory View
+struct KeyboardAccessoryView: View {
+    @FocusState.Binding var focusedField: PropertiesPanel.Field? 
+    @Binding var textBinding: String
+    
+    // Determine keyboard type based on focused field
+    private var keyboardType: UIKeyboardType {
+        switch focusedField {
+        case .scale: return .decimalPad
+        default: return .numberPad
+        }
+    }
 
-
-
-
-
-
+    var body: some View {
+        // Create a view that matches the iOS system numeric input shown in the image
+        ZStack {
+            // Dark background for the whole accessory view
+            Color(UIColor.darkGray.withAlphaComponent(0.9))
+                .edgesIgnoringSafeArea(.bottom)
+            
+            HStack {
+                // X button on left side (actually a circle with X)
+                Button(action: {
+                    // Cancel action - revert to original value
+                    focusedField = nil
+                }) {
+                    Circle()
+                        .fill(Color(UIColor.darkGray))
+                        .frame(width: 30, height: 30)
+                        .overlay(
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14))
+                                .foregroundColor(.white)
+                        )
+                }
+                .padding(.leading, 16)
+                
+                // Center-aligned text field 
+                TextField("", text: $textBinding)
+                    .font(.system(size: 20))
+                    .foregroundColor(.white)
+                    .keyboardType(keyboardType)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                
+                // Right side buttons 
+                HStack(spacing: 16) {
+                    Button("Done") {
+                        focusedField = nil
+                    }
+                    .foregroundColor(Color.blue)
+                    .font(.system(size: 18, weight: .medium))
+                    
+                    Button("Cancel") {
+                        // Cancel action - revert to original value
+                        focusedField = nil
+                    }
+                    .foregroundColor(Color.blue)
+                    .font(.system(size: 18, weight: .medium))
+                }
+                .padding(.trailing, 16)
+            }
+            .padding(.vertical, 12)
+        }
+        .frame(height: 52) // Fixed height to match iOS standard
+    }
+}
 
 // MARK: - Corner Radius Helper
-
-
-
-
-
-
-
 
 /// Adds support for applying corner radius to specific corners of a view
 extension View {
@@ -630,13 +731,6 @@ extension View {
      clipShape(RoundedCorner(radius: radius, corners: corners))
  }
 }
-
-
-
-
-
-
-
 
 /// A shape that enables selective corner rounding
 struct RoundedCorner: Shape {
@@ -655,21 +749,7 @@ struct RoundedCorner: Shape {
  }
 }
 
-
-
-
-
-
-
-
 // MARK: - Testing Extensions
-
-
-
-
-
-
-
 
 /// Extension providing test access to text field values
 extension PropertiesPanel {
@@ -721,9 +801,7 @@ extension PropertiesPanel {
 
 }
 
-
 // MARK: - Previews
-
 
 struct PropertiesPanel_Previews: PreviewProvider {
    static var previews: some View {
