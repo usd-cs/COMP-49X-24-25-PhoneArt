@@ -153,13 +153,13 @@ struct PropertiesPanel: View {
           
              ScrollView {
                  VStack(spacing: 12) {
+                     layerPropertyRow()
                      primitivePropertyRow()
                      rotationPropertyRow()
                      scalePropertyRow()
-                     layerPropertyRow()
+                     spreadPropertyRow()
                      skewXPropertyRow()
                      skewYPropertyRow()
-                     spreadPropertyRow()
                      horizontalPropertyRow()
                      verticalPropertyRow()
                  }

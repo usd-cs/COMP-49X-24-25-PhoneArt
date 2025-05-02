@@ -139,21 +139,16 @@ struct CanvasView: View {
     }
      /// Computed vertical offset for the canvas when properties panel or color shapes panel is shown
     internal var canvasVerticalOffset: CGFloat {
-        // Change the standard offset to -50
-        let standardPanelOffset: CGFloat = -50 
-        // let galleryPanelOffset: CGFloat = -220  // Shift up more for the taller gallery - No longer needed
-
-        // Use the same offset for all panels
+        // Increase the offset when any bottom panel is open
+        let raisedPanelOffset: CGFloat = -150 // Raise more when a panel is open
+        let standardPanelOffset: CGFloat = -50
         let result: CGFloat
         if showGalleryPanel || showProperties || showColorShapes || showShapesPanel {
-            result = standardPanelOffset
+            result = raisedPanelOffset
         } else {
             result = 0 // No panel, no offset
         }
-        
-        // DEBUG: Log significant changes in vertical offset
-        print("DEBUG: Canvas vertical offset: \(result) - panels: \(showGalleryPanel ? "gallery" : "")\(showProperties ? "properties" : "")\(showColorShapes ? "colorShapes" : "")\(showShapesPanel ? "shapesPanel" : "")")
-        
+        // print("DEBUG: Canvas vertical offset: \(result) - panels: \(showGalleryPanel ? \"gallery\" : \"\")\(showProperties ? \"properties\" : \"\")\(showColorShapes ? \"colorShapes\" : \"\")\(showShapesPanel ? \"shapesPanel\" : \"\")")
         return result
     }
      /// Computed minimum zoom level to fit canvas width to screen width
@@ -310,25 +305,33 @@ struct CanvasView: View {
             // Randomize icon button with label
             VStack(spacing: 4) {
                 Button(action: {
-                    previousArtworkState = (
-                        selectedShape,
-                        shapeRotation,
-                        shapeScale,
-                        shapeLayer,
-                        shapeSkewX,
-                        shapeSkewY,
-                        shapeSpread,
-                        shapeHorizontal,
-                        shapeVertical,
-                        shapePrimitive,
-                        colorPresetManager.colorPresets,
-                        colorPresetManager.backgroundColor,
-                        colorPresetManager.strokeWidth,
-                        colorPresetManager.strokeColor,
-                        colorPresetManager.shapeAlpha
-                    )
-                    createRandomizedArtwork()
-                    showUndoButton = true
+                    let suppressKey = "SuppressRandomizeWarningUntil"
+                    let now = Date()
+                    if let suppressUntil = UserDefaults.standard.object(forKey: suppressKey) as? Date, suppressUntil > now {
+                        createRandomizedArtwork()
+                        // No pop-up if suppressed
+                        return
+                    }
+                    if hasUnsavedChanges {
+                        alertTitle = "Randomize Artwork?"
+                        alertMessage = "You have unsaved changes. Randomizing will overwrite your current work and you will lose your unsaved changes. Are you sure you want to continue?"
+                        showAlert = true
+                        UnsavedChangesHandler.proceedAction = {
+                            createRandomizedArtwork()
+                            alertTitle = "Randomized"
+                            alertMessage = "Artwork has been randomized."
+                            showAlert = true
+                        }
+                        // Add a special action for 'Don't warn me for 24 hours'
+                        UnsavedChangesHandler.saveExistingArtworkAction = {
+                            let suppressUntil = Calendar.current.date(byAdding: .hour, value: 24, to: now) ?? now.addingTimeInterval(24*60*60)
+                            UserDefaults.standard.set(suppressUntil, forKey: suppressKey)
+                            createRandomizedArtwork()
+                        }
+                    } else {
+                        createRandomizedArtwork()
+                        // No pop-up if there were no unsaved changes
+                    }
                 }) {
                     Rectangle()
                         .foregroundColor(.clear)
@@ -344,36 +347,29 @@ struct CanvasView: View {
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
                         )
-                    }
-                    .accessibilityIdentifier("Randomize Button")
-                    
-                    Text("Shuffle")
-                        .font(.system(size: 10))
-                        .foregroundColor(.black)
+                }
+                .accessibilityIdentifier("Randomize Button")
+                
+                Text("Shuffle")
+                    .font(.system(size: 10))
+                    .foregroundColor(.black)
             }
 
             // Undo icon button (only appears when needed)
-            if showUndoButton {
+            if hasUnsavedChanges, let loadedArtwork = loadedArtworkData {
                 VStack(spacing: 4) {
                     Button(action: {
-                        if let prev = previousArtworkState {
-                            selectedShape = prev.selectedShape
-                            shapeRotation = prev.shapeRotation
-                            shapeScale = prev.shapeScale
-                            shapeLayer = prev.shapeLayer
-                            shapeSkewX = prev.shapeSkewX
-                            shapeSkewY = prev.shapeSkewY
-                            shapeSpread = prev.shapeSpread
-                            shapeHorizontal = prev.shapeHorizontal
-                            shapeVertical = prev.shapeVertical
-                            shapePrimitive = prev.shapePrimitive
-                            colorPresetManager.colorPresets = prev.colorPresets
-                            colorPresetManager.backgroundColor = prev.backgroundColor
-                            colorPresetManager.strokeWidth = prev.strokeWidth
-                            colorPresetManager.strokeColor = prev.strokeColor
-                            colorPresetManager.shapeAlpha = prev.shapeAlpha
+                        // Show confirmation alert before undoing
+                        alertTitle = "Undo Changes?"
+                        alertMessage = "You have unsaved changes. Undoing will revert to your last saved artwork and you will lose your current work. Are you sure you want to continue?"
+                        showAlert = true
+                        // Set up the proceed action for the alert
+                        UnsavedChangesHandler.proceedAction = {
+                            applyLoadedArtwork(loadedArtwork)
+                            alertTitle = "Undo Successful"
+                            alertMessage = "Artwork reverted to last saved state."
+                            showAlert = true
                         }
-                        showUndoButton = false
                     }) {
                         Rectangle()
                             .foregroundColor(.clear) // Match style
@@ -540,7 +536,23 @@ struct CanvasView: View {
 
     @ViewBuilder
     private func unsavedChangesAlertButtons() -> some View {
-        if alertTitle.contains("Unsaved Changes") ||
+        if alertTitle == "Undo Changes?" {
+            Button("Cancel", role: .cancel) {}
+            Button("Undo", role: .destructive) {
+                UnsavedChangesHandler.proceedAction?()
+                UnsavedChangesHandler.proceedAction = nil
+            }
+        } else if alertTitle == "Randomize Artwork?" {
+            Button("Cancel", role: .cancel) {}
+            Button("Randomize", role: .destructive) {
+                UnsavedChangesHandler.proceedAction?()
+                UnsavedChangesHandler.proceedAction = nil
+            }
+            Button("Don't warn me for 24 hours") {
+                UnsavedChangesHandler.saveExistingArtworkAction?()
+                UnsavedChangesHandler.saveExistingArtworkAction = nil
+            }
+        } else if alertTitle.contains("Unsaved Changes") ||
            alertTitle == "Import Artwork Code" ||
            alertTitle == "Create New Artwork" ||
            alertTitle == "Share Artwork" ||
@@ -1993,6 +2005,7 @@ struct CanvasView: View {
 
         // Reset color manager
         ColorPresetManager.shared.resetToDefaults()
+        colorPresetManager.saturationAdjustment = 1.0 // Default to 100%
 
         // Clear loaded artwork data
         loadedArtworkData = nil
@@ -2043,6 +2056,7 @@ struct CanvasView: View {
                 }
             }
         }
+        colorPresetManager.saturationAdjustment = 1.0 // Default to 100%
     }
     
     /// Creates an artwork with randomized properties
@@ -2052,9 +2066,9 @@ struct CanvasView: View {
         selectedShape = shapeTypes.randomElement() ?? .capsule
         
         // Random shape properties within reasonable ranges
-        shapeRotation = Double.random(in: 0...360)
-        shapeScale = Double.random(in: 0.7...1.2)
-        shapeLayer = Double.random(in: 15...40)
+        shapeRotation = Double.random(in: 2...360)
+        shapeScale = Double.random(in: 0.9...1.4)
+        shapeLayer = Double.random(in: 30...50)
         shapeSkewX = Double.random(in: 0...30)
         shapeSkewY = Double.random(in: 0...30)
         shapeSpread = Double.random(in: 5...40)
@@ -2066,7 +2080,7 @@ struct CanvasView: View {
         var randomColors: [Color] = []
         for _ in 0..<10 {
             let hue = Double.random(in: 0...1)
-            let saturation = Double.random(in: 0.7...1.0)
+            let saturation = Double.random(in: 0.5...1.0) // Only randomize between 50-100%
             let brightness = Double.random(in: 0.7...0.9)
             randomColors.append(Color(hue: hue, saturation: saturation, brightness: brightness))
         }
@@ -2076,11 +2090,14 @@ struct CanvasView: View {
         colorPresetManager.backgroundColor = Color(hue: Double.random(in: 0...1), 
                                                   saturation: Double.random(in: 0.1...0.3), 
                                                   brightness: Double.random(in: 0.9...1.0))
-                                                  
+        
         // Random stroke and alpha settings
         colorPresetManager.strokeWidth = Double.random(in: 0...5)
         colorPresetManager.strokeColor = randomColors.randomElement() ?? .black
         colorPresetManager.shapeAlpha = Double.random(in: 0.7...1.0)
+        
+        // Randomize saturation adjustment between 0.5 and 1.0
+        colorPresetManager.saturationAdjustment = Double.random(in: 0.5...1.0)
         
         // Set as unsaved
         hasUnsavedChanges = true
