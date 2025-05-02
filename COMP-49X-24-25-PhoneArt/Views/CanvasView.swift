@@ -705,6 +705,8 @@ struct CanvasView: View {
                     }
                 }
             }
+        } else {
+            loadInitialArtwork()
         }
     }
 
