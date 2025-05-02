@@ -35,9 +35,23 @@
 		3B08EF332CEFB2350044A295 /* COMP-49X-24-25-PhoneArtUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "COMP-49X-24-25-PhoneArtUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B66A93CC2DC54931000AB457 /* Exceptions for "COMP-49X-24-25-PhoneArt" folder in "COMP-49X-24-25-PhoneArt" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"GoogleService-Info.plist",
+				Info.plist,
+			);
+			target = 3B08EF182CEFB2340044A295 /* COMP-49X-24-25-PhoneArt */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		3B08EF1B2CEFB2340044A295 /* COMP-49X-24-25-PhoneArt */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B66A93CC2DC54931000AB457 /* Exceptions for "COMP-49X-24-25-PhoneArt" folder in "COMP-49X-24-25-PhoneArt" target */,
+			);
 			path = "COMP-49X-24-25-PhoneArt";
 			sourceTree = "<group>";
 		};
@@ -423,6 +437,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -456,6 +471,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
