@@ -141,7 +141,7 @@ struct CanvasView: View {
     internal var canvasVerticalOffset: CGFloat {
         // Increase the offset when any bottom panel is open
         let raisedPanelOffset: CGFloat = -150 // Raise more when a panel is open
-        let standardPanelOffset: CGFloat = -50
+        // let standardPanelOffset: CGFloat = -50
         let result: CGFloat
         if showGalleryPanel || showProperties || showColorShapes || showShapesPanel {
             result = raisedPanelOffset
@@ -1541,10 +1541,8 @@ struct CanvasView: View {
   
    /// Save artwork to Photos library using ImageRenderer
    private func saveToPhotos() {
-       // Set loading state immediately on the main thread
        isSavingPhoto = true
-       
-       // Define the content to render (must be done on main thread)
+
        let contentToRender = ZStack {
            colorPresetManager.backgroundColor
            Canvas { context, size in
@@ -1552,55 +1550,44 @@ struct CanvasView: View {
            }
        }
        .frame(width: 1600, height: 1800)
-       
-       // Detach the rendering and saving to a background task
-       Task.detached(priority: .userInitiated) {
-           // 1. Create the ImageRenderer (can be done in background)
-           let renderer = await ImageRenderer(content: contentToRender)
-           // Get scale and set it on the main thread, awaiting the operation
-           await MainActor.run { // << Add await here
-               renderer.scale = UIScreen.main.scale 
-           }
 
-           // 2. Render the image (potentially heavy, keep off main thread)
-           // Await the rendering process
-           let uiImage = await renderer.uiImage 
+       Task {
+           // All ImageRenderer work must be on the main actor
+           let renderer = ImageRenderer(content: contentToRender)
+           renderer.scale = UIScreen.main.scale
 
-           // 3. Check if rendering succeeded
-           guard let imageToSave = uiImage else {
-               // If rendering failed, update UI back on main thread
+           // Render the image on the main actor
+           let uiImage = renderer.uiImage
+
+           // Now, switch to a background thread for saving if needed
+           if let imageToSave = uiImage {
+               let success = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+                   ExportService.saveImageToPhotoLibrary(image: imageToSave) { success, error in
+                       if !success {
+                           print("Error saving to photos: \(error?.localizedDescription ?? "Unknown error")")
+                       }
+                       continuation.resume(returning: success)
+                   }
+               }
+
+               await MainActor.run {
+                   isSavingPhoto = false
+                   if success {
+                       alertTitle = "Success"
+                       alertMessage = "Artwork saved to Photos successfully!"
+                   } else {
+                       alertTitle = "Error"
+                       alertMessage = "Failed to save to Photos. Check Photos permissions?"
+                   }
+                   showAlert = true
+               }
+           } else {
                await MainActor.run {
                    isSavingPhoto = false
                    alertTitle = "Error"
                    alertMessage = "Failed to render artwork image."
                    showAlert = true
                }
-               return // Stop execution
-           }
-
-           // 4. Call the ExportService function
-           // Use await withCheckedContinuation to bridge the callback
-           let success = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-               ExportService.saveImageToPhotoLibrary(image: imageToSave) { success, error in
-                   if !success {
-                       print("Error saving to photos: \(error?.localizedDescription ?? "Unknown error")")
-                   }
-                   continuation.resume(returning: success)
-               }
-           }
-
-           // 5. Update UI on the main thread after saving attempt
-           await MainActor.run {
-               isSavingPhoto = false // Hide progress view
-               if success {
-                   alertTitle = "Success"
-                   alertMessage = "Artwork saved to Photos successfully!"
-               } else {
-                   // Error details are logged by ExportService or above
-                   alertTitle = "Error"
-                   alertMessage = "Failed to save to Photos. Check Photos permissions?"
-               }
-               showAlert = true // Show the result alert
            }
        }
    }

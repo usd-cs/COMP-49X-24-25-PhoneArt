@@ -47,7 +47,7 @@ import FirebaseCore
                print("ViewModel: Calling firebaseService.getArtworkPiece with ID: \(trimmedId)")
                if let artworkData = try await firebaseService.getArtworkPiece(pieceId: trimmedId) {
                    // Safely handle the optional artworkString
-                   let artworkString = artworkData.artworkString ?? ""
+                   let artworkString = artworkData.artworkString
                    if !artworkString.isEmpty {
                        print("ViewModel: Artwork found, calling onImportSuccess.")
                        // Use Task to ensure UI updates happen on main thread if needed
