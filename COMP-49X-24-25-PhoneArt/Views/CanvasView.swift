@@ -2293,16 +2293,15 @@ struct CanvasView: View {
             if !hasRecordedInitialState {
                 initialArtworkString = currentArtworkString
                 hasRecordedInitialState = true
-                hasUnsavedChanges = true  // Set to true for new artwork
-                print("[DEBUG] checkForUnsavedChanges: Recording initial state for new artwork (Unsaved)")
+                hasUnsavedChanges = false  // Set to false for initial load
+                print("[DEBUG] checkForUnsavedChanges: Recording initial state for new artwork (Saved)")
                 return
             }
             
             // Compare with initial state
             if let initialString = initialArtworkString, initialString == currentArtworkString {
-                // Even if unchanged from initial state, a new artwork is still considered unsaved until explicitly saved
-                hasUnsavedChanges = true
-                print("[DEBUG] New artwork matches initial state - still marked as unsaved")
+                hasUnsavedChanges = false
+                print("[DEBUG] New artwork matches initial state - marked as saved")
             } else {
                 hasUnsavedChanges = true
                 print("[DEBUG] New artwork has changes compared to initial state")
