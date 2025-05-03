@@ -82,7 +82,6 @@ struct CustomNumericField: UIViewRepresentable {
             
             // Set a frame with more space
             toggleButton.frame = CGRect(x: 0, y: 0, width: 44, height: 44)
-            toggleButton.contentEdgeInsets = UIEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
             
             // Store a reference to the toggle button
             toggleNegativeButton = toggleButton

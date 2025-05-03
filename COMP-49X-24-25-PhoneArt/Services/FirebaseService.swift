@@ -159,7 +159,7 @@ class FirebaseService: ObservableObject {
     func listAllPieces() async {
         let deviceId = getDeviceId()
         do {
-            let snapshot = try await db.collection("artwork")
+            _ = try await db.collection("artwork")
                 .document(deviceId)
                 .collection("pieces")
                 .getDocuments()
@@ -183,7 +183,7 @@ class FirebaseService: ObservableObject {
             let keyValue = pair.components(separatedBy: ":")
             if keyValue.count == 2 {
                 let key = keyValue[0]
-                let value = keyValue[1]
+                let _ = keyValue[1]
                 
                 switch key {
                 case "shape":
