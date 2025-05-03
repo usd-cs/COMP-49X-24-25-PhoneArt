@@ -583,7 +583,7 @@ struct CanvasView: View {
 
     @ViewBuilder
     private func restorationAlertMessage() -> some View {
-        Text("We found unsaved work from your previous session. Would you like to restore it?")
+        Text("We found unsaved artwork changes from when you last closed the app. Would you like to restore your previous work?")
     }
 
     @ViewBuilder
@@ -680,9 +680,7 @@ struct CanvasView: View {
             userDefaults.set(true, forKey: hasPopulatedKey)
             let premadeArtworks = [
                 ("Artwork1", "alpha:0.25675666332244873;background:#FEFFFF;colors:#D2D5FF,#4B20B5,#FF0275,#FA00F8,#000000,#DDC90A,#02CD23,#1F36BE,#13DA79,#0BCC9D;horizontal:67.46985912322998;hueAdj:1.0;layer:42.62637376785278;presetCount:5;primitive:5.0;rainbowStyle:0;rotation:212.94913530349731;satAdj:1.0;scale:1.759589046239853;shape:rectangle;skewX:11.124992370605469;skewY:0.0;spread:26.923072338104248;strokeColor:#FEFFFF;strokeWidth:0.0;useRainbow:false;vertical:0.0"),
-                ("Artwork2", "alpha:0.49710142612457275;background:#B0DD8B;colors:#B72CC0,#67BF17,#0FE592,#29BEB0,#17C03B,#D64A16,#25BE91,#C52FD8,#B63407,#D83E8B;horizontal:0.0;hueAdj:0.748697817325592;layer:25.96246576309204;presetCount:5;primitive:6.0;rainbowStyle:0;rotation:170.06492614746094;satAdj:1.0;scale:1.725267231464386;shape:arrow;skewX:0.0;skewY:0.0;spread:6.101185828447342;strokeColor:#D64A16;strokeWidth:0.0;useRainbow:true;vertical:0.0"),
-                ("Artwork3", "alpha:0.93;background:#EA1600;colors:#A23423,#B73317,#D22F8C,#345EDF,#CE2E6F,#B61B90,#E00204,#168FCA,#2BE409,#92D202;horizontal:0.0;hueAdj:0.2554806172847748;layer:30.29156184196472;presetCount:1;primitive:5.0;rainbowStyle:0;rotation:5.000000037252903;satAdj:1.0;scale:1.3360967636108398;shape:star;skewX:25.0;skewY:0.0;spread:5.0;strokeColor:#FEFFFF;strokeWidth:2.0;useRainbow:false;vertical:0.0"),
-                ("Artwork4", "alpha:1.0;background:#E291FE;colors:#E569E4,#DA219A,#6923C1,#4056DC,#D4793D,#CC4B15,#C75392,#CE5A33,#1AD0C6,#BD295A;horizontal:0.0;hueAdj:1.0;layer:67.35163736343384;presetCount:9;primitive:3.0;rainbowStyle:0;rotation:17.694917768239975;satAdj:1.0;scale:1.1760272234678268;shape:star;skewX:0.0;skewY:33.0217981338501;spread:10.000000894069672;strokeColor:#BD295A;strokeWidth:0.0;useRainbow:false;vertical:0.0")
+                ("Artwork2", "alpha:0.49710142612457275;background:#B0DD8B;colors:#B72CC0,#67BF17,#0FE592,#29BEB0,#17C03B,#D64A16,#25BE91,#C52FD8,#B63407,#D83E8B;horizontal:0.0;hueAdj:0.748697817325592;layer:25.96246576309204;presetCount:5;primitive:6.0;rainbowStyle:0;rotation:170.06492614746094;satAdj:1.0;scale:1.725267231464386;shape:arrow;skewX:0.0;skewY:0.0;spread:6.101185828447342;strokeColor:#D64A16;strokeWidth:0.0;useRainbow:true;vertical:0.0")
             ]
             Task {
                 var savedArtworks: [ArtworkData] = []
@@ -707,6 +705,11 @@ struct CanvasView: View {
             }
         } else {
             loadInitialArtwork()
+        }
+        
+        // Check for any previously saved work that needs to be restored
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.checkForPreviouslySavedWork()
         }
     }
 
@@ -3077,6 +3080,13 @@ struct CanvasView: View {
         
         // This work is unsaved (it's a restoration, not a loaded saved artwork)
         hasUnsavedChanges = true
+        
+        // Show a brief success alert
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            alertTitle = "Artwork Restored"
+            alertMessage = "Your previous artwork has been successfully restored."
+            showAlert = true
+        }
         
         print("[DEBUG] Successfully restored previous artwork state")
     }
