@@ -853,7 +853,7 @@ struct CanvasView: View {
         let scaledRadius = radius * layerScale
   
         // Apply spread to move shapes away from center
-        let spreadDistance = max(shapeSpread * Double(layerIndex), Double(layerIndex))
+        let spreadDistance = max(shapeSpread * (Double(layerIndex) + 1.0), Double(layerIndex))
         let spreadX = spreadDistance * cos(angleInRadians)
         let spreadY = spreadDistance * sin(angleInRadians)
   
@@ -2809,7 +2809,7 @@ struct CanvasView: View {
             let layerScale = pow(1.0 + (params.scale - 1.0) * scaleFactor, Double(layerIndex + 1))
             let scaledRadius = radius * layerScale
             
-            let spreadDistance = max(params.spread * Double(layerIndex), Double(layerIndex))
+            let spreadDistance = max(params.spread * (Double(layerIndex) + 1.0), Double(layerIndex))
             let spreadX = spreadDistance * cos(angleInRadians)
             let spreadY = spreadDistance * sin(angleInRadians)
             
