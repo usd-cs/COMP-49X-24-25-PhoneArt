@@ -1291,8 +1291,9 @@ struct CanvasView: View {
                     } // Else (no loaded artwork), this button doesn't appear
 
                     // --- Save as New Button ---
-                    Button(action: { showSaveAsNewPrompt() }) {
-                        Label("Save as New...", systemImage: "square.and.arrow.down.on.square")
+                    Button(action: { showingSavePrompt = true }) {
+                        Label("Save to Gallery as New", systemImage: "square.and.arrow.down.on.square")
+                            .font(.system(size: 14))
                     }
                     .accessibilityIdentifier("Save as New Button")
 
@@ -1340,7 +1341,7 @@ struct CanvasView: View {
             onProceed: {
                 // We still need to save, but the user chose to proceed without saving
                 alertTitle = "Cannot Share"
-                alertMessage = "To share artwork, you need to save it first. Tap the save button (↓) below and select Save as New."
+                alertMessage = "To share artwork, you need to save it first. Tap the save button (↓) below and select Save to Gallery."
                 showAlert = true
             },
             onSaveFirst: {
@@ -1394,7 +1395,7 @@ struct CanvasView: View {
         //     // If we get here, there were no unsaved changes and no artwork ID
         //     // This is an edge case - there are no unsaved changes but also no ID
         //     alertTitle = "Cannot Share"
-        //     alertMessage = "To share artwork, you need to save it first. Tap the save button (↓) below and select Save as New."
+        //     alertMessage = "To share artwork, you need to save it first. Tap the save button (↓) below and select Save to Gallery."
         //     showAlert = true
         // }
     }
