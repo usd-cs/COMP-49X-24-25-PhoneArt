@@ -71,7 +71,7 @@ struct GalleryPanel: View {
                       .font(.title2).bold()
                       .padding(.top)
                 
-                  Text("Your saved artworks. You can save a maximum of 12 artworks.")
+                  Text("Your saved artworks! You can save a maximum of 12 artworks.")
                       .font(.caption)
                       .foregroundColor(.secondary)
                       .multilineTextAlignment(.center)
