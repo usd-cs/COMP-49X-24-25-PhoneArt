@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit // Needed for CGPoint
 
 /// Provides utility functions for creating specific shape paths.
 struct ShapeUtils {
@@ -69,6 +68,18 @@ struct ShapeUtils {
         path.addLine(to: CGPoint(x: center.x - stemWidth * 0.5, y: center.y)) // Left edge of stem at middle height
         path.addLine(to: CGPoint(x: center.x - width * 0.5, y: center.y))     // Left point at middle height
 
+        path.closeSubpath()
+        return path
+    }
+
+    /// Creates a parallelogram path with a given skew (0.0 = rectangle, 0.5 = strong slant)
+    static func createParallelogramPath(rect: CGRect, skew: CGFloat = 0.3) -> Path {
+        var path = Path()
+        let dx = rect.width * skew
+        path.move(to: CGPoint(x: rect.minX + dx, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - dx, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
         path.closeSubpath()
         return path
     }
