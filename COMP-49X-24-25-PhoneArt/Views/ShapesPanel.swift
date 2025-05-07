@@ -182,11 +182,21 @@ struct ShapesPanel: View {
             selectedShape = shape
         }) {
             VStack {
-                Image(systemName: shape.icon)
-                    .font(.system(size: 32))
-                    .foregroundColor(selectedShape == shape ? Color.blue : Color(uiColor: .label))
-                    .frame(height: 40)
-                
+                if shape == .parallelogram {
+                    GeometryReader { geometry in
+                        Path { path in
+                            let rect = CGRect(x: 0, y: 0, width: geometry.size.width, height: geometry.size.height)
+                            path.addPath(ShapeUtils.createParallelogramPath(rect: rect, skew: 0.3))
+                        }
+                        .fill(selectedShape == shape ? Color.blue : Color(uiColor: .label))
+                    }
+                    .frame(width: 32, height: 40)
+                } else {
+                    Image(systemName: shape.icon)
+                        .font(.system(size: 32))
+                        .foregroundColor(selectedShape == shape ? Color.blue : Color(uiColor: .label))
+                        .frame(height: 40)
+                }
                 Text(shape.rawValue.capitalized)
                     .font(.caption2)
                     .lineLimit(1)

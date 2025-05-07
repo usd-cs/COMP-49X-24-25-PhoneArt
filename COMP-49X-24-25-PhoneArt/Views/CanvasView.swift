@@ -462,9 +462,13 @@ struct CanvasView: View {
         if showGalleryPanel {
             panelOverlay {
                 GalleryPanel(
-                    isShowing: $showGalleryPanel, confirmedArtworkId: $confirmedArtworkId,
-                    onSwitchToProperties: switchToProperties, onSwitchToColorShapes: switchToColorShapes,
-                    onSwitchToShapes: switchToShapes, onLoadArtwork: loadArtwork
+                    isShowing: $showGalleryPanel,
+                    confirmedArtworkId: $confirmedArtworkId,
+                    onSwitchToProperties: switchToProperties,
+                    onSwitchToColorShapes: switchToColorShapes,
+                    onSwitchToShapes: switchToShapes,
+                    onLoadArtwork: loadArtwork,
+                    onRenameArtwork: updateLoadedArtworkTitle // Pass the callback
                 )
             }
         }
@@ -3107,5 +3111,17 @@ struct CanvasView: View {
     // Add a function to debug the canvas position
     private func logCanvasPosition() {
         print("DEBUG: Canvas position - offset: \(offset), zoom: \(zoomLevel), rotation: \(currentRotation.degrees)")
+    }
+
+    // Add this function to update the loaded artwork title
+    private func updateLoadedArtworkTitle(pieceId: String, newTitle: String) {
+        guard let loaded = loadedArtworkData, loaded.pieceId == pieceId else { return }
+        loadedArtworkData = ArtworkData(
+            deviceId: loaded.deviceId,
+            artworkString: loaded.artworkString,
+            timestamp: loaded.timestamp,
+            title: newTitle,
+            pieceId: loaded.pieceId
+        )
     }
 }

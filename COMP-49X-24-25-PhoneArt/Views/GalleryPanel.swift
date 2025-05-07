@@ -42,6 +42,7 @@ struct GalleryPanel: View {
   var onSwitchToColorShapes: () -> Void
   var onSwitchToShapes: () -> Void
   var onLoadArtwork: (ArtworkData) -> Void // << New callback for loading artwork
+  var onRenameArtwork: ((String, String) -> Void)?
    // MARK: - Initialization
   init(isShowing: Binding<Bool>,
        confirmedArtworkId: Binding<IdentifiableArtworkID?>, // << Add binding to init
@@ -49,6 +50,7 @@ struct GalleryPanel: View {
        onSwitchToColorShapes: @escaping () -> Void,
        onSwitchToShapes: @escaping () -> Void,
        onLoadArtwork: @escaping (ArtworkData) -> Void, // << Add callback to initializer
+       onRenameArtwork: ((String, String) -> Void)? = nil, // <-- Add to init
        firebaseService: FirebaseService = FirebaseService.shared) {
       self._isShowing = isShowing
       self._confirmedArtworkId = confirmedArtworkId // << Initialize binding
@@ -56,6 +58,7 @@ struct GalleryPanel: View {
       self.onSwitchToColorShapes = onSwitchToColorShapes
       self.onSwitchToShapes = onSwitchToShapes
       self.onLoadArtwork = onLoadArtwork // << Initialize callback
+      self.onRenameArtwork = onRenameArtwork // <-- Store callback
       self.firebaseService = firebaseService
   }
    // MARK: - Body
@@ -461,6 +464,10 @@ struct GalleryPanel: View {
               // Update local data immediately for responsiveness
               if let index = artworkItems.firstIndex(where: { $0.id == artworkToRename.id }) {
                   artworkItems[index] = artworkItems[index].withUpdatedTitle(titleToSave)
+              }
+              // Call the callback to update the canvas if this artwork is loaded
+              if let pieceId = artworkToRename.pieceId {
+                  onRenameArtwork?(pieceId, titleToSave)
               }
               self.artworkToRename = nil // Clear selection
               showFeedback(title: "Success", message: "Artwork renamed successfully.")
