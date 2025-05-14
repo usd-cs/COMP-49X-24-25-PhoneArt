@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>mobile.COMP-49X-24-25-PhoneArt</string>
+	<string>edu.sandiego.mathart</string>
 	<key>PROJECT_ID</key>
 	<string>mathart-6a761</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:477089724928:ios:c9008c125b31abec5736e5</string>
+	<string>1:477089724928:ios:2eca1305a212c0d75736e5</string>
 </dict>
 </plist>

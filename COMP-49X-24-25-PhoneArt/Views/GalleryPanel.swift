@@ -7,6 +7,7 @@
 
 
 import SwiftUI
+import Combine
 
 
 struct GalleryPanel: View {
@@ -43,7 +44,13 @@ struct GalleryPanel: View {
   var onSwitchToShapes: () -> Void
   var onLoadArtwork: (ArtworkData) -> Void // << New callback for loading artwork
   var onRenameArtwork: ((String, String) -> Void)?
-   // MARK: - Initialization
+  
+  // Keyboard height state
+  @State private var keyboardHeight: CGFloat = 0
+  private var keyboardWillShow: AnyCancellable? = nil
+  private var keyboardWillHide: AnyCancellable? = nil
+  
+  // MARK: - Initialization
   init(isShowing: Binding<Bool>,
        confirmedArtworkId: Binding<IdentifiableArtworkID?>, // << Add binding to init
        onSwitchToProperties: @escaping () -> Void,
@@ -66,6 +73,8 @@ struct GalleryPanel: View {
       VStack(spacing: 0) {
           // Header section with navigation buttons and close control
           panelHeader()
+              .offset(y: keyboardHeight > 0 ? keyboardHeight + 20 : 0)
+              .animation(.easeOut(duration: 0.25), value: keyboardHeight)
         
           // Main content area (Placeholder for Gallery)
           ScrollView { // ScrollView to contain the grid
@@ -121,6 +130,21 @@ struct GalleryPanel: View {
               }
           }
           .onAppear(perform: loadArtwork) // Load artwork when the panel appears
+          .onAppear {
+              // Listen for keyboard notifications
+              NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { notif in
+                  if let frame = notif.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                      keyboardHeight = frame.height
+                  }
+              }
+              NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { _ in
+                  keyboardHeight = 0
+              }
+          }
+          .onDisappear {
+              NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+              NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
+          }
       }
       .frame(maxWidth: .infinity)
       .frame(height: UIScreen.main.bounds.height / 2) // Panel takes up half of screen height
@@ -167,6 +191,9 @@ struct GalleryPanel: View {
           Button("OK", role: .cancel) { }
       } message: {
           Text(feedbackAlertMessage)
+      }
+      .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GalleryPanelRefresh"))) { _ in
+          loadArtwork()
       }
   }
    // MARK: - UI Components (Panel Header)

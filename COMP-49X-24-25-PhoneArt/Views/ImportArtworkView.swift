@@ -153,7 +153,7 @@ struct ImportArtworkView: View {
                Button("Cancel") {
                    viewModel.cancelImport()
                }
-               .foregroundColor(.black)
+               .foregroundColor(Color(UIColor.label))
                .padding(.vertical, 14)
                .padding(.horizontal, 30)
                .background(Color(uiColor: .secondarySystemBackground))
