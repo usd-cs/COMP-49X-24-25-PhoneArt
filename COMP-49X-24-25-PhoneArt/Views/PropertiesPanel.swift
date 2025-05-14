@@ -82,6 +82,9 @@ struct PropertiesPanel: View {
      "Vertical": "Moves the entire artwork vertically across the canvas."
  ]
  
+ // Add keyboard height state
+ @State private var keyboardHeight: CGFloat = 0
+ 
  var body: some View {
      // Wrap everything in a ZStack to layer the accessory view
      ZStack(alignment: .bottom) {
@@ -189,8 +192,24 @@ struct PropertiesPanel: View {
                  .transition(.move(edge: .bottom).combined(with: .opacity))
          }
      }
+     .offset(y: keyboardHeight > 0 ? keyboardHeight + 20 : 0)
+     .animation(.easeOut(duration: 0.25), value: keyboardHeight)
      .animation(.easeInOut(duration: 0.2), value: focusedField) // Animate accessory appearance
      .ignoresSafeArea(.keyboard, edges: .bottom) // Allow content to go under keyboard, accessory floats
+     .onAppear {
+         NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { notif in
+             if let frame = notif.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                 keyboardHeight = frame.height
+             }
+         }
+         NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { _ in
+             keyboardHeight = 0
+         }
+     }
+     .onDisappear {
+         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+         NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
+     }
  }
 
  // Computed property to get the correct text binding based on the focused field

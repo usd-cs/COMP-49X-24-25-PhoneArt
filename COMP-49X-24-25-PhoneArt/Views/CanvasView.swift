@@ -59,6 +59,7 @@ struct CanvasView: View {
     @State internal var showShapesPanel = false
     /// Add state variable for the gallery panel
    @State internal var showGalleryPanel = false
+    @State private var galleryPanelRefreshTrigger = 0
     /// Tracks whether we are switching between panels (rather than opening/closing)
     @State private var isSwitchingPanels = false
      /// The color currently applied to the base shape on the canvas
@@ -92,6 +93,8 @@ struct CanvasView: View {
     @State internal var loadedArtworkData: ArtworkData? = nil
     // Add state for tracking photo saving
     @State private var isSavingPhoto = false
+    /// State variable to control the visibility of the Feedback/Credits pop-up
+    @State private var showFeedbackCreditsSheet = false
    
     // Add state variables to handle gallery full selection
     @State private var galleryFullArtworks: [ArtworkData] = []
@@ -371,20 +374,7 @@ struct CanvasView: View {
                             showAlert = true
                         }
                     }) {
-                        Rectangle()
-                            .foregroundColor(.clear) // Match style
-                            .frame(width: 40, height: 40) // Match size
-                            .background(Color(uiColor: .systemBackground))
-                            .cornerRadius(8)
-                            .overlay(
-                                Image(systemName: "arrow.uturn.backward")
-                                    .font(.system(size: 20)) // Match icon size
-                                    .foregroundColor(Color(uiColor: .systemOrange)) // Different color for distinction
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
-                            )
+                        buttonIcon(systemName: "arrow.uturn.backward", color: .systemOrange) // Using the new buttonIcon with color
                     }
                     .accessibilityIdentifier("Undo Button")
                     
@@ -392,6 +382,19 @@ struct CanvasView: View {
                         .font(.system(size: 10))
                         .foregroundColor(.black)
                 }
+            }
+
+            // New Info Button
+            VStack(spacing: 4) {
+                Button(action: {
+                    showFeedbackCreditsSheet = true
+                }) {
+                    buttonIcon(systemName: "info.circle", color: .systemBlue) // Using the new buttonIcon with color
+                }
+                .accessibilityIdentifier("Info Button")
+                Text("Info")
+                    .font(.system(size: 10))
+                    .foregroundColor(.black)
             }
         }
         .frame(width: 60) // Increased width to accommodate text labels
@@ -470,6 +473,12 @@ struct CanvasView: View {
                     onLoadArtwork: loadArtwork,
                     onRenameArtwork: updateLoadedArtworkTitle // Pass the callback
                 )
+                // Add this modifier to trigger refresh
+                .onChange(of: galleryPanelRefreshTrigger) { _, _ in
+                    // This will call loadArtwork() in GalleryPanel
+                    // (GalleryPanel already calls loadArtwork on .onAppear, so this is only for programmatic refresh)
+                    NotificationCenter.default.post(name: Notification.Name("GalleryPanelRefresh"), object: nil)
+                }
             }
         }
     }
@@ -517,6 +526,31 @@ struct CanvasView: View {
                        }
                        return vm
                    }() // Immediately invoke the closure to get the configured ViewModel
+                )
+                .transition(.opacity.animation(.easeInOut))
+            }
+
+            if showFeedbackCreditsSheet {
+                // Removed the dimming overlay and its tap gesture
+                // Color.black.opacity(0.4)
+                //     .ignoresSafeArea()
+                //     .onTapGesture { showFeedbackCreditsSheet = false }
+
+                FeedbackCreditsView(
+                    viewModel: {
+                        let vm = FeedbackCreditsViewModel()
+                        vm.onSendFeedback = { feedbackText in
+                            // Implement actual feedback sending logic here
+                            // For example, using FirebaseService or another method
+                            print("Feedback submitted: \(feedbackText)")
+                            // You might want to show a confirmation message
+                            self.showFeedbackCreditsSheet = false
+                        }
+                        vm.onCancel = {
+                           self.showFeedbackCreditsSheet = false
+                       }
+                       return vm
+                   }()
                 )
                 .transition(.opacity.animation(.easeInOut))
             }
@@ -1287,7 +1321,7 @@ struct CanvasView: View {
             VStack(spacing: 4) {
                 Menu {
                     // Conditional Save Button
-                    if let artworkToUpdate = loadedArtworkData {
+                    if let artworkToUpdate = loadedArtworkData, artworkToUpdate.pieceId != nil {
                         Button(action: { updateCurrentArtwork(artwork: artworkToUpdate) }) {
                             Label("Save", systemImage: "square.and.arrow.down")
                         }
@@ -1531,6 +1565,10 @@ struct CanvasView: View {
                             UnsavedChangesHandler.saveFirstAction = nil
                             UnsavedChangesHandler.saveExistingArtworkAction = nil // Ensure this is also cleared
                         }
+                        // --- Add this: trigger gallery refresh if open ---
+                        if showGalleryPanel {
+                            galleryPanelRefreshTrigger += 1
+                        }
                     }
                     
                     // List pieces (async) - this shouldn't affect UI state
@@ -1603,6 +1641,9 @@ struct CanvasView: View {
 
     // Function to apply imported artwork data to the canvas state
     private func applyImportedArtwork(_ artworkString: String) {
+        performCanvasReset() // Reset canvas to a new state first
+        print (" [CanvasView] Applying imported artwork string.")
+        
         print("[DEBUG] applyImportedArtwork: Starting to apply artwork string")
         // Decode the string into a dictionary
         let decodedParams = ArtworkData.decode(from: artworkString)
@@ -1914,6 +1955,10 @@ struct CanvasView: View {
                     alertTitle = "Success"
                     alertMessage = "Artwork '\(artwork.title ?? "Untitled")' updated successfully!"
                     showAlert = true
+                    // --- Add this: trigger gallery refresh if open ---
+                    if showGalleryPanel {
+                        galleryPanelRefreshTrigger += 1
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -2010,7 +2055,7 @@ struct CanvasView: View {
         // Reset shape parameters
         shapeRotation = 0
         shapeScale = 1.0
-        shapeLayer = 0
+        shapeLayer = 1 // Set to 1 so there is something on the canvas
         shapeSkewX = 0
         shapeSkewY = 0
         shapeSpread = 0
@@ -2631,6 +2676,24 @@ struct CanvasView: View {
         )
     }
     
+    // Overloaded buttonIcon to accept a custom color
+    @ViewBuilder
+    private func buttonIcon(systemName: String, color: UIColor) -> some View {
+        VStack {
+            Image(systemName: systemName)
+                .font(.system(size: 20))
+                .foregroundColor(Color(uiColor: color))
+        }
+        .padding(8)
+        .frame(width: 40, height: 40)
+        .background(Color(uiColor: .systemBackground))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(uiColor: .systemGray3), lineWidth: 0.5)
+        )
+    }
+
     // MARK: - Artwork Replace Sheet
     
     internal struct ArtworkReplaceSheet: View {
