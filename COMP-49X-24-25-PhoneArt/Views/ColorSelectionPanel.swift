@@ -19,6 +19,7 @@ class ColorPresetManager: ObservableObject {
   
    @Published var numberOfVisiblePresets: Int = 5 {
        didSet {
+           print("[ColorPresetManager] numberOfVisiblePresets set to: \(numberOfVisiblePresets)")
            UserDefaults.standard.set(numberOfVisiblePresets, forKey: "numberOfVisiblePresets")
            distributeColorsToElements()
        }
@@ -112,6 +113,7 @@ class ColorPresetManager: ObservableObject {
    @Published var canvasElements: [UUID: Color] = [:]
   
    init() {
+       print("[ColorPresetManager] init called")
        // Initialize with default values first - 10 distinct colors
        self.colorPresets = [
            .purple, .blue, .pink, .yellow, .green,
@@ -324,6 +326,7 @@ class ColorPresetManager: ObservableObject {
    /// Updates the ColorPresetManager's properties based on decoded artwork parameters.
    /// - Parameter decodedParams: A dictionary decoded from an ArtworkData string.
    func update(from decodedParams: [String: String]) {
+       print("[ColorPresetManager] update(from:) called with params: \(decodedParams)")
        // Helper to safely extract double values
        func doubleValue(from key: String, default defaultValue: Double) -> Double {
            guard let stringValue = decodedParams[key], let value = Double(stringValue) else {
@@ -333,10 +336,13 @@ class ColorPresetManager: ObservableObject {
        }
        // Helper to safely extract Int values
        func intValue(from key: String, default defaultValue: Int) -> Int {
-           guard let stringValue = decodedParams[key], let value = Int(stringValue) else {
-               return defaultValue
+           guard let stringValue = decodedParams[key] else { return defaultValue }
+           if let intValue = Int(stringValue) {
+               return intValue
+           } else if let doubleValue = Double(stringValue) {
+               return Int(doubleValue)
            }
-           return value
+           return defaultValue
        }
        // Helper to safely extract Bool values
        func boolValue(from key: String, default defaultValue: Bool) -> Bool {
@@ -375,7 +381,11 @@ class ColorPresetManager: ObservableObject {
        self.saturationAdjustment = doubleValue(from: "satAdj", default: self.saturationAdjustment)
 
        // Update Preset Count (visible presets)
-       self.numberOfVisiblePresets = intValue(from: "presetCount", default: self.numberOfVisiblePresets)
+       let incomingPresetCount = decodedParams["presetCount"]
+       let newPresetCount = intValue(from: "presetCount", default: self.numberOfVisiblePresets)
+       print("[ColorPresetManager] Incoming presetCount string: \(String(describing: incomingPresetCount)), will set numberOfVisiblePresets to: \(newPresetCount)")
+       self.numberOfVisiblePresets = newPresetCount
+       print("[ColorPresetManager] numberOfVisiblePresets is now: \(self.numberOfVisiblePresets)")
 
        // Update Stroke & Alpha
        self.strokeColor = ArtworkData.hexToColor(decodedParams["strokeColor"] ?? "") ?? self.strokeColor
@@ -391,6 +401,7 @@ class ColorPresetManager: ObservableObject {
 
    /// Resets all manager properties to their initial default values.
    func resetToDefaults() {
+       print("[ColorPresetManager] resetToDefaults called")
        // Default Presets
        self.colorPresets = [
            .purple, .blue, .pink, .yellow, .green,
@@ -457,7 +468,6 @@ struct ColorSelectionPanel: View {
    @State private var showingTooltip: Bool = false
    @State private var tooltipText: String = ""
    @State private var activeTooltipIdentifier: String? = nil
-   @State private var presetCountText: String = "5"
    
    // MARK: - Tooltip Descriptions
    private let tooltipDescriptions: [String: String] = [
@@ -470,7 +480,17 @@ struct ColorSelectionPanel: View {
    /// - Parameter selectedColor: Binding to the color that will be applied to shapes
    init(selectedColor: Binding<Color>) {
        self._selectedColor = selectedColor
-       self._presetCountText = State(initialValue: "\(ColorPresetManager.shared.numberOfVisiblePresets)")
+   }
+  
+   private var presetCountTextBinding: Binding<String> {
+       Binding<String>(
+           get: { "\(presetManager.numberOfVisiblePresets)" },
+           set: { newValue in
+               if let intValue = Int(newValue), intValue >= 1, intValue <= 10 {
+                   presetManager.numberOfVisiblePresets = intValue
+               }
+           }
+       )
    }
   
    var body: some View {
@@ -487,7 +507,6 @@ struct ColorSelectionPanel: View {
                                    let newCount = max(1, min(10, Int(newValue)))
                                    if presetManager.numberOfVisiblePresets != newCount {
                                        presetManager.numberOfVisiblePresets = newCount
-                                       presetCountText = "\(newCount)"
                                       
                                        // Immediately notify about the change
                                        NotificationCenter.default.post(
@@ -505,7 +524,7 @@ struct ColorSelectionPanel: View {
                        )
                        .accessibilityIdentifier("Preset Count Slider")
                       
-                       CustomNumericField(text: $presetCountText, 
+                       CustomNumericField(text: presetCountTextBinding, 
                                         commitAction: { value in
                            if let intValue = Int(value), intValue >= 1, intValue <= 10 {
                                presetManager.numberOfVisiblePresets = intValue

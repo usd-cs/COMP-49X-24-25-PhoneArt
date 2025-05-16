@@ -1464,6 +1464,7 @@ struct CanvasView: View {
      // Modify access level
      // private func saveArtwork() {
     internal func saveArtwork(title: String? = nil, forceSaveAsNew: Bool = false) {
+        print("[DEBUG] Saving artwork with numberOfVisiblePresets: \(colorPresetManager.numberOfVisiblePresets)")
         let artworkString = getCurrentArtworkString()
         
         // Check if we're working with an existing artwork that should be updated
@@ -1685,8 +1686,15 @@ struct CanvasView: View {
         }
         
         // Apply saved preset count if available
-        if let presetCountString = decodedParams["presetCount"], let presetCount = Int(presetCountString) {
-            // Validate the range (1-10)
+        if let presetCountString = decodedParams["presetCount"] {
+            let presetCount: Int
+            if let intValue = Int(presetCountString) {
+                presetCount = intValue
+            } else if let doubleValue = Double(presetCountString) {
+                presetCount = Int(doubleValue)
+            } else {
+                presetCount = 5 // fallback default
+            }
             colorPresetManager.numberOfVisiblePresets = max(1, min(10, presetCount))
             print("Applied numberOfVisiblePresets: \(presetCount)")
         }
@@ -1892,6 +1900,8 @@ struct CanvasView: View {
         // Update ColorPresetManager with decoded color settings
         // This handles presets, background, rainbow settings, stroke, alpha, etc.
         ColorPresetManager.shared.update(from: decodedParams)
+        // Force UI update for ColorSelectionPanel
+        ColorPresetManager.shared.objectWillChange.send()
 
         // Set the loaded artwork string as the reference point
         lastCheckedArtworkString = artwork.artworkString
